@@ -1,0 +1,15 @@
+# Used when Netlify's "Base directory" is set to netlify-site. (The netlify.toml at the repo root does the same
+# when the base directory is left blank.)
+[build]
+  publish = "public"
+  command = "echo 'static site, nothing to build'"
+
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
