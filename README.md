@@ -50,8 +50,8 @@ once with `npm install -g @anthropic-ai/claude-code` and run `claude` to log in.
 ### Use it from your phone (free, just for you)
 
 ```bash
-start.bat online        # Windows
-./start.sh online       # Linux / macOS
+start.bat online        # Windows (or double-click start-online.bat)
+./start.sh online       # Linux / macOS (or ./start-online.sh)
 ```
 
 This runs the same studio with a login and opens a free Cloudflare link like
