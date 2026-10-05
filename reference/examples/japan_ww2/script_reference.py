@@ -1,0 +1,98 @@
+# (mood, narration) — mood: "fun" | "tense" | "somber"
+SCRIPT = [
+# --- hook ---
+("fun", "December 1941. Japan, a country a bit smaller than California, declares war on the United States, an industrial giant that can outbuild it many times over."),
+("fun", "And on Britain. Soon it's fighting the Dutch and Australia too. All while it's already stuck in a war with China that it is not winning."),
+("fun", "Sounds like a terrible plan. It was. So how did a whole country talk itself into it? Let's rewind about ninety years."),
+("fun", "This is the story of Japan in World War Two. Let's go."),
+# --- background ---
+("fun", "1853. American warships steam into Tokyo Bay and basically tell Japan: open up and trade with us, or else."),
+("fun", "Japan looks at their steam-powered ships, looks at its own wooden boats, and decides: if you can't beat them, become them."),
+("fun", "In a few decades it builds railways, factories, a modern army and a navy. This is the Meiji era, and it is fast."),
+("fun", "Then it starts winning wars. It beats China in 1895 and takes Taiwan. Then it beats Russia in 1905, which shocks pretty much everyone."),
+("fun", "A few years later it swallows Korea, and suddenly Japan is a real empire."),
+("tense", "But there's one problem baked in. Japan is a chain of islands with almost no oil, no rubber, and not much iron. Remember that. It's going to matter a lot."),
+# --- 1930s ---
+("tense", "Then the Great Depression hits. Japan's silk exports collapse, farmers go broke, and people start listening to the loudest guys in the room."),
+("tense", "And the loudest guys in the room are in the army. Their pitch is simple: we need land and resources, and the mainland has plenty."),
+("fun", "Their favorite target is Manchuria, a huge region in northeast China full of coal, iron and farmland."),
+("fun", "September 1931. Japanese officers set off a small bomb on their own railway near Mukden, then blame Chinese soldiers for it."),
+("fun", "Using that as an excuse, they conquer all of Manchuria in a few months. And the wild part? The government in Tokyo never ordered it."),
+("fun", "Does anyone get punished? Nope. Tokyo shrugs and sets up a puppet state called Manchukuo."),
+("fun", "The League of Nations, the UN's older and weaker cousin, says this is not okay. So Japan walks out and quits."),
+("tense", "And the army learns a dangerous lesson: act first, and the politicians will clean up after you."),
+("tense", "Back home, young officers murder a prime minister and even try a coup. It fails, but the army ends up stronger than ever."),
+# --- China war ---
+("tense", "July 1937. A shootout at the Marco Polo Bridge near Beijing spirals into a full war with China."),
+("fun", "Japan's generals promise it'll be over in three months. Write that down, because they're off by about eight years."),
+("tense", "Shanghai falls after months of brutal fighting, and the army marches on China's capital, Nanjing."),
+("somber", "What happened in Nanjing that December was a massacre. For weeks, Japanese troops killed civilians and prisoners. Many historians put the dead well over a hundred thousand."),
+("somber", "There's no joke here. It's one of the darkest chapters of the war, and it's still a painful subject in Asia today."),
+("tense", "But China doesn't surrender. It moves inland and keeps fighting. Now Japan has a huge army stuck in China, burning oil and steel it doesn't have."),
+# --- road to war ---
+("fun", "Meanwhile in Europe, Germany is steamrolling everyone. In 1940 Japan signs a pact with Germany and Italy. New friends. Terrible friends."),
+("tense", "With France and the Netherlands knocked out by Germany, their colonies in Southeast Asia suddenly look unguarded. Especially the oil-rich Dutch East Indies."),
+("tense", "Japan moves troops into French Indochina, first the north in 1940, then the south in July 1941."),
+("tense", "That's the last straw. America freezes Japanese money and, together with Britain and the Dutch, cuts off Japan's oil."),
+("tense", "Japan gets about eighty percent of its oil from America. Without it, the navy has maybe a year and a half of fuel left in its tanks."),
+("tense", "So Tokyo has two options. Option one: leave China and get the oil back. Option two: go take the oil by force."),
+("fun", "Leaving China would mean admitting years of war were for nothing. The army says absolutely not. So, option two."),
+("tense", "But grabbing the Dutch oil means sailing right past the American Philippines, and the US Pacific Fleet sitting at Pearl Harbor."),
+("tense", "Admiral Yamamoto, who runs Japan's main fleet, once studied in America. He warns: we can run wild for six months, maybe a year. After that, we lose."),
+("fun", "He's told to plan the attack anyway. So he plans a really, really good one."),
+# --- Pearl Harbor & expansion ---
+("tense", "December 7th, 1941. Six Japanese aircraft carriers sneak across the Pacific and launch over three hundred and fifty planes at Pearl Harbor, Hawaii."),
+("somber", "In under two hours they sink or damage eight battleships, and more than two thousand four hundred Americans are killed."),
+("fun", "A huge success. Except America's aircraft carriers weren't in port that day. And carriers are what this war will be decided with."),
+("fun", "And instead of scaring America into a deal, the attack does the opposite. America is now very angry, and very united."),
+("fun", "At the same time Japan hits everywhere at once. Malaya, Hong Kong, the Philippines, Guam, Wake Island. It's basically a speedrun."),
+("fun", "Japanese troops race down the Malay Peninsula, some of them on bicycles, and in February 1942 they take Singapore."),
+("fun", "Britain called Singapore a fortress. About eighty thousand Allied troops surrender. Churchill calls it the worst disaster in British history."),
+("tense", "The Philippines fall. The Dutch East Indies fall. Burma falls. By mid-1942 Japan controls a gigantic chunk of Asia and the Pacific."),
+("somber", "Japan calls it the Greater East Asia Co-Prosperity Sphere. It sounds friendly. It was not. Millions were forced into labor, and prisoners were starved and worked to death."),
+("tense", "And Yamamoto's six-month clock? It's ticking."),
+# --- turning point ---
+("fun", "April 1942. Sixteen American bombers take off from a carrier and hit Tokyo. The damage is tiny. The embarrassment is enormous."),
+("tense", "Japan decides to finish the American carriers for good, with a trap at a tiny island called Midway."),
+("fun", "One small problem. American codebreakers have cracked part of Japan's naval code. They know the plan. They know the date."),
+("tense", "June 4th, 1942. American dive bombers find the Japanese carriers at the worst moment, with fuel and bombs all over the decks."),
+("tense", "In about five minutes, three Japanese carriers are burning. A fourth is hit later that day. Almost exactly six months after Pearl Harbor."),
+("fun", "Because the real story of the Pacific War is factories. Japan builds great ships one at a time. America builds them on an assembly line."),
+("fun", "During the war Japan finishes around a dozen new carriers. America builds over a hundred, counting the small ones."),
+("tense", "Then comes Guadalcanal. For six months both sides pour ships, planes and men into one jungle island. Japanese soldiers call it Starvation Island, and in early 1943 Japan pulls out."),
+# --- the squeeze ---
+("fun", "Now America switches to island hopping. It skips the strongest islands, takes the ones it needs for airfields, and leaves the rest stranded."),
+("tense", "Meanwhile American submarines hunt Japanese cargo ships. By the end of the war they've sunk more than half of Japan's merchant fleet."),
+("fun", "Remember the oil problem? Japan now owns oil fields in the East Indies, but the tankers can't get home. The thing it went to war for never arrives."),
+("tense", "June 1944. America takes Saipan, close enough for its new B-29 bombers to reach Japan itself. Prime Minister Tojo resigns weeks later."),
+("tense", "October 1944. Leyte Gulf in the Philippines, probably the biggest naval battle in history. Japan throws in almost everything it has left, and loses."),
+("somber", "It's also where Japan starts kamikaze attacks: pilots told to crash their bomb-loaded planes straight into enemy ships. Many were students, under enormous pressure to volunteer."),
+# --- 1945 ---
+("somber", "By 1945 the B-29s are over Japan almost every night. On March 9th, firebombs burn a huge part of Tokyo. Around a hundred thousand people die in one night."),
+("somber", "February 1945, Iwo Jima. About twenty thousand Japanese soldiers dig into tunnels on a tiny volcanic island. Almost all of them die there."),
+("somber", "April, Okinawa. Nearly three months of fighting, and somewhere around a hundred thousand Okinawan civilians die."),
+("tense", "By now Germany has surrendered. Japan is alone, out of fuel, its navy basically gone. And its leaders still won't give up."),
+("tense", "Hardliners want one last bloody battle at home to get better terms, and they hope the Soviet Union will help broker a deal."),
+("tense", "In July the Allies demand unconditional surrender, or prompt and utter destruction. Tokyo basically ignores it."),
+("somber", "August 6th, 1945. A single American bomber drops an atomic bomb on Hiroshima. Most of the city is gone in an instant."),
+("tense", "August 8th. The Soviet Union declares war on Japan and smashes into Manchuria. So much for that deal."),
+("somber", "August 9th. A second atomic bomb hits Nagasaki."),
+("tense", "Even now Japan's war council is split, three against three. So Emperor Hirohito does something emperors basically never do. He decides: Japan will surrender."),
+("fun", "That night, army officers storm the palace to destroy the recording of his speech. They can't find it. The coup fails."),
+("fun", "August 15th. For the first time ever, ordinary Japanese people hear the Emperor's voice on the radio, in old court language most of them can barely follow."),
+("fun", "He says the war has developed, quote, not necessarily to Japan's advantage. Possibly the biggest understatement in history."),
+("somber", "September 2nd, 1945. On the battleship Missouri in Tokyo Bay, Japan signs the surrender. The war is over."),
+("somber", "Around three million Japanese died. And across Asia, especially in China, the war killed many millions more. Most of them civilians."),
+# --- payoff ---
+("fun", "Then comes the American occupation. Japan gets a new constitution, women get the vote, and the Emperor becomes just a symbol."),
+("fun", "Article 9 of that constitution says Japan gives up war forever. It's still there today."),
+("fun", "And then the twist. With no empire and no colonies, Japan rebuilds. Cars, electronics, bullet trains. By 1968 it's the second biggest economy on Earth."),
+("fun", "It finally gets all the oil, rubber and iron it ever wanted, not by conquering anyone, but by buying it. Which was, you know, always an option."),
+("fun", "So that's Japan in World War Two. It won almost every battle for six months, then lost everything, because its plan needed America to quit. America had other ideas."),
+("fun", "If you liked this, subscribe, and tell me in the comments which war we should do next. See you next time."),
+]
+
+if __name__ == "__main__":
+    w = sum(len(t.split()) for _, t in SCRIPT)
+    c = sum(len(t) for _, t in SCRIPT)
+    print(len(SCRIPT), "beats", w, "words", c, "chars", "~%.1f min @148wpm" % (w / 148))

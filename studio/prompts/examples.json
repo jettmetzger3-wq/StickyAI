@@ -1,0 +1,1323 @@
+[
+ {
+  "name": "hook_size_gap",
+  "mood": "fun",
+  "text": "December 1941. Japan, a country a bit smaller than California, declares war on the United States, an industrial giant that can outbuild it many times over.",
+  "scene": {
+   "bg": {
+    "type": "sunburst"
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "factory",
+     "x": 1500,
+     "y": 860,
+     "enter": "slide_right",
+     "at": 0.02,
+     "z": 0
+    },
+    {
+     "type": "char",
+     "kind": "america",
+     "x": 1300,
+     "y": 900,
+     "scale": 1.55,
+     "pose": "cross",
+     "mouth": "smirk",
+     "flip": true,
+     "at": 0.05
+    },
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 560,
+     "y": 900,
+     "scale": 0.85,
+     "pose": "raise_right",
+     "mouth": "open",
+     "eyes": "angry",
+     "extras": [
+      "vein"
+     ],
+     "at": 0
+    },
+    {
+     "type": "text",
+     "text": "JAPAN",
+     "x": 560,
+     "y": 545,
+     "size": 50,
+     "color": "red",
+     "at": 0.1
+    },
+    {
+     "type": "text",
+     "text": "USA",
+     "x": 1020,
+     "y": 330,
+     "size": 56,
+     "color": "navy",
+     "at": 0.15
+    },
+    {
+     "type": "text",
+     "text": "~ 1/10 the factories",
+     "x": 560,
+     "y": 430,
+     "size": 46,
+     "font": "hand",
+     "at": "word:industrial"
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.06
+    ],
+    "center": [
+     900,
+     560
+    ]
+   }
+  }
+ },
+ {
+  "name": "the_plan_board",
+  "mood": "fun",
+  "text": "Sounds like a terrible plan. It was. So how did a whole country talk itself into it? Let's rewind about ninety years.",
+  "scene": {
+   "bg": {
+    "type": "paper",
+    "color": "#F6F0E2"
+   },
+   "elements": [
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 520,
+     "y": 900,
+     "scale": 1.15,
+     "pose": "hold",
+     "mouth": "smile",
+     "eyes": "happy",
+     "at": 0
+    },
+    {
+     "type": "board",
+     "x": 1130,
+     "y": 480,
+     "w": 620,
+     "h": 460,
+     "title": "THE PLAN",
+     "lines": [
+      "1. fight everyone",
+      "2. ???",
+      "3. win"
+     ],
+     "size": 52,
+     "at": 0.05
+    },
+    {
+     "type": "text",
+     "text": "terrible",
+     "x": 1130,
+     "y": 650,
+     "size": 70,
+     "color": "red",
+     "font": "hand",
+     "at": "word:It was"
+    },
+    {
+     "type": "prop",
+     "name": "rewind",
+     "x": 1650,
+     "y": 170,
+     "idle": "pulse",
+     "params": {
+      "label": "~1850"
+     },
+     "at": "word:rewind"
+    }
+   ]
+  }
+ },
+ {
+  "name": "ships_arrive",
+  "mood": "fun",
+  "text": "1853. American warships steam into Tokyo Bay and basically tell Japan: open up and trade with us, or else.",
+  "scene": {
+   "bg": {
+    "type": "sea",
+    "horizon": 520,
+    "items": [
+     {
+      "type": "shape",
+      "shape": "ellipse",
+      "x": 1700,
+      "y": 550,
+      "rx": 400,
+      "ry": 90,
+      "fill": "#96BE78"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "group",
+     "enter": "slide_left",
+     "at": 0.02,
+     "idle": "float",
+     "move": {
+      "dx": 380,
+      "dy": 0,
+      "from": 0,
+      "to": 0.6
+     },
+     "items": [
+      {
+       "type": "prop",
+       "name": "ship",
+       "x": 300,
+       "y": 750,
+       "scale": 1.1,
+       "color": "#32343C"
+      },
+      {
+       "type": "prop",
+       "name": "smoke",
+       "x": 300,
+       "y": 640,
+       "scale": 0.8
+      },
+      {
+       "type": "prop",
+       "name": "ship",
+       "x": 60,
+       "y": 830,
+       "scale": 1.1,
+       "color": "#32343C"
+      },
+      {
+       "type": "prop",
+       "name": "ship",
+       "x": -160,
+       "y": 720,
+       "scale": 1.1,
+       "color": "#32343C"
+      }
+     ]
+    },
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 1580,
+     "y": 760,
+     "scale": 0.7,
+     "pose": "shrug",
+     "mouth": "o",
+     "eyes": "wide",
+     "look": -1,
+     "at": 0.15
+    },
+    {
+     "type": "text",
+     "text": "1853",
+     "x": 960,
+     "y": 140,
+     "size": 110,
+     "at": 0
+    },
+    {
+     "type": "bubble",
+     "text": "trade with us...\nor else.",
+     "x": 860,
+     "y": 320,
+     "w": 560,
+     "h": 150,
+     "size": 50,
+     "tail": "left",
+     "at": "word:open up"
+    }
+   ]
+  }
+ },
+ {
+  "name": "map_expansion",
+  "mood": "fun",
+  "text": "Then it starts winning wars. It beats China in 1895 and takes Taiwan. Then it beats Russia in 1905, which shocks pretty much everyone.",
+  "scene": {
+   "bg": {
+    "type": "map",
+    "center": [
+     128,
+     34
+    ],
+    "width": 72,
+    "territories": [
+     {
+      "countries": [
+       "Japan"
+      ],
+      "color": "red"
+     }
+    ],
+    "labels": [
+     {
+      "text": "CHINA",
+      "lon": 112,
+      "lat": 33,
+      "size": 50
+     },
+     {
+      "text": "RUSSIA",
+      "lon": 121,
+      "lat": 46.5,
+      "size": 50
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "territory",
+     "countries": [
+      "Taiwan"
+     ],
+     "color": "red",
+     "at": "word:Taiwan"
+    },
+    {
+     "type": "text",
+     "text": "1895",
+     "lon": 116,
+     "lat": 27.5,
+     "size": 62,
+     "color": "red",
+     "at": "word:1895"
+    },
+    {
+     "type": "territory",
+     "countries": [
+      "Russia"
+     ],
+     "box": [
+      141,
+      45.8,
+      145,
+      50
+     ],
+     "color": "red",
+     "at": "word:Russia"
+    },
+    {
+     "type": "text",
+     "text": "1905",
+     "lon": 146.5,
+     "lat": 45.5,
+     "size": 62,
+     "color": "red",
+     "at": "word:1905"
+    },
+    {
+     "type": "char",
+     "kind": "china",
+     "lon": 105,
+     "lat": 26,
+     "scale": 0.55,
+     "pose": "shrug",
+     "mouth": "frown",
+     "eyes": "sad",
+     "extras": [
+      "sweat"
+     ],
+     "at": "word:China"
+    },
+    {
+     "type": "char",
+     "kind": "ussr",
+     "lon": 133,
+     "lat": 40,
+     "scale": 0.45,
+     "pose": "up",
+     "mouth": "scream",
+     "eyes": "wide",
+     "extras": [
+      "!"
+     ],
+     "at": "word:Russia"
+    },
+    {
+     "type": "char",
+     "kind": "japan",
+     "lon": 141,
+     "lat": 34,
+     "scale": 0.5,
+     "pose": "cheer",
+     "mouth": "grin",
+     "at": 0.02
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.05
+    ],
+    "center": [
+     1000,
+     560
+    ]
+   }
+  }
+ },
+ {
+  "name": "missing_resources",
+  "mood": "tense",
+  "text": "But there's one problem baked in. Japan is a chain of islands with almost no oil, no rubber, and not much iron. Remember that. It's going to matter a lot.",
+  "scene": {
+   "bg": {
+    "type": "paper"
+   },
+   "elements": [
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 380,
+     "y": 880,
+     "pose": "shrug",
+     "mouth": "wavy",
+     "eyes": "worried",
+     "extras": [
+      "sweat"
+     ],
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "barrel",
+     "x": 820,
+     "y": 530,
+     "scale": 1.2,
+     "at": "word:oil"
+    },
+    {
+     "type": "text",
+     "text": "OIL",
+     "x": 820,
+     "y": 600,
+     "size": 50,
+     "at": "word:oil"
+    },
+    {
+     "type": "prop",
+     "name": "xmark",
+     "x": 820,
+     "y": 460,
+     "scale": 1.4,
+     "at": "word:oil",
+     "delay": 0.4
+    },
+    {
+     "type": "group",
+     "at": "word:rubber",
+     "items": [
+      {
+       "type": "shape",
+       "shape": "circle",
+       "x": 1150,
+       "y": 460,
+       "r": 80,
+       "fill": "#323238",
+       "width": 8
+      },
+      {
+       "type": "shape",
+       "shape": "circle",
+       "x": 1150,
+       "y": 460,
+       "r": 34,
+       "fill": "paper",
+       "width": 6
+      }
+     ]
+    },
+    {
+     "type": "text",
+     "text": "RUBBER",
+     "x": 1150,
+     "y": 600,
+     "size": 50,
+     "at": "word:rubber"
+    },
+    {
+     "type": "prop",
+     "name": "xmark",
+     "x": 1150,
+     "y": 460,
+     "scale": 1.4,
+     "at": "word:rubber",
+     "delay": 0.4
+    },
+    {
+     "type": "shape",
+     "shape": "poly",
+     "points": [
+      [
+       1390,
+       520
+      ],
+      [
+       1570,
+       520
+      ],
+      [
+       1540,
+       430
+      ],
+      [
+       1420,
+       430
+      ]
+     ],
+     "fill": "#9696A5",
+     "at": "word:iron"
+    },
+    {
+     "type": "text",
+     "text": "IRON",
+     "x": 1480,
+     "y": 600,
+     "size": 50,
+     "at": "word:iron"
+    },
+    {
+     "type": "prop",
+     "name": "xmark",
+     "x": 1480,
+     "y": 460,
+     "scale": 1.4,
+     "at": "word:iron",
+     "delay": 0.4
+    },
+    {
+     "type": "note",
+     "text": "REMEMBER:\nno oil!",
+     "x": 1500,
+     "y": 200,
+     "size": 50,
+     "enter": "drop",
+     "idle": "float",
+     "at": "word:Remember"
+    }
+   ]
+  }
+ },
+ {
+  "name": "chart_crash",
+  "mood": "tense",
+  "text": "Then the Great Depression hits. Japan's silk exports collapse, farmers go broke, and people start listening to the loudest guys in the room.",
+  "scene": {
+   "bg": {
+    "type": "paper",
+    "color": "#EEECE6"
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "line_chart",
+     "x": 1420,
+     "y": 700,
+     "color": "red",
+     "params": {
+      "w": 640,
+      "h": 420,
+      "points": [
+       [
+        0,
+        0.9
+       ],
+       [
+        0.3,
+        0.8
+       ],
+       [
+        0.55,
+        0.45
+       ],
+       [
+        0.8,
+        0.25
+       ],
+       [
+        1,
+        0.05
+       ]
+      ]
+     },
+     "enter": "wipe_right",
+     "edur": 1.4,
+     "at": 0.05
+    },
+    {
+     "type": "text",
+     "text": "SILK EXPORTS",
+     "x": 1420,
+     "y": 230,
+     "size": 50,
+     "at": 0.05
+    },
+    {
+     "type": "char",
+     "kind": "civ",
+     "x": 480,
+     "y": 880,
+     "pose": "shrug",
+     "mouth": "frown",
+     "eyes": "sad",
+     "extras": [
+      "tear"
+     ],
+     "at": "word:farmers"
+    },
+    {
+     "type": "text",
+     "text": "$0",
+     "x": 480,
+     "y": 380,
+     "size": 80,
+     "color": "red",
+     "at": "word:broke"
+    },
+    {
+     "type": "text",
+     "text": "1929: Great Depression",
+     "x": 640,
+     "y": 130,
+     "size": 60,
+     "at": 0
+    }
+   ]
+  }
+ },
+ {
+  "name": "false_flag",
+  "mood": "fun",
+  "text": "September 1931. Japanese officers set off a small bomb on their own railway near Mukden, then blame Chinese soldiers for it.",
+  "scene": {
+   "bg": {
+    "type": "ground",
+    "sky": "#FAD6A0",
+    "ground": "#CDAF78"
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "railway",
+     "x": 960,
+     "y": 792,
+     "enter": "none",
+     "z": 0
+    },
+    {
+     "type": "char",
+     "kind": "army",
+     "x": 330,
+     "y": 860,
+     "scale": 0.8,
+     "pose": "point_right",
+     "mouth": "smirk",
+     "at": 0.05
+    },
+    {
+     "type": "prop",
+     "name": "explosion",
+     "x": 900,
+     "y": 720,
+     "scale": 1.2,
+     "at": "word:bomb",
+     "sfx": "boom"
+    },
+    {
+     "type": "prop",
+     "name": "smoke",
+     "x": 900,
+     "y": 690,
+     "scale": 1.2,
+     "at": "word:bomb",
+     "delay": 0.3
+    },
+    {
+     "type": "char",
+     "kind": "china",
+     "x": 1550,
+     "y": 860,
+     "scale": 0.8,
+     "pose": "shrug",
+     "mouth": "o",
+     "eyes": "wide",
+     "extras": [
+      "q"
+     ],
+     "flip": true,
+     "at": "word:blame"
+    },
+    {
+     "type": "bubble",
+     "text": "THEY did it!",
+     "x": 520,
+     "y": 380,
+     "size": 52,
+     "tail": "left",
+     "at": "word:blame"
+    },
+    {
+     "type": "text",
+     "text": "Mukden, 1931",
+     "x": 960,
+     "y": 120,
+     "size": 70,
+     "at": 0
+    }
+   ]
+  }
+ },
+ {
+  "name": "walk_out",
+  "mood": "fun",
+  "text": "The League of Nations, the UN's older and weaker cousin, says this is not okay. So Japan walks out and quits.",
+  "scene": {
+   "bg": {
+    "type": "paper",
+    "color": "#E8E4DA"
+   },
+   "elements": [
+    {
+     "type": "shape",
+     "shape": "ellipse",
+     "x": 720,
+     "y": 640,
+     "rx": 470,
+     "ry": 120,
+     "fill": "#A07855",
+     "enter": "none",
+     "z": 0
+    },
+    {
+     "type": "char",
+     "kind": "britain",
+     "x": 400,
+     "y": 760,
+     "scale": 0.62,
+     "pose": "angry_fists",
+     "mouth": "frown",
+     "eyes": "angry",
+     "at": 0.03
+    },
+    {
+     "type": "char",
+     "kind": "france",
+     "x": 580,
+     "y": 760,
+     "scale": 0.62,
+     "pose": "angry_fists",
+     "mouth": "frown",
+     "eyes": "angry",
+     "at": 0.06
+    },
+    {
+     "type": "char",
+     "kind": "italy",
+     "x": 760,
+     "y": 760,
+     "scale": 0.62,
+     "pose": "angry_fists",
+     "mouth": "frown",
+     "eyes": "angry",
+     "at": 0.09
+    },
+    {
+     "type": "char",
+     "kind": "civ",
+     "x": 940,
+     "y": 760,
+     "scale": 0.62,
+     "pose": "angry_fists",
+     "mouth": "frown",
+     "eyes": "angry",
+     "at": 0.12
+    },
+    {
+     "type": "text",
+     "text": "League of Nations",
+     "x": 720,
+     "y": 140,
+     "size": 66,
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "door",
+     "x": 1600,
+     "y": 900,
+     "scale": 1.1,
+     "enter": "none"
+    },
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 1360,
+     "y": 900,
+     "scale": 0.85,
+     "pose": "hold",
+     "legs": "walk",
+     "mouth": "smirk",
+     "eyes": "closed",
+     "at": "word:walks",
+     "move": {
+      "dx": 180,
+      "dy": 0,
+      "from": "word:walks",
+      "to": 0.95
+     }
+    },
+    {
+     "type": "text",
+     "text": "BYE",
+     "x": 1600,
+     "y": 380,
+     "size": 80,
+     "color": "red",
+     "at": "word:quits"
+    }
+   ]
+  }
+ },
+ {
+  "name": "somber_memorial",
+  "mood": "somber",
+  "text": "What happened in Nanjing that December was a massacre. For weeks, Japanese troops killed civilians and prisoners. Many historians put the dead well over a hundred thousand.",
+  "scene": {
+   "bg": {
+    "type": "dark",
+    "color": "#282A38",
+    "items": [
+     {
+      "type": "prop",
+      "name": "skyline",
+      "x": 420,
+      "y": 820,
+      "params": {
+       "buildings": 16
+      }
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "candle",
+     "x": 560,
+     "y": 900,
+     "scale": 1.5,
+     "enter": "fade",
+     "at": 0.2
+    },
+    {
+     "type": "prop",
+     "name": "candle",
+     "x": 760,
+     "y": 900,
+     "scale": 1.5,
+     "enter": "fade",
+     "at": 0.28
+    },
+    {
+     "type": "prop",
+     "name": "candle",
+     "x": 960,
+     "y": 900,
+     "scale": 1.5,
+     "enter": "fade",
+     "at": 0.36
+    },
+    {
+     "type": "prop",
+     "name": "candle",
+     "x": 1160,
+     "y": 900,
+     "scale": 1.5,
+     "enter": "fade",
+     "at": 0.44
+    },
+    {
+     "type": "prop",
+     "name": "candle",
+     "x": 1360,
+     "y": 900,
+     "scale": 1.5,
+     "enter": "fade",
+     "at": 0.52
+    },
+    {
+     "type": "text",
+     "text": "Nanjing, December 1937",
+     "x": 960,
+     "y": 140,
+     "size": 62,
+     "color": "#EBEBF5",
+     "stroke_color": "#14141E",
+     "enter": "fade",
+     "at": 0
+    },
+    {
+     "type": "text",
+     "text": "100,000+ killed",
+     "x": 960,
+     "y": 260,
+     "size": 54,
+     "color": "#E6B4B4",
+     "stroke_color": "#14141E",
+     "enter": "fade",
+     "at": "word:hundred thousand"
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.03
+    ]
+   }
+  }
+ },
+ {
+  "name": "map_attack_arrow",
+  "mood": "tense",
+  "text": "December 7th, 1941. Six Japanese aircraft carriers sneak across the Pacific and launch over three hundred and fifty planes at Pearl Harbor, Hawaii.",
+  "scene": {
+   "bg": {
+    "type": "map",
+    "center": [
+     163,
+     18
+    ],
+    "width": 112,
+    "territories": [
+     {
+      "countries": [
+       "Japan",
+       "Korea",
+       "Taiwan"
+      ],
+      "color": "red"
+     },
+     {
+      "region": "manchuria",
+      "color": "red"
+     }
+    ],
+    "labels": [
+     {
+      "text": "PACIFIC OCEAN",
+      "lon": 172,
+      "lat": 8,
+      "size": 54
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "city",
+     "name": "Pearl Harbor",
+     "lon": -158,
+     "lat": 21.3,
+     "size": 42,
+     "color": "navy",
+     "at": 0
+    },
+    {
+     "type": "arrow",
+     "from": {
+      "lon": 146,
+      "lat": 39
+     },
+     "to": {
+      "lon": -162,
+      "lat": 24
+     },
+     "color": "white",
+     "width": 6,
+     "head": false,
+     "curve": -120,
+     "edur": 3.0,
+     "at": 0.1,
+     "z": 0
+    },
+    {
+     "type": "icons",
+     "icon": "mini_carrier",
+     "count": 6,
+     "per_row": 3,
+     "lon": 146,
+     "lat": 40,
+     "scale": 1.0,
+     "at": 0.08,
+     "move": {
+      "dx": 880,
+      "dy": 200,
+      "from": 0.1,
+      "to": 0.85
+     }
+    },
+    {
+     "type": "text",
+     "text": "Dec 7, 1941",
+     "x": 960,
+     "y": 120,
+     "size": 80,
+     "at": 0
+    },
+    {
+     "type": "text",
+     "text": "350+ planes",
+     "lon": -168,
+     "lat": 33,
+     "size": 50,
+     "color": "red",
+     "at": "word:three hundred"
+    }
+   ]
+  }
+ },
+ {
+  "name": "count_comparison",
+  "mood": "fun",
+  "text": "Japan builds about a dozen big carriers during the whole war. America builds over a hundred, counting the small ones.",
+  "scene": {
+   "bg": {
+    "type": "paper"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "JAPAN",
+     "x": 420,
+     "y": 200,
+     "size": 60,
+     "color": "red",
+     "at": 0
+    },
+    {
+     "type": "text",
+     "text": "USA",
+     "x": 1300,
+     "y": 200,
+     "size": 60,
+     "color": "navy",
+     "at": "word:America"
+    },
+    {
+     "type": "icons",
+     "icon": "mini_carrier",
+     "count": 12,
+     "per_row": 4,
+     "x": 420,
+     "y": 560,
+     "scale": 1.0,
+     "at": "word:dozen"
+    },
+    {
+     "type": "text",
+     "text": "~12",
+     "x": 420,
+     "y": 660,
+     "size": 70,
+     "at": "word:dozen"
+    },
+    {
+     "type": "icons",
+     "icon": "mini_carrier",
+     "count": 110,
+     "per_row": 11,
+     "x": 1300,
+     "y": 820,
+     "scale": 0.55,
+     "enter": "wipe_up",
+     "edur": 1.2,
+     "at": "word:hundred"
+    },
+    {
+     "type": "text",
+     "text": "100+",
+     "x": 1640,
+     "y": 300,
+     "size": 80,
+     "color": "navy",
+     "idle": "pulse",
+     "at": "word:hundred",
+     "delay": 0.5
+    },
+    {
+     "type": "text",
+     "text": "(counting the small ones)",
+     "x": 420,
+     "y": 800,
+     "size": 40,
+     "font": "hand",
+     "at": "word:counting"
+    }
+   ]
+  }
+ },
+ {
+  "name": "rome_map_region",
+  "mood": "fun",
+  "text": "By the year 117, Rome ruled everything around the Mediterranean, from Britain to Egypt. Romans just called it our sea.",
+  "scene": {
+   "bg": {
+    "type": "map",
+    "center": [
+     14,
+     41
+    ],
+    "width": 80,
+    "labels": [
+     {
+      "text": "MEDITERRANEAN",
+      "lon": 18,
+      "lat": 35,
+      "size": 38,
+      "color": "#3C6E96"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "territory",
+     "region": "roman_empire_117",
+     "color": "#A01E32",
+     "enter": "fade",
+     "edur": 1.2,
+     "at": 0.05
+    },
+    {
+     "type": "text",
+     "text": "117 AD",
+     "x": 960,
+     "y": 110,
+     "size": 80,
+     "at": 0
+    },
+    {
+     "type": "city",
+     "name": "Rome",
+     "lon": 12.5,
+     "lat": 41.9,
+     "size": 44,
+     "at": 0.1
+    },
+    {
+     "type": "char",
+     "kind": "roman",
+     "lon": 4,
+     "lat": 46.5,
+     "scale": 0.5,
+     "pose": "cheer",
+     "mouth": "grin",
+     "eyes": "happy",
+     "at": 0.1
+    },
+    {
+     "type": "text",
+     "text": "Britain",
+     "lon": -2,
+     "lat": 52.5,
+     "size": 40,
+     "font": "hand",
+     "at": "word:Britain"
+    },
+    {
+     "type": "text",
+     "text": "Egypt",
+     "lon": 29,
+     "lat": 31,
+     "size": 40,
+     "font": "hand",
+     "at": "word:Egypt"
+    },
+    {
+     "type": "bubble",
+     "text": "\"our sea\"",
+     "x": 1450,
+     "y": 640,
+     "size": 50,
+     "font": "hand",
+     "tail": "left",
+     "at": "word:our sea"
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.04
+    ]
+   }
+  }
+ },
+ {
+  "name": "broke_king",
+  "mood": "fun",
+  "text": "Meanwhile, back in England, King John is broke. He keeps raising taxes on his own barons to pay for wars he keeps losing.",
+  "scene": {
+   "bg": {
+    "type": "ground",
+    "sky": "#C6E4F5",
+    "ground": "#B4C88C"
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "castle",
+     "x": 1450,
+     "y": 860,
+     "scale": 1.1,
+     "enter": "none",
+     "z": 0
+    },
+    {
+     "type": "char",
+     "kind": "crown",
+     "x": 800,
+     "y": 880,
+     "scale": 1.0,
+     "pose": "shrug",
+     "mouth": "wavy",
+     "eyes": "worried",
+     "extras": [
+      "sweat"
+     ],
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "moneybag",
+     "x": 610,
+     "y": 880,
+     "scale": 0.6,
+     "at": "word:broke",
+     "exit": "word:taxes"
+    },
+    {
+     "type": "prop",
+     "name": "xmark",
+     "x": 610,
+     "y": 800,
+     "scale": 0.8,
+     "at": "word:broke",
+     "delay": 0.3,
+     "exit": "word:taxes"
+    },
+    {
+     "type": "char",
+     "kind": "helmet",
+     "x": 250,
+     "y": 900,
+     "scale": 0.8,
+     "pose": "angry_fists",
+     "mouth": "frown",
+     "eyes": "angry",
+     "at": "word:barons"
+    },
+    {
+     "type": "sign",
+     "text": "TAXES +50%",
+     "x": 500,
+     "y": 880,
+     "size": 44,
+     "at": "word:taxes"
+    },
+    {
+     "type": "text",
+     "text": "King John, 1214",
+     "x": 960,
+     "y": 110,
+     "size": 64,
+     "at": 0
+    },
+    {
+     "type": "text",
+     "text": "losing streak: 3",
+     "x": 1450,
+     "y": 330,
+     "size": 48,
+     "font": "hand",
+     "color": "red",
+     "at": "word:losing"
+    }
+   ]
+  }
+ },
+ {
+  "name": "outro_subscribe",
+  "mood": "fun",
+  "text": "That's the story. Want more history like this? Subscribe, and tell me in the comments which war we should do next. See you next time!",
+  "scene": {
+   "bg": {
+    "type": "sunburst",
+    "color": "#FAF4E4",
+    "ray": "#FFE2A0"
+   },
+   "elements": [
+    {
+     "type": "prop",
+     "name": "subscribe",
+     "x": 960,
+     "y": 300,
+     "scale": 1.2,
+     "idle": "pulse",
+     "at": "word:Subscribe"
+    },
+    {
+     "type": "char",
+     "kind": "japan",
+     "x": 600,
+     "y": 900,
+     "scale": 0.95,
+     "pose": "wave",
+     "mouth": "grin",
+     "eyes": "happy",
+     "at": 0
+    },
+    {
+     "type": "char",
+     "kind": "america",
+     "x": 1320,
+     "y": 900,
+     "scale": 1.1,
+     "pose": "raise_left",
+     "mouth": "grin",
+     "eyes": "happy",
+     "flip": true,
+     "at": 0.02
+    },
+    {
+     "type": "bubble",
+     "text": "which war next?",
+     "x": 960,
+     "y": 560,
+     "size": 50,
+     "font": "hand",
+     "tail": "down",
+     "at": "word:comments"
+    },
+    {
+     "type": "text",
+     "text": "see you next time!",
+     "x": 960,
+     "y": 130,
+     "size": 60,
+     "font": "hand",
+     "at": "word:See you"
+    }
+   ]
+  }
+ }
+]

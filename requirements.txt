@@ -1,0 +1,23 @@
+# Core (free mode)
+fastapi>=0.110
+uvicorn>=0.27
+python-multipart>=0.0.9
+pillow>=10.0
+numpy>=1.26
+scipy>=1.11
+shapely>=2.0
+soundfile>=0.12
+jsonschema>=4.20
+httpx>=0.25
+kokoro-onnx>=0.4
+yt-dlp>=2024.1.1
+youtube-transcript-api>=1.0
+pyttsx3>=2.90; sys_platform == "win32"
+
+# Optional paid providers (only used if you add API keys)
+anthropic>=1.0
+elevenlabs>=2.0
+higgsfield-client>=0.2
+
+# Optional: local Whisper transcription for videos without captions
+# faster-whisper>=1.0
