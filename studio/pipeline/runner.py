@@ -98,7 +98,7 @@ def run(project, start=None, stop_after=None, approve_cb=None, echo=None, stage_
         if meta["stages"].get(st, {}).get("status") == "skipped":
             continue
         try:
-            costs.check(project, st)
+            costs.check(project, st, only=((stage_kwargs or {}).get(st) or {}).get("only"))
         except costs.NeedsApproval as na:
             if approve_cb and approve_cb(na):
                 costs.approve(project, {st: na.cost.to_dict()})

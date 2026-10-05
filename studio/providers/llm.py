@@ -87,12 +87,23 @@ class ClaudeCLI(LLMBackend):
             return False, "the `claude` command was not found (" + self.install_hint + ")"
         return True, ""
 
+    def command(self):
+        """The command prefix to run Claude Code. On Windows, npm installs a `claude.cmd` wrapper; going through
+        cmd.exe would mangle quotes in our arguments (JSON schema, prompts), so we call its Node script directly."""
+        exe = self.path()
+        if exe and os.name == "nt" and exe.lower().endswith((".cmd", ".bat")):
+            base = os.path.dirname(exe)
+            js = os.path.join(base, "node_modules", "@anthropic-ai", "claude-code", "cli.js")
+            node = os.path.join(base, "node.exe")
+            if os.path.exists(js):
+                return [node if os.path.exists(node) else (shutil.which("node") or "node"), js]
+        return [exe]
+
     def estimate_tokens(self, in_chars, out_tokens, model=None):
         return Cost(0.0, note="uses your Claude subscription's usage limits, no API charges")
 
     def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label=""):
-        exe = self.path()
-        if not exe:
+        if not self.path():
             raise ProviderError("claude CLI not found")
         model = model or load_settings().get("llm_models", {}).get("claude_cli") or None
         env = dict(os.environ)
@@ -100,7 +111,7 @@ class ClaudeCLI(LLMBackend):
         for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
             env.pop(k, None)
         with tempfile.TemporaryDirectory(prefix="studio_claude_") as td:
-            cmd = [exe, "-p", "--output-format", "json", "--no-session-persistence"]
+            cmd = self.command() + ["-p", "--output-format", "json", "--no-session-persistence"]
             if images:
                 names = []
                 for i, src in enumerate(images):

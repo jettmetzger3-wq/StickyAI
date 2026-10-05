@@ -414,7 +414,12 @@ def repair_scene(scene, mood="fun", text=""):
             el["count"] = int(max(1, min(_f(el.get("count"), 6), 120)))
         elif t == "text":
             el["text"] = str(el.get("text", ""))[:120]
-            el["size"] = max(18, min(_f(el.get("size"), 64), 200))
+            el["size"] = max(30, min(_f(el.get("size"), 64), 200))
+            if bg["type"] in ("dark", "night"):
+                from .palette import color as _col
+                from .compiler import luminance
+                if el.get("color") is None or luminance(_col(el.get("color"))) < 0.45:
+                    el["color"] = "#EBEBF5"
             if el.get("font") not in (None, "bold", "hand"):
                 el["font"] = "hand" if "hand" in str(el.get("font")) else "bold"
         elif t in ("bubble", "note", "sign"):

@@ -29,6 +29,14 @@ _locks = {}
 _locks_guard = threading.Lock()
 
 
+def _sync(meta):
+    try:
+        from .. import db
+        db.sync(meta)
+    except Exception:
+        pass
+
+
 def slugify(s, maxlen=48):
     s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode()
     s = re.sub(r"[^a-zA-Z0-9]+", "-", s).strip("-").lower()
@@ -97,7 +105,8 @@ class Project:
             m.update(fields)
             m["updated"] = time.time()
             write_json(self.meta_path, m)
-            return m
+        _sync(m)
+        return m
 
     def set_stage(self, stage, **fields):
         def f(m):
@@ -153,6 +162,7 @@ def new_project(title, mode, source_url="", topic="", options=None, providers=No
     if mode != "youtube" and not (options or {}).get("style_url"):
         meta["stages"]["source"]["status"] = "skipped"
     write_json(pr.meta_path, meta)
+    _sync(meta)
     return pr
 
 

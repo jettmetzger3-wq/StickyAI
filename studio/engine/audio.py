@@ -290,8 +290,16 @@ def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, o
     return out_path
 
 
+def measure_lufs(path):
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", path, "-af", "ebur128", "-f", "null", "-"],
+                       capture_output=True, text=True)
+    m = re.findall(r"I:\s*(-?[\d.]+) LUFS", r.stderr)
+    return float(m[-1]) if m else None
+
+
 def loudnorm(in_path, out_path, I=-15.0, TP=-1.5, LRA=11.0):
-    """Two-pass ffmpeg loudnorm to -15 LUFS, true peak -1.5 dB."""
+    """Normalize to -15 LUFS, true peak -1.5 dB. First try a clean two-pass linear gain; if peaks stop that
+    from reaching the target (more than 0.7 LU short), fall back to ffmpeg's dynamic mode."""
     first = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", in_path, "-af",
                             f"loudnorm=I={I}:TP={TP}:LRA={LRA}:print_format=json", "-f", "null", "-"],
                            capture_output=True, text=True)
@@ -301,7 +309,10 @@ def loudnorm(in_path, out_path, I=-15.0, TP=-1.5, LRA=11.0):
         af = (f"loudnorm=I={I}:TP={TP}:LRA={LRA}:measured_I={st['input_i']}:measured_TP={st['input_tp']}:"
               f"measured_LRA={st['input_lra']}:measured_thresh={st['input_thresh']}:offset={st['target_offset']}:"
               f"linear=true")
-    else:
-        af = f"loudnorm=I={I}:TP={TP}:LRA={LRA}"
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", in_path, "-af", af, "-ar", str(SR), out_path], check=True)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", in_path, "-af", af, "-ar", str(SR), out_path], check=True)
+        got = measure_lufs(out_path)
+        if got is not None and abs(got - I) <= 0.7:
+            return out_path
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", in_path, "-af", f"loudnorm=I={I}:TP={TP}:LRA={LRA}",
+                    "-ar", str(SR), out_path], check=True)
     return out_path

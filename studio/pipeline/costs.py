@@ -28,7 +28,7 @@ def _minutes(meta):
     return float((meta.get("options") or {}).get("minutes") or 10)
 
 
-def stage_estimate(project, stage, meta=None):
+def stage_estimate(project, stage, meta=None, only=None):
     """Return (Cost, [(provider label, Cost)]) for one stage, using the real artifacts when they exist."""
     meta = meta or project.meta()
     opts = meta.get("options") or {}
@@ -37,7 +37,9 @@ def stage_estimate(project, stage, meta=None):
     script = project.script() or {}
     beats = script.get("beats") or []
     n = len(beats) or target_beats(_minutes(meta))
-    src_meta = read_json(project.p("source", "meta.json"), {}) or {}
+    if only is not None and stage in ("storyboard",):
+        n = max(1, len(only))
+    src_meta = getattr(project, "source_meta", None) or read_json(project.p("source", "meta.json"), {}) or {}
     duration = float(src_meta.get("duration") or _minutes(meta) * 60)
 
     if stage == "source":
@@ -110,9 +112,9 @@ def approve(project, stages_costs):
     project.update(f)
 
 
-def check(project, stage):
+def check(project, stage, only=None):
     """Raise NeedsApproval unless this stage is free or already approved for (about) this amount."""
-    cost, lines = stage_estimate(project, stage)
+    cost, lines = stage_estimate(project, stage, only=only)
     if not is_paid(cost, lines):
         return cost
     ap = (project.meta().get("approvals") or {}).get(stage)
@@ -156,3 +158,28 @@ def describe(cost_dict):
     if not c.get("known", True):
         parts.append("amount set by provider")
     return ", ".join(parts) or "free"
+
+
+class Draft:
+    """A not-yet-created project, so the New Video form can show estimates before anything runs."""
+
+    def __init__(self, mode, providers, options, duration=None):
+        self._meta = dict(mode=mode, providers=providers, options=options,
+                          stages={"source": {"status": "pending" if (mode == "youtube" or options.get("style_url")) else "skipped"}})
+        self.source_meta = {"duration": duration} if duration else None
+
+    def meta(self):
+        return self._meta
+
+    def script(self):
+        return None
+
+    def voice(self):
+        return {}
+
+    def p(self, *parts):
+        return "/nonexistent/" + "/".join(parts)
+
+
+def estimate_draft(mode, providers, options, duration=None):
+    return estimate_all(Draft(mode, providers, options, duration))

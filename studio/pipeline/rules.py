@@ -159,7 +159,7 @@ def offline_package(script, minutes):
     if chapters:
         chapters[0]["title"] = "Intro"
     title = script.get("title") or script.get("topic") or "History"
-    return dict(titles=[f"{title}, Explained", f"The Entire Story of {title}", f"{title} in {max(1, round(minutes))} Minutes"],
+    return dict(titles=[f"{title}, Explained", f"The Entire Story of {title}", f"{title} in {max(1, round(minutes))} Minute{'s' if round(minutes) > 1 else ''}"],
                 hook=f"How did {title} really happen? Here's the whole story, told with stickmen.",
                 chapters=chapters, question=f"What should we cover after {title}?",
                 tags=[title, "history", "stickman", "animated history", "explained", "documentary"],

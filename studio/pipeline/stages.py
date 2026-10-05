@@ -1,6 +1,7 @@
 """The seven pipeline stages. Each is re-runnable and only redoes work whose inputs changed."""
 import concurrent.futures as cf
 import hashlib
+import multiprocessing as mp
 import json
 import os
 import re
@@ -313,7 +314,7 @@ def render_previews(ctx, indices, p0=0.0, p1=1.0):
     if not jobs:
         return
     warns = {}
-    with cf.ProcessPoolExecutor(max_workers=workers()) as ex:
+    with cf.ProcessPoolExecutor(max_workers=workers(), mp_context=mp.get_context("spawn")) as ex:
         futs = {ex.submit(render_still, j, out, 0.85, (640, 360), True): j["idx"] for j, out in jobs}
         for k, fut in enumerate(cf.as_completed(futs)):
             i = futs[fut]
@@ -426,7 +427,7 @@ def stage_render(ctx, only=None, force=False):
     if jobs:
         # longest scenes first for better load balancing
         jobs.sort(key=lambda kj: -kj[1]["frames"])
-        with cf.ProcessPoolExecutor(max_workers=workers()) as ex:
+        with cf.ProcessPoolExecutor(max_workers=workers(), mp_context=mp.get_context("spawn")) as ex:
             futs = {ex.submit(render_segment, j): (k, j) for k, j in jobs}
             for n_done, fut in enumerate(cf.as_completed(futs), 1):
                 k, j = futs[fut]

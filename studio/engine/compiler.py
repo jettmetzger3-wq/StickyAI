@@ -69,6 +69,11 @@ def anim(el, sc, default_enter="pop"):
                 z=int(num(el.get("z"), 1)))
 
 
+def luminance(c):
+    r, g, b = (v / 255 for v in c[:3])
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
 def text_lines(t):
     return str(t if t is not None else "").replace("\\n", "\n")
 
@@ -102,8 +107,11 @@ def draw_text(p, el, sc):
     size = num(el.get("size"), 64)
     for i, ln in enumerate(lines):
         yy = y + (i - (len(lines) - 1) / 2) * size * 1.12
-        p.text(ln, x, yy, size, C(el.get("color"), INK), anchor=anchor, stroke=num(el.get("stroke"), 9 if f == "bold" else 7),
-               scol=C(el.get("stroke_color"), WHITE), f=f)
+        fill = C(el.get("color"), INK)
+        # outline contrasts with the fill: light text gets a dark outline, dark text a white one
+        auto_stroke = (20, 20, 30) if luminance(fill) > 0.6 else WHITE
+        p.text(ln, x, yy, size, fill, anchor=anchor, stroke=num(el.get("stroke"), 9 if f == "bold" else 7),
+               scol=C(el.get("stroke_color"), auto_stroke), f=f)
 
 
 def bubble_size(el):

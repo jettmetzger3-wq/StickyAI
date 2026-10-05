@@ -29,7 +29,6 @@ DEFAULT_SETTINGS = {
     "autopilot": True,
     "providers": {
         "transcript": "youtube_captions",
-        "watch": "auto",
         "llm": "claude_cli",
         "voice": "kokoro",
         "music": "synth",
