@@ -157,7 +157,9 @@ def main(port=None, open_browser=True):
     except OSError:
         pass
 
-    site = SiteLink(config.load_settings().get("netlify_site"), config.secret("STUDIO_LINK_SECRET"))
+    # the Netlify site comes from Settings, or from STUDIO_NETLIFY_SITE in .env
+    site = SiteLink(config.load_settings().get("netlify_site") or config.secret("STUDIO_NETLIFY_SITE"),
+                    config.secret("STUDIO_LINK_SECRET"))
 
     def on_url(url):
         with open(url_file(), "w", encoding="utf-8") as f:
