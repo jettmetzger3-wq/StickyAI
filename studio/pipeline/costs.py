@@ -7,6 +7,7 @@ import json
 import time
 
 from .. import providers as P
+from ..config import load_settings
 from ..prompts import target_beats
 from .project import read_json
 
@@ -14,9 +15,22 @@ MARGIN = 1.25
 
 
 class NeedsApproval(Exception):
-    def __init__(self, stage, cost, lines):
+    def __init__(self, stage, cost, lines, over_budget=None):
         super().__init__(f"{stage} needs approval")
         self.stage, self.cost, self.lines = stage, cost, lines
+        self.over_budget = over_budget      # dict(budget, spent) when this would push the video over its budget
+
+
+def spent(meta):
+    return round(sum(float(c.get("usd") or 0) for c in meta.get("costs") or []), 4)
+
+
+def budget(meta):
+    """Per-video spending limit in dollars (Settings > max_usd_per_video, raised when you approve going over)."""
+    b = meta.get("budget_usd")
+    if b is None:
+        b = load_settings().get("max_usd_per_video") or 0
+    return float(b or 0)
 
 
 def _prov(meta, stage):
@@ -28,7 +42,7 @@ def _minutes(meta):
     return float((meta.get("options") or {}).get("minutes") or 10)
 
 
-def stage_estimate(project, stage, meta=None, only=None):
+def stage_estimate(project, stage, meta=None, only=None, for_check=False):
     """Return (Cost, [(provider label, Cost)]) for one stage, using the real artifacts when they exist."""
     meta = meta or project.meta()
     opts = meta.get("options") or {}
@@ -79,6 +93,18 @@ def stage_estimate(project, stage, meta=None, only=None):
         ip = _prov(meta, "image")
         if ip.paid:
             lines.append((ip.label, ip.estimate()))
+    elif stage == "shorts":
+        sp = _prov(meta, "shorts")
+        if sp.paid:
+            q = meta.get("calliope_quote")
+            if q:
+                c = q["cost"]
+                lines.append((sp.label, P.Cost(c.get("usd", 0), c.get("credits", 0), c.get("credit_unit", ""),
+                                               c.get("known", True), c.get("note", ""))))
+            elif not for_check:
+                # the step asks Calliope for the exact price first and pauses for your OK on that number
+                lines.append((sp.label, P.Cost(0.0, known=False, credit_unit="Calliope credits",
+                                               note="Calliope quotes the exact credits first; you approve that number")))
     total = P.FREE
     for _, c in lines:
         total = total + c
@@ -88,7 +114,7 @@ def stage_estimate(project, stage, meta=None, only=None):
 def estimate_all(project):
     meta = project.meta()
     out = {}
-    for st in ("source", "script", "storyboard", "voice", "mix", "package"):
+    for st in ("source", "script", "storyboard", "voice", "mix", "package", "shorts"):
         if meta.get("stages", {}).get(st, {}).get("status") == "skipped":
             continue
         c, lines = stage_estimate(project, st, meta)
@@ -101,23 +127,33 @@ def is_paid(cost, lines):
 
 
 def approve(project, stages_costs):
-    """stages_costs: {stage: cost_dict}. Records what the user saw and clicked OK on."""
+    """stages_costs: {stage: cost_dict}. Records what the user saw and clicked OK on.
+    Approving a step that goes over the video's budget raises the budget to cover it."""
     def f(m):
         ap = m.setdefault("approvals", {})
         for st, c in stages_costs.items():
             ap[st] = dict(usd=float(c.get("usd") or 0), credits=float(c.get("credits") or 0),
                           known=bool(c.get("known", True)), at=time.time())
-        if m.get("pending") and m["pending"].get("stage") in stages_costs and m["pending"].get("type") == "approval":
+        pend = m.get("pending")
+        if pend and pend.get("type") == "approval" and pend.get("stage") in stages_costs:
+            if pend.get("over_budget"):
+                usd = float(stages_costs[pend["stage"]].get("usd") or 0)
+                m["budget_usd"] = round(max(budget(m), spent(m) + usd * MARGIN + 0.01), 2)
             m["pending"] = None
     project.update(f)
 
 
 def check(project, stage, only=None):
-    """Raise NeedsApproval unless this stage is free or already approved for (about) this amount."""
-    cost, lines = stage_estimate(project, stage, only=only)
+    """Raise NeedsApproval unless this stage is free or already approved for (about) this amount,
+    and it keeps the video under its budget."""
+    cost, lines = stage_estimate(project, stage, only=only, for_check=True)
     if not is_paid(cost, lines):
         return cost
-    ap = (project.meta().get("approvals") or {}).get(stage)
+    meta = project.meta()
+    b = budget(meta)
+    if b > 0 and cost.usd > 0 and spent(meta) + cost.usd > b + 0.005 and not meta.get("auto_approve"):
+        raise NeedsApproval(stage, cost, lines, over_budget=dict(budget=b, spent=spent(meta)))
+    ap = (meta.get("approvals") or {}).get(stage)
     if ap:
         ok_usd = cost.usd <= ap["usd"] * MARGIN + 0.01
         ok_cr = cost.credits <= ap["credits"] * MARGIN + 1
@@ -136,7 +172,7 @@ def record(project, stage, provider, usd=0.0, credits=0.0, note=""):
 def balances(meta):
     """Balances for the paid providers this project uses (only where the provider API exposes it)."""
     out = {}
-    for stage in ("transcript", "llm", "voice", "music", "image"):
+    for stage in ("transcript", "llm", "voice", "music", "image", "shorts"):
         try:
             p = _prov(meta, stage)
         except KeyError:

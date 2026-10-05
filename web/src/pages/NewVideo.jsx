@@ -1,13 +1,83 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, fmtCost, fmtTime, sumCosts } from "../api.js";
 import { Badge, Button, Card, cx, ErrorBox, Field, Spinner, Toggle } from "../ui.jsx";
-import { go } from "../App.jsx";
+import { go, useConfig } from "../App.jsx";
 import VoicePicker from "./VoicePicker.jsx";
 
-const STAGE_ORDER = ["transcript", "llm", "voice", "music", "image"];
-const EST_LABELS = { source: "Watch source", script: "Script", storyboard: "Storyboard", voice: "Voice", mix: "Music", package: "Title & thumbnail" };
+const STAGE_ORDER = ["transcript", "llm", "voice", "music", "image", "shorts"];
+const STAGE_NAMES = { transcript: "Transcript", llm: "Writer", voice: "Voice", music: "Music", image: "Thumbnail art", shorts: "Shorts teaser" };
+const EST_LABELS = {
+  source: "Watch source",
+  script: "Script",
+  storyboard: "Storyboard",
+  voice: "Voice",
+  mix: "Music",
+  package: "Title & thumbnail",
+  shorts: "Shorts teaser",
+};
+
+// Hosted website, normal user: pick Free or Pro; the plan decides the tools and the allowance pays for it.
+function PlanPicker({ cfg, tier, setTier, minutes }) {
+  const u = cfg.user.usage;
+  const plans = cfg.pricing.plans;
+  const freeLeft = Math.max(0, u.free_videos_limit - u.free_videos_used);
+  const proOk = u.plan === "pro" || u.extra_minutes > 0;
+  const card = (id, title, lines, ok) => (
+    <button
+      key={id}
+      disabled={!ok}
+      onClick={() => setTier(id)}
+      className={cx(
+        "rounded-2xl border-2 p-4 text-left transition disabled:opacity-50",
+        tier === id ? "border-amber-500 bg-amber-50 dark:bg-amber-500/10" : "border-stone-200 hover:border-stone-300 dark:border-zinc-800 dark:hover:border-zinc-700"
+      )}
+    >
+      <div className="mb-1 flex items-center justify-between">
+        <span className="font-semibold">{title}</span>
+        <Badge kind={id === "free" ? "free" : "paid"}>{id === "free" ? `${freeLeft} left` : `${u.pro_minutes_left} min left`}</Badge>
+      </div>
+      <ul className="space-y-0.5 text-xs text-stone-600 dark:text-zinc-400">
+        {lines.map((b) => (
+          <li key={b}>• {b}</li>
+        ))}
+      </ul>
+    </button>
+  );
+  return (
+    <div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {card(
+          "free",
+          "Free",
+          [`Up to ${plans.free.max_minutes} min`, "Kokoro voice, built-in music & thumbnail", plans.free.watermark ? "Small watermark" : "No watermark"],
+          freeLeft > 0
+        )}
+        {card("pro", "Pro", [`Up to ${plans.pro.max_minutes} min`, "ElevenLabs voice, AI music & thumbnail art", "No watermark"], proOk)}
+      </div>
+      {!proOk && (
+        <p className="mt-3 text-sm">
+          Want studio voices and AI music?{" "}
+          <a href="#/pricing" className="font-medium text-amber-700 underline dark:text-amber-400">
+            Upgrade to Pro
+          </a>
+        </p>
+      )}
+      {tier === "pro" && minutes > u.pro_minutes_left && (
+        <p className="mt-3 text-sm text-red-700 dark:text-red-400">
+          This needs {minutes} Pro minutes and you have {u.pro_minutes_left}. Make it shorter or{" "}
+          <a href="#/pricing" className="underline">
+            buy more minutes
+          </a>
+          .
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function NewVideo() {
+  const cfg = useConfig();
+  const planMode = cfg.mode === "hosted" && !cfg.user?.is_admin;
   const [mode, setMode] = useState("youtube");
   const [url, setUrl] = useState("");
   const [preview, setPreview] = useState(null);
@@ -23,7 +93,8 @@ export default function NewVideo() {
   const [autopilot, setAutopilot] = useState(true);
   const [shareCopy, setShareCopy] = useState(true);
   const [credit, setCredit] = useState(true);
-  const [tier, setTier] = useState("free");
+  const [tier, setTier] = useState(planMode && cfg.user?.usage?.plan === "pro" ? "pro" : "free");
+  const [aiShort, setAiShort] = useState(false);
   const [catalog, setCatalog] = useState(null);
   const [tiers, setTiers] = useState(null);
   const [notes, setNotes] = useState({});
@@ -50,14 +121,24 @@ export default function NewVideo() {
       // "Custom" starts from your default tools (Settings > Tools)
       setCustom((c) => ({ ...(c || {}), ...d.settings.providers }));
     });
-    api.get("/api/balances").then((d) => setBalances(d.balances || {})).catch(() => {});
+    if (!planMode) api.get("/api/balances").then((d) => setBalances(d.balances || {})).catch(() => {});
   }, []);
+
+  const maxMinutes = planMode ? cfg.pricing.plans[tier]?.max_minutes || 3 : 20;
+  useEffect(() => {
+    if (minutes > maxMinutes) setMinutes(maxMinutes);
+  }, [maxMinutes]);
 
   const providers = useMemo(() => {
     if (!tiers) return null;
+    if (planMode) {
+      // what the voice picker should offer; the server picks the real tools from the plan
+      const el = catalog?.voice?.find((p) => p.id === "elevenlabs")?.available;
+      return { ...tiers.free, voice: tier === "pro" && el ? "elevenlabs" : "kokoro" };
+    }
     if (tier === "custom") return custom;
     return tiers[tier];
-  }, [tier, tiers, custom]);
+  }, [tier, tiers, custom, catalog]);
 
   // fetch the YouTube preview when a link is pasted
   const lastUrl = useRef("");
@@ -73,7 +154,7 @@ export default function NewVideo() {
         .post("/api/source/preview", { url: u })
         .then((d) => {
           setPreview(d);
-          if (d.duration) setMinutes(Math.max(1, Math.min(20, Math.round(d.duration / 60))));
+          if (d.duration) setMinutes(Math.max(1, Math.min(maxMinutes, Math.round(d.duration / 60))));
         })
         .catch((e) => {
           setPreview(null);
@@ -84,9 +165,9 @@ export default function NewVideo() {
     return () => clearTimeout(t);
   }, [url, mode]);
 
-  // live cost estimate
+  // live cost estimate (not on the hosted website: there the plan covers the cost)
   useEffect(() => {
-    if (!providers) return;
+    if (!providers || planMode) return;
     const t = setTimeout(() => {
       api
         .post("/api/estimate", {
@@ -133,7 +214,10 @@ export default function NewVideo() {
         providers,
         voice,
         approve,
+        tier: planMode ? tier : "",
+        ai_short: planMode && aiShort,
       });
+      if (planMode) cfg.reload();
       go(`/p/${encodeURIComponent(r.slug)}`);
     } catch (e) {
       setError(e.message);
@@ -243,7 +327,7 @@ export default function NewVideo() {
           )}
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label={`Target length: ${minutes} min`} hint={`About ${Math.round(minutes * 8)} scenes`}>
-              <input type="range" min="1" max="20" step="0.5" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className="w-full" />
+              <input type="range" min="1" max={maxMinutes} step="0.5" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} className="w-full" />
             </Field>
             <Field label="Tone">
               <input className="w-full" value={tone} onChange={(e) => setTone(e.target.value)} />
@@ -254,16 +338,39 @@ export default function NewVideo() {
           </Field>
         </Card>
 
+        {planMode && (
+          <Card title="Plan">
+            <PlanPicker cfg={cfg} tier={tier} setTier={setTier} minutes={minutes} />
+            {tier === "pro" &&
+              cfg.pricing.plans.pro.shorts?.includes("calliope") &&
+              catalog?.shorts?.find((p) => p.id === "calliope")?.available && (
+                <div className="mt-4">
+                  <Toggle
+                    checked={aiShort}
+                    onChange={setAiShort}
+                    label={`Also make an AI-illustrated Short with Calliope (+${cfg.pricing.ai_short_minutes} Pro min)`}
+                    hint="Every video already gets a free stickman Short."
+                  />
+                </div>
+              )}
+          </Card>
+        )}
+        {!planMode && (
         <Card title="Quality">
           <div className="grid gap-3 sm:grid-cols-3">
             {tierCard("free", "Free", "$0", ["Claude Code writes (your plan)", "Kokoro voice (offline)", "Built-in music & thumbnail"])}
-            {tierCard("pro", "Pro", "paid", ["Anthropic API writer", "ElevenLabs voice + exact word timing", "ElevenLabs music & AI thumbnail art"])}
+            {tierCard("pro", "Pro", "paid", [
+              "Anthropic API writer",
+              "ElevenLabs voice + exact word timing",
+              "ElevenLabs music & AI thumbnail art",
+              "Calliope AI Short (if connected)",
+            ])}
             {tierCard("custom", "Custom", "mix", ["Pick each tool yourself", "Free ones are always listed first"])}
           </div>
           {tier === "custom" && catalog && (
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {STAGE_ORDER.filter((st) => st !== "transcript" || mode === "youtube").map((st) => (
-                <Field key={st} label={{ transcript: "Transcript", llm: "Writer", voice: "Voice", music: "Music", image: "Thumbnail art" }[st]}>
+                <Field key={st} label={STAGE_NAMES[st]}>
                   <select className="w-full" value={custom[st]} onChange={(e) => setCustom({ ...custom, [st]: e.target.value })}>
                     {catalog[st].map((p) => (
                       <option key={p.id} value={p.id}>
@@ -293,6 +400,7 @@ export default function NewVideo() {
             </div>
           )}
         </Card>
+        )}
 
         <Card title="Voice">
           {providers && settings && <VoicePicker provider={providers.voice} settings={settings} value={voice} onChange={setVoice} />}
@@ -312,6 +420,32 @@ export default function NewVideo() {
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        {planMode ? (
+          <Card title="Your plan">
+            {tier === "free" ? (
+              <p className="text-sm">
+                Uses <b>1</b> of your {cfg.user.usage.free_videos_limit} free videos this month (
+                {Math.max(0, cfg.user.usage.free_videos_limit - cfg.user.usage.free_videos_used)} left).
+              </p>
+            ) : (
+              <p className="text-sm">
+                Uses up to <b>{minutes + (aiShort ? cfg.pricing.ai_short_minutes : 0)}</b> of your {cfg.user.usage.pro_minutes_left} Pro minutes. If the video comes
+                out shorter, the rest comes back.
+              </p>
+            )}
+            <p className="mt-2 text-xs text-stone-500 dark:text-zinc-400">No extra charges: the tools are included in your plan.</p>
+            <Button variant="primary" size="lg" className="mt-4 w-full" disabled={busy} onClick={start}>
+              {busy ? <Spinner /> : null}
+              Make my video
+            </Button>
+            <ErrorBox error={error} />
+            {error && /upgrade|minutes|plan/i.test(error) && (
+              <a href="#/pricing" className="mt-2 block text-sm underline">
+                See plans
+              </a>
+            )}
+          </Card>
+        ) : (
         <Card title="Cost">
           {!estimate ? (
             <Spinner />
@@ -361,6 +495,7 @@ export default function NewVideo() {
           </Button>
           <ErrorBox error={error} />
         </Card>
+        )}
         <Card>
           <ol className="space-y-1 text-xs text-stone-600 dark:text-zinc-400">
             {mode === "youtube" && <li>1. Watch: captions + frames of the source video</li>}
@@ -370,6 +505,7 @@ export default function NewVideo() {
             <li>· Render: animated scenes, captions</li>
             <li>· Music & mix: -15 LUFS final mix</li>
             <li>· Package: 3 titles, description with chapters, tags, thumbnail</li>
+            <li>· Short: a vertical teaser for YouTube Shorts</li>
           </ol>
         </Card>
       </div>

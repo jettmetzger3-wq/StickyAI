@@ -1,6 +1,7 @@
 // Small fetch helpers for the Python backend.
 async function request(method, url, body, isForm) {
-  const opts = { method, headers: {} };
+  // X-Studio: other websites can't add this header, so they can't make the dashboard do things for them
+  const opts = { method, headers: { "X-Studio": "1" }, credentials: "same-origin" };
   if (body !== undefined) {
     if (isForm) opts.body = body;
     else {
@@ -15,6 +16,10 @@ async function request(method, url, body, isForm) {
     data = text ? JSON.parse(text) : null;
   } catch {
     data = { detail: text };
+  }
+  if (res.status === 401 && !url.startsWith("/api/auth/")) {
+    // hosted website: the login expired; App shows the login page
+    window.dispatchEvent(new Event("studio:logged-out"));
   }
   if (!res.ok) {
     const err = new Error((data && (data.detail || data.message)) || `HTTP ${res.status}`);

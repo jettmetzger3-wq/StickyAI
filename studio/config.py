@@ -13,15 +13,36 @@ DATA_DIR = os.environ.get("STUDIO_DATA_DIR", os.path.join(ROOT, "data"))
 PROJECTS_DIR = os.environ.get("STUDIO_PROJECTS_DIR", os.path.join(ROOT, "projects"))
 MODELS_DIR = os.path.join(DATA_DIR, "models")
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
-ENV_FILE = os.path.join(ROOT, ".env")
+ENV_FILE = os.environ.get("STUDIO_ENV_FILE") or os.path.join(ROOT, ".env")
 SETTINGS_FILE = os.path.join(DATA_DIR, "settings.json")
 WEB_DIST = os.path.join(ROOT, "web", "dist")
+
+# "local" (default): the app runs on your PC for you alone.
+# "hosted": a public website with accounts, plans and Stripe billing (see DEPLOY.md).
+MODE = os.environ.get("STUDIO_MODE", "local").strip().lower()
+PUBLIC_URL = os.environ.get("STUDIO_PUBLIC_URL", "http://localhost:8765").rstrip("/")
+
+
+def hosted():
+    return MODE == "hosted"
+
+
+def ytdlp_opts(**kw):
+    """yt-dlp options. YouTube often blocks server IPs; STUDIO_YTDLP_COOKIES can point at a cookies.txt export."""
+    cookies = os.environ.get("STUDIO_YTDLP_COOKIES", "")
+    if cookies and os.path.exists(cookies):
+        kw["cookiefile"] = cookies
+    return kw
 
 SECRET_KEYS = {
     "ANTHROPIC_API_KEY": "Anthropic API key (paid script/storyboard writer)",
     "ELEVENLABS_API_KEY": "ElevenLabs API key (voice, music, transcripts, images)",
     "HF_API_KEY": "Higgsfield API key (images)",
     "HF_API_SECRET": "Higgsfield API secret (images)",
+    "STRIPE_SECRET_KEY": "Stripe secret key (hosted mode: take payments)",
+    "STRIPE_WEBHOOK_SECRET": "Stripe webhook signing secret (hosted mode)",
+    "STRIPE_PRICE_PRO": "Stripe Price ID of the Pro monthly subscription (price_...)",
+    "STRIPE_PRICE_PACK": "Stripe Price ID of the +10 Pro minutes pack (price_...)",
 }
 
 DEFAULT_SETTINGS = {
@@ -33,6 +54,7 @@ DEFAULT_SETTINGS = {
         "voice": "kokoro",
         "music": "synth",
         "image": "local",
+        "shorts": "stickman",
     },
     "llm_models": {"claude_cli": "", "anthropic": "claude-opus-5-5", "ollama": "llama3.1"},
     "ollama_url": "http://localhost:11434",
@@ -50,9 +72,49 @@ DEFAULT_SETTINGS = {
     "elevenlabs_usd_per_1k_credits": 0.22,
     "pronunciations": {},
     "music_db": -13.0,
+    "reuse_music_beds": True,          # pay for each ElevenLabs music mood once, reuse it in later videos
     "share_copy": True,
     "share_max_mb": 30,
     "render_workers": 0,
+    # Local mode safety net: the run pauses and asks again before one video's spending goes over this.
+    "max_usd_per_video": 15.0,
+    "calliope": {
+        "server": "calliope",          # MCP server name in Claude Code (tools are mcp__<server>__<tool>)
+        "template_id": "",             # optional Calliope template for Shorts; empty = most popular short template
+        "quality": "medium",           # medium | high | extra
+        "usd_per_1k_credits": 0.0,     # set to your Calliope plan's rate to see dollar estimates
+        "ai_short_minutes": 5,         # hosted mode: one AI Short uses this many Pro minutes
+        "bridge_model": "",            # Claude model Claude Code uses to relay the tool calls (empty = its default)
+        "connected": False,            # set by Settings > Calliope > Test connection
+    },
+    # Hosted mode only (STUDIO_MODE=hosted)
+    "hosted": {
+        "allow_signup": True,
+        "max_concurrent_runs": 2,
+        "max_usd_per_video": 8.0,      # refuse jobs whose estimated tool cost is above this
+        "ai_edits_per_video": 40,      # beat rewrites / scene redraws per video (stage re-runs count 10)
+        "watermark_text": "Made with Stickman Studio",
+        # Calliope AI Shorts on the website run through Claude Code on the server with an Anthropic API key and
+        # your Calliope account. Off until you set that up and set calliope.usd_per_1k_credits.
+        "ai_shorts": False,
+        "plans": {
+            "free": {
+                "name": "Free", "price_usd": 0, "videos_per_month": 2, "max_minutes": 3, "pro_minutes": 0,
+                "watermark": True, "shorts": ["stickman"],
+                "providers": {"transcript": "youtube_captions", "llm": "anthropic", "voice": "kokoro",
+                              "music": "synth", "image": "local", "shorts": "stickman"},
+                "llm_model": "claude-opus-5-5",
+            },
+            "pro": {
+                "name": "Pro", "price_usd": 19.99, "videos_per_month": 0, "max_minutes": 15, "pro_minutes": 30,
+                "watermark": False, "shorts": ["stickman", "calliope"],
+                "providers": {"transcript": "youtube_captions", "llm": "anthropic", "voice": "elevenlabs",
+                              "music": "elevenlabs_music", "image": "elevenlabs_image", "shorts": "stickman"},
+                "llm_model": "claude-opus-5-5",
+            },
+        },
+        "pack": {"name": "+10 Pro minutes", "price_usd": 5.99, "minutes": 10},
+    },
 }
 
 _lock = threading.Lock()

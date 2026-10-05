@@ -331,3 +331,34 @@ Return:
   big_kind (the giant smug character's kind), image_prompt (a short scene description for an AI image
   background, no text in the image). Kinds come from: {", ".join(h for h in HATS if h != "none")}.
 Plain spoken English, no em dashes, no AI filler words. Answer with JSON only."""
+
+
+SHORT_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "required": ["start", "end", "title", "script", "description", "hashtags"],
+    "properties": {
+        "start": {"type": "integer"}, "end": {"type": "integer"},
+        "title": {"type": "string"}, "script": {"type": "string"}, "description": {"type": "string"},
+        "hashtags": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+
+def short_prompt(script, durations, video_title):
+    beats = "\n".join(f"[{i}] ({d:.1f}s) {b['text']}" for i, (b, d) in enumerate(zip(script.get("beats", []), durations)))
+    return f"""We are cutting a YouTube Short (vertical, under 60 seconds) out of this stickman history video
+to make people want to watch the full video "{video_title}".
+
+SCRIPT (beat index, scene length in seconds, narration):
+{beats}
+
+Return:
+- start, end: the first and last beat index of ONE continuous run of beats that works on its own as a Short.
+  It must open with a hook (a surprising claim, a question or a funny moment), make sense without the rest of the
+  video, and the scene lengths from start to end must add up to between 25 and 55 seconds.
+- title: the Short's on-screen title, max 40 characters, punchy, no emojis.
+- script: a standalone narration for an AI-made version of this Short, 90 to 150 words, same facts and jokes,
+  ending with a short nudge to watch the full video on the channel.
+- description: one or two sentences for the Short's description.
+- hashtags: 3 hashtags, the first one "#shorts".
+Plain spoken English, no em dashes, no AI filler words. Answer with JSON only."""

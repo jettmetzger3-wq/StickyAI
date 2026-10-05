@@ -1,4 +1,8 @@
-"""FastAPI backend for the dashboard. Runs only on your PC (127.0.0.1)."""
+"""FastAPI backend for the dashboard.
+
+Local mode (default): runs only on your PC (127.0.0.1) for you alone.
+Hosted mode (STUDIO_MODE=hosted): a public website with accounts and plans; see DEPLOY.md.
+"""
 import asyncio
 import json
 import mimetypes
@@ -16,20 +20,54 @@ from .. import providers as P
 from .. import prompts as PR
 from ..engine import check_scene, render_still
 from ..pipeline import (Project, new_project, list_projects, STAGES, STAGE_LABELS, CHECKPOINTS, start_background,
-                        is_running, cancel, mark_reviewed, mark_stale, costs)
+                        is_running, queue_position, cancel, mark_reviewed, mark_stale, costs)
 from ..pipeline.events import bus
 from ..pipeline.project import read_json, write_json
 from ..pipeline.stages import beat_durations, scene_job, provider as stage_provider, normalize_script, clean_line
+from ..providers.llm import using_model
+from ..hosted import user as current_user, is_admin
+from .auth import Guard
+from .hosted_api import router as hosted_router
 
 config.ensure_dirs()
-app = FastAPI(title="Stickman Studio", docs_url="/api/docs", openapi_url="/api/openapi.json")
+app = FastAPI(title="Stickman Studio", docs_url=None if config.hosted() else "/api/docs",
+              openapi_url=None if config.hosted() else "/api/openapi.json")
+app.add_middleware(Guard)
+app.include_router(hosted_router)
+
+
+def owns(meta):
+    """Local mode: you own everything. Hosted mode: your own projects (admins see all)."""
+    if not config.hosted() or is_admin():
+        return True
+    u = current_user()
+    return bool(u) and meta.get("owner") == u["id"]
 
 
 def proj(slug):
     pr = Project(slug)
-    if not pr.exists():
+    if not pr.exists() or not owns(pr.meta()):
         raise HTTPException(404, "project not found")
     return pr
+
+
+def hosted_user():
+    """The signed-in non-admin user in hosted mode (they get plan rules instead of manual approvals), else None."""
+    if config.hosted() and not is_admin():
+        return current_user()
+    return None
+
+
+def ai_edit(pr, n=1):
+    """Hosted mode: AI rewrites/redraws cost real money, so each video gets a budget of them."""
+    if not hosted_user():
+        return
+    limit = int(config.load_settings()["hosted"].get("ai_edits_per_video") or 0)
+    used = int(pr.meta().get("ai_edits") or 0)
+    if limit and used + n > limit:
+        raise HTTPException(429, f"you've used the {limit} AI edits included with this video; "
+                                 f"edit the text by hand or start a new video")
+    pr.update(ai_edits=used + n)
 
 
 def ensure_idle(pr):
@@ -55,6 +93,9 @@ def get_providers():
 
 @app.get("/api/settings")
 def get_settings():
+    if config.hosted() and not is_admin():
+        s = config.load_settings()
+        return dict(settings=dict(voice=s["voice"], autopilot=s["autopilot"], share_copy=s["share_copy"]), secrets={})
     return dict(settings=config.load_settings(), secrets=config.secrets_status())
 
 
@@ -106,7 +147,10 @@ def voices(provider: str = "kokoro"):
 @app.get("/api/voices/preview")
 def voice_preview(provider: str = "kokoro", voice: str = "am_michael", speed: float = 0):
     from ..providers.voice import preview_path, PREVIEW_TEXT
+    import re
     import soundfile as sf
+    if not re.fullmatch(r"[A-Za-z0-9_.-]{1,64}", voice or "") or not (0 <= speed <= 3):
+        raise HTTPException(400, "bad voice")
     if provider == "elevenlabs":
         # ElevenLabs voices come with free preview clips; never spend credits on a preview
         for v in P.get("voice", "elevenlabs").voices():
@@ -139,7 +183,7 @@ def source_preview(b: SourcePreview):
     if not vid:
         raise HTTPException(400, "that doesn't look like a YouTube link")
     try:
-        m = fetch_meta(b.url)
+        m = fetch_meta(P.canonical_url(b.url))
     except Exception as e:
         raise HTTPException(400, f"couldn't read that video: {str(e)[:200]}")
     return dict(id=m.get("video_id"), title=m.get("title"), channel=m.get("channel"), duration=m.get("duration"),
@@ -182,6 +226,68 @@ class NewProject(BaseModel):
     voice: dict = {}
     approve: dict = {}            # {stage: cost dict} the user saw and confirmed
     start: bool = True
+    tier: str = ""                # hosted mode: free | pro (the plan decides the tools)
+    ai_short: bool = False        # hosted mode, Pro: also make a Calliope AI Short (uses extra Pro minutes)
+
+
+VOICE_KEYS = ("kokoro_voice", "kokoro_speed", "elevenlabs_voice_id", "elevenlabs_voice_name")
+
+
+def _clean_voice(v):
+    v = {k: v[k] for k in VOICE_KEYS if k in (v or {})}
+    if "kokoro_speed" in v:
+        try:
+            v["kokoro_speed"] = min(1.6, max(0.7, float(v["kokoro_speed"])))
+        except (TypeError, ValueError):
+            v.pop("kokoro_speed")
+    return {k: (str(x)[:80] if isinstance(x, str) else x) for k, x in v.items()}
+
+
+def _create_hosted(b, u):
+    """Hosted mode, normal user: the plan picks the tools, the allowance is reserved, steps auto-approve."""
+    from ..hosted import plans
+    h = config.load_settings()["hosted"]
+    tier = b.tier if b.tier in ("free", "pro") else ("pro" if plans.effective_plan(u) == "pro" else "free")
+    plan = plans.plans()[tier]
+    minutes = round(max(1.0, min(float(b.minutes or 3), 60.0)), 1)
+    prov, notes = plans.providers_for(tier)
+    broken = [n.split(":")[0] for n in notes if "no working tool" in n]
+    if broken:
+        raise HTTPException(503, f"this website isn't fully set up yet (missing: {', '.join(broken)}). "
+                                 f"Please try again later.")
+    opts = dict(minutes=minutes, tone=str(b.tone)[:80], faithfulness=b.faithfulness if b.faithfulness in
+                ("close", "balanced", "loose") else "balanced", style_url=b.style_url[:300], extra=b.extra[:1500],
+                watch=b.watch, autopilot=b.autopilot, share_copy=b.share_copy, credit_source=b.credit_source,
+                captions=True, voice=_clean_voice(b.voice), watermark=h.get("watermark_text", "") if plan["watermark"] else "")
+    with using_model(plan.get("llm_model")):
+        est = costs.estimate_draft(b.mode, prov, opts, None)
+    total = sum(v["total"]["usd"] for v in est.values())
+    cap = float(h.get("max_usd_per_video") or 0)
+    if cap and total > cap:
+        raise HTTPException(400, f"this video is too big for this server (estimated tool cost ${total:.2f}); "
+                                 f"make it shorter")
+    ai_short = b.ai_short and tier == "pro" and "calliope" in plan.get("shorts", []) and \
+        P.get("shorts", "calliope").available()[0]
+    if ai_short:
+        prov["shorts"] = "calliope"
+    pr = new_project(b.title or (b.topic if b.mode == "topic" else ""), b.mode,
+                     source_url=b.url if b.mode == "youtube" else "", topic=b.topic, options=opts, providers=prov)
+    try:
+        rec = plans.reserve(u, tier, minutes, pr.slug)
+        if ai_short:
+            try:
+                rec["addon"] = plans.charge_extra(u, float(config.load_settings()["calliope"].get("ai_short_minutes") or 5),
+                                                  pr.slug, "AI Short")
+            except plans.LimitError:
+                plans.refund_all(dict(rec), pr.slug, note="refund")
+                raise
+    except plans.LimitError as e:
+        pr.delete()
+        db.remove(pr.slug)
+        raise HTTPException(402, str(e))
+    pr.update(owner=u["id"], tier=tier, billing=rec, llm_model=plan.get("llm_model"),
+              auto_approve=dict(cap_usd=cap or 1e9), budget_usd=cap or None, notes=notes)
+    return pr
 
 
 @app.post("/api/projects")
@@ -190,6 +296,16 @@ def create_project(b: NewProject):
         raise HTTPException(400, "please paste a valid YouTube link")
     if b.mode == "topic" and not b.topic.strip():
         raise HTTPException(400, "please type a topic")
+    if b.style_url.strip() and not P.video_id(b.style_url):
+        raise HTTPException(400, "the style reference must be a YouTube link")
+    b.url = P.canonical_url(b.url) if b.mode == "youtube" else ""
+    b.style_url = P.canonical_url(b.style_url) if b.style_url.strip() else ""
+    u = hosted_user()
+    if u:
+        pr = _create_hosted(b, u)
+        if b.start:
+            start_background(pr.slug)
+        return dict(slug=pr.slug)
     prov = dict(P.TIERS["free"], **{k: v for k, v in (b.providers or {}).items() if v})
     for st, pid in prov.items():
         try:
@@ -201,7 +317,13 @@ def create_project(b: NewProject):
                 captions=True, voice=b.voice or {})
     pr = new_project(b.title or (b.topic if b.mode == "topic" else ""), b.mode,
                      source_url=b.url if b.mode == "youtube" else "", topic=b.topic, options=opts, providers=prov)
+    if config.hosted():
+        pr.update(owner=current_user()["id"])
     if b.approve:
+        approved = sum(float((c or {}).get("usd") or 0) for c in b.approve.values())
+        if approved > costs.budget(pr.meta()):
+            # you clicked "Approve ~$X & start" with X above your per-video limit: that click raises it
+            pr.update(budget_usd=round(approved * costs.MARGIN + 0.01, 2))
         costs.approve(pr, b.approve)
     if b.start:
         start_background(pr.slug)
@@ -212,6 +334,8 @@ def create_project(b: NewProject):
 def projects():
     out = []
     for m in list_projects():
+        if not owns(m):
+            continue
         pr = Project(m["slug"])
         out.append(dict(slug=m["slug"], title=m.get("title"), mode=m.get("mode"), status=m.get("status"),
                         created=m.get("created"), updated=m.get("updated"), source_url=m.get("source_url"),
@@ -219,7 +343,8 @@ def projects():
                         has_video=os.path.exists(pr.p("final", "video.mp4")),
                         has_thumb=os.path.exists(pr.p("final", "thumbnail.png")),
                         stages={k: v.get("status") for k, v in (m.get("stages") or {}).items()},
-                        spent_usd=round(sum(c.get("usd") or 0 for c in m.get("costs") or []), 3)))
+                        spent_usd=round(sum(c.get("usd") or 0 for c in m.get("costs") or []), 3),
+                        tier=m.get("tier"), owner=m.get("owner")))
     return dict(projects=out)
 
 
@@ -251,21 +376,38 @@ def project_detail(slug: str):
                        visual_notes=read_json(pr.p("source", "visual_notes.json")),
                        sheets=sorted(os.listdir(pr.p("source", "sheets"))) if os.path.isdir(pr.p("source", "sheets")) else [])
     final = {}
-    for k, f in (("video", "video.mp4"), ("share", "video_share.mp4"), ("thumbnail", "thumbnail.png"), ("mix", "mix.wav")):
+    for k, f in (("video", "video.mp4"), ("share", "video_share.mp4"), ("thumbnail", "thumbnail.png"), ("mix", "mix.wav"),
+                 ("short", "short.mp4"), ("short_ai", "short_ai.mp4")):
         path = pr.p("final", f)
         if os.path.exists(path):
             final[k] = dict(path=f"final/{f}", size=os.path.getsize(path), v=int(os.path.getmtime(path)))
-    return dict(meta=m, running=is_running(slug), script=script, scenes=scenes, source=src,
+    with using_model(m.get("llm_model")):
+        est = costs.estimate_all(pr)
+    if hosted_user():
+        m = {k: v for k, v in m.items() if k not in ("auto_approve",)}
+    short = read_json(pr.p("final", "short.json"))
+    if short:
+        short = dict(title=short.get("title"), description=short.get("description"), hashtags=short.get("hashtags"),
+                     pick={k: (short.get("pick") or {}).get(k) for k in ("start", "end", "script", "by")},
+                     calliope={k: (short.get("calliope") or {}).get(k) for k in ("job_id", "done", "credit_cost")},
+                     thumbs=sorted(f for f in os.listdir(pr.p("final")) if f.startswith("calliope_thumb_")))
+    return dict(meta=m, running=is_running(slug), queue_position=queue_position(slug), script=script, scenes=scenes,
+                short=short,
+                source=src, spent_usd=costs.spent(m), budget_usd=costs.budget(m),
                 voice=dict(provider=v.get("provider"), voice=v.get("voice"), total=v.get("total"),
                            beats=[dict(dur=(e or {}).get("dur"), text=(e or {}).get("text")) for e in (v.get("beats") or [])]),
                 render=dict(total=ri.get("total"), starts=ri.get("starts")), youtube=pr.youtube(), final=final,
-                estimate=costs.estimate_all(pr), stage_labels=STAGE_LABELS)
+                estimate=est, stage_labels=STAGE_LABELS)
 
 
 @app.delete("/api/projects/{slug}")
 def delete_project(slug: str):
     pr = proj(slug)
     ensure_idle(pr)
+    bill = pr.meta().get("billing")
+    if bill and not bill.get("settled") and not os.path.exists(pr.p("final", "video.mp4")):
+        from ..hosted import plans
+        plans.refund_all(dict(bill), slug, note="deleted before finishing")
     pr.delete()
     db.remove(slug)
     return dict(ok=True)
@@ -282,6 +424,8 @@ def run_project(slug: str, b: RunBody):
     ensure_idle(pr)
     if b.start and b.start not in STAGES:
         raise HTTPException(400, "unknown stage")
+    if b.start in ("source", "script", "storyboard"):
+        ai_edit(pr, 10)
     if b.start:
         mark_stale(pr, b.start)
     start_background(slug, start=b.start, stop_after=b.stop_after)
@@ -315,6 +459,8 @@ class ApproveBody(BaseModel):
 @app.post("/api/projects/{slug}/approve")
 def approve(slug: str, b: ApproveBody):
     pr = proj(slug)
+    if hosted_user():
+        raise HTTPException(403, "this video reached the server's cost limit; ask the site admin to approve it")
     costs.approve(pr, b.stages)
     if b.run and not is_running(slug):
         start_background(slug)
@@ -330,6 +476,13 @@ def project_estimate(slug: str):
 @app.put("/api/projects/{slug}/options")
 def put_options(slug: str, body: dict):
     pr = proj(slug)
+    if hosted_user():
+        # plan users can change how it looks and sounds, not the tools or the length they reserved
+        o = body.get("options") or {}
+        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx") if k in o}
+        if "voice" in o:
+            safe["voice"] = _clean_voice(o["voice"])
+        body = dict(options=safe, **({"title": body["title"]} if "title" in body else {}))
 
     def f(m):
         if "options" in body:
@@ -408,6 +561,9 @@ def _paid_guard(pr, label, in_chars, out_tokens, approved):
     ok, why = llm.available()
     if not ok:
         raise HTTPException(400, f"{llm.label}: {why}")
+    if hosted_user():
+        ai_edit(pr)          # included in the plan, limited per video
+        return llm
     if llm.paid:
         c = llm.estimate_tokens(in_chars, out_tokens)
         if not approved:
@@ -427,7 +583,8 @@ def regen_beat(slug: str, i: int, b: RegenBeat):
     if isinstance(llm, JSONResponse):
         return llm
     from ..pipeline.costs import record
-    text, usage = llm.complete(PR.SCRIPT_SYSTEM, prompt, schema=PR.REGEN_BEAT_SCHEMA, label="beat")
+    with using_model(pr.meta().get("llm_model")):
+        text, usage = llm.complete(PR.SCRIPT_SYSTEM, prompt, schema=PR.REGEN_BEAT_SCHEMA, label="beat")
     if usage.get("billed_usd"):
         record(pr, "script", llm.id, usd=usage["billed_usd"], note="rewrite one beat")
     data = P.extract_json(text)
@@ -496,6 +653,11 @@ def regen_scene(slug: str, i: int, b: RegenScene):
     pr = proj(slug)
     ensure_idle(pr)
     llm = stage_provider(pr.meta(), "llm")
+    if hosted_user():
+        ai_edit(pr)
+        start_background(slug, start="storyboard", stop_after="storyboard",
+                         stage_kwargs={"storyboard": dict(only=[i], force=True, instruction=b.instruction[:500])})
+        return dict(ok=True)
     if llm.paid and not b.approved:
         c = llm.estimate_tokens(24500, 700)
         return JSONResponse(status_code=402, content=dict(needs_approval=True, label="redraw one scene",
@@ -534,11 +696,18 @@ async def upload_music(slug: str, file: UploadFile = File(...)):
         raise HTTPException(400, "upload an mp3, wav, m4a, ogg, flac or aac file")
     os.makedirs(pr.p("music"), exist_ok=True)
     dest = pr.p("music", "upload" + ext)
+    limit = 40 << 20 if config.hosted() else 1 << 40
+    size = 0
     with open(dest, "wb") as f:
         while True:
             chunk = await file.read(1 << 20)
             if not chunk:
                 break
+            size += len(chunk)
+            if size > limit:
+                f.close()
+                os.remove(dest)
+                raise HTTPException(413, "music files can be up to 40 MB")
             f.write(chunk)
 
     def u(m):
@@ -566,7 +735,8 @@ def project_file(slug: str, path: str):
 def download(slug: str, kind: str):
     pr = proj(slug)
     files = {"video": ("final/video.mp4", "video.mp4"), "share": ("final/video_share.mp4", "video_share.mp4"),
-             "thumbnail": ("final/thumbnail.png", "thumbnail.png"), "description": ("final/description.txt", "description.txt")}
+             "thumbnail": ("final/thumbnail.png", "thumbnail.png"), "description": ("final/description.txt", "description.txt"),
+             "short": ("final/short.mp4", "short.mp4"), "short_ai": ("final/short_ai.mp4", "short-ai.mp4")}
     if kind not in files:
         raise HTTPException(404, "unknown")
     rel, name = files[kind]
@@ -576,9 +746,93 @@ def download(slug: str, kind: str):
     return FileResponse(full, filename=f"{slug}-{name}")
 
 
+# ------------------------------------------------------------------ Calliope (Shorts + thumbnails, via Claude Code)
+def _calliope():
+    if config.hosted() and not is_admin():
+        raise HTTPException(403, "not available")
+    return P.get("shorts", "calliope")
+
+
+@app.post("/api/calliope/test")
+def calliope_test():
+    sp = _calliope()
+    try:
+        temps = sp.test()
+    except P.ProviderError as e:
+        config.save_settings({"calliope": {"connected": False}})
+        raise HTTPException(400, str(e))
+    return dict(ok=True, templates=temps)
+
+
+class CalliopeThumbs(BaseModel):
+    count: int = 3
+    approved: bool = False
+    prompt: str = ""
+
+
+@app.post("/api/projects/{slug}/calliope/thumbnails")
+def calliope_thumbnails(slug: str, b: CalliopeThumbs):
+    """Calliope thumbnails need a finished Calliope job (the AI Short). Shows the exact price first."""
+    pr = proj(slug)
+    sp = _calliope()
+    short = read_json(pr.p("final", "short.json"), {}) or {}
+    job = (short.get("calliope") or {}).get("job_id")
+    if not job or not (short.get("calliope") or {}).get("done"):
+        raise HTTPException(400, "make a Calliope AI Short first; its thumbnails are made from that job")
+    count = b.count if b.count in (1, 3, 5) else 3
+    try:
+        if not b.approved:
+            cost, _ = sp.quote_thumbnails(job, count)
+            return JSONResponse(status_code=402, content=dict(needs_approval=True, label=f"{count} Calliope thumbnails",
+                                                              cost=cost.to_dict(), provider=sp.label))
+        yt = pr.youtube() or {}
+        prompt = b.prompt or f"Funny stickman history thumbnail for a video titled: {(yt.get('titles') or [pr.meta().get('title')])[0]}"
+        sp.make_thumbnails(job, count, prompt[:1500])
+    except P.ProviderError as e:
+        raise HTTPException(400, str(e))
+    costs.record(pr, "shorts", sp.id, note=f"{count} Calliope thumbnails (credits per Calliope's estimate)")
+    return dict(ok=True, message="Calliope is drawing them (30 s to 3 min). Press Refresh to fetch them.")
+
+
+@app.get("/api/projects/{slug}/calliope/thumbnails")
+def calliope_thumbnails_fetch(slug: str):
+    pr = proj(slug)
+    sp = _calliope()
+    short = read_json(pr.p("final", "short.json"), {}) or {}
+    job = (short.get("calliope") or {}).get("job_id")
+    if not job:
+        return dict(thumbs=[])
+    from ..providers.shorts import download
+    try:
+        urls, _ = sp.thumbnails(job)
+    except P.ProviderError as e:
+        raise HTTPException(400, str(e))
+    have = sorted(f for f in os.listdir(pr.p("final")) if f.startswith("calliope_thumb_"))
+    for k, u in enumerate(urls[len(have):], start=len(have)):
+        ext = os.path.splitext(u.split("?")[0])[1] or ".png"
+        try:
+            download(u, pr.p("final", f"calliope_thumb_{k + 1}{ext}"), timeout=120)
+        except Exception:
+            pass
+    return dict(thumbs=sorted(f for f in os.listdir(pr.p("final")) if f.startswith("calliope_thumb_")))
+
+
 # ------------------------------------------------------------------ live events (SSE)
 @app.get("/api/events")
 async def events(request: Request, project: str | None = None):
+    if project:
+        proj(project)
+    filtered = config.hosted() and not is_admin()
+    me = current_user()
+    owners = {}
+
+    def visible(ev):
+        if not filtered:
+            return True
+        s = ev.get("project")
+        if s not in owners:
+            owners[s] = (Project(s).meta().get("owner") if s else None)
+        return owners[s] == me["id"]
     q, entry = bus.subscribe_async(project)
 
     async def gen():
@@ -589,7 +843,8 @@ async def events(request: Request, project: str | None = None):
                     break
                 try:
                     ev = await asyncio.wait_for(q.get(), timeout=15)
-                    yield f"data: {json.dumps(ev)}\n\n"
+                    if visible(ev):
+                        yield f"data: {json.dumps(ev)}\n\n"
                 except asyncio.TimeoutError:
                     yield ": keepalive\n\n"
         finally:

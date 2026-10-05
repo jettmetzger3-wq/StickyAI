@@ -1,0 +1,32 @@
+# Hosted website: the app + Caddy (automatic HTTPS from Let's Encrypt).
+#   1. point your domain's DNS (A record) at this server
+#   2. cp .env.example .env  and fill in STUDIO_DOMAIN, STUDIO_ADMIN_EMAIL and your keys
+#   3. docker compose up -d --build
+# See DEPLOY.md for Stripe and everything else.
+services:
+  studio:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      STUDIO_MODE: hosted
+      STUDIO_PUBLIC_URL: https://${STUDIO_DOMAIN:?set STUDIO_DOMAIN in .env}
+    volumes:
+      - studio-data:/data
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [studio]
+    ports:
+      - "80:80"
+      - "443:443"
+    command: caddy reverse-proxy --from ${STUDIO_DOMAIN} --to studio:8765
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  studio-data:
+  caddy-data:
+  caddy-config:

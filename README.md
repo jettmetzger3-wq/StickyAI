@@ -9,9 +9,13 @@ Paste a stickman video's link and the app:
 2. writes a **new, original script** on the same subject (it never copies sentences: YouTube demonetizes "reused content"), plus a fact checklist,
 3. draws a **storyboard**: one animated doodle scene per line (maps, stickmen with hats, props, speech bubbles),
 4. records the **voice**, renders every scene in parallel, adds **music, sound effects and captions**,
-5. writes **3 titles, a description with real chapter timestamps, tags and a thumbnail**.
+5. writes **3 titles, a description with real chapter timestamps, tags and a thumbnail**,
+6. cuts a **vertical Short** (25-55 s, big captions, "full video on the channel") to promote it.
 
 Then you post it yourself.
+
+Want to run it as a **website other people pay for**? See [DEPLOY.md](DEPLOY.md) (accounts, Free/Pro plans,
+Stripe) and [PRICING.md](PRICING.md) (why Pro is $19.99).
 
 Every step has a **free** option. **Paid tools are optional** (better voice, music and AI art), and the
 app **never spends money or credits without showing you an estimate and waiting for your click**.
@@ -50,6 +54,7 @@ once with `npm install -g @anthropic-ai/claude-code` and run `claude` to log in.
 | Voice | Kokoro (offline, `am_michael` at 1.2x) | ElevenLabs `eleven_flash_v2_5`, voice "George", ~0.5 credits per character, 1 take per line, **exact word timing** |
 | Music | built-in synth (ukulele / tense / somber, crossfaded), or your own upload | ElevenLabs Music (one instrumental bed per mood) |
 | Thumbnail | built-in doodle thumbnail | ElevenLabs image or Higgsfield (AI background, our title text on top) |
+| Short | stickman Short cut from your video (1080x1920, big captions) | also a Calliope AI-illustrated Short (your Calliope credits, see below) |
 
 You can mix and match: the New Video page has **Free**, **Pro** and **Custom** (one dropdown per step).
 
@@ -57,6 +62,9 @@ You can mix and match: the New Video page has **Free**, **Pro** and **Custom** (
 - Before you start, the right-hand panel shows an estimate per step. The start button says
   "Approve ~$X & start". Nothing paid runs before that click.
 - While running, if a step would cost noticeably more than you approved (more than 25% over), the run **pauses and asks again**.
+- **Limit per video** (Settings → Spending, default $15): even approved steps pause and ask before one video's
+  spending goes over it. Approving raises the limit for that video only.
+- ElevenLabs music is composed once per mood (fun, tense, somber) and **reused in later videos** (Settings).
 - Some providers don't publish a per-request price (ElevenLabs music, transcription and images; Higgsfield).
   Those show "amount set by provider". After the call, the app measures the real usage from your ElevenLabs balance and logs it.
 - Balances are shown where the provider's API reports them (ElevenLabs).
@@ -68,8 +76,22 @@ You can mix and match: the New Video page has **Free**, **Pro** and **Custom** (
 **Not included, on purpose**
 - **OpenArt** has no public developer API (only an MCP connector inside the Claude app), so a standalone
   website can't call it. Its free-tier images also carry a watermark.
-- The ElevenLabs / OpenArt / Higgsfield / Calliope **connectors you use inside the Claude app** can't be
-  reached from a standalone website. The app uses each service's official API with your own key instead.
+- The ElevenLabs / OpenArt / Higgsfield **connectors you use inside the Claude app** can't be reached from a
+  standalone website. The app uses each service's official API with your own key instead.
+
+**Calliope (AI Shorts and thumbnails)** has no plain web API, only an MCP connector, so the app reaches it
+through **Claude Code on your PC**. One-time setup:
+
+```bash
+claude mcp add --transport http calliope https://www.calliopelabs.co/api/mcp
+claude          # then type /mcp and log in to Calliope
+```
+
+Then press **Settings → Calliope → Test connection** (free) and pick "Calliope AI Short" as the Shorts tool
+(the Pro tier does). Before anything is spent, the app asks Calliope for its **exact credit estimate** and waits
+for your OK. Once an AI Short exists, the Output tab can also order **Calliope thumbnails** (again with the exact
+price first). If Calliope isn't ready, you still get the free stickman Short. Korpi can be added the same way
+once its connector works.
 
 ---
 
@@ -84,7 +106,7 @@ You can mix and match: the New Video page has **Free**, **Pro** and **Custom** (
   - **Script**: edit, reorder, insert or delete beats, change moods, "↻ rewrite" one beat with the AI, tick off the fact checklist, edit the cast (who wears which hat).
   - **Storyboard**: a still of every scene. Click one to scrub through time, nudge elements, delete elements, edit the scene JSON, "Redraw with AI" (optionally with instructions), or re-render just that scene into the video.
   - **Voice & music**: listen to each line, change the voice, upload your own royalty-free music and re-mix.
-  - **Output**: the video player, download buttons (full quality + a share copy under 30 MB), the 3 titles, description and tags with copy buttons, chapters and the thumbnail.
+  - **Output**: the video player, download buttons (full quality + a share copy under 30 MB), the 3 titles, description and tags with copy buttons, chapters, the thumbnail, the Short (with its title, description and #shorts tags) and what the video cost.
   - **Source** (remakes): what the AI saw when it watched the video, the frames and the transcript.
   - **Costs & log**: switch tools per step, remaining estimates, what was actually spent, and the run log.
 - **Re-run from here** on any step redoes it and everything after it, but each step only redoes what changed
@@ -103,6 +125,7 @@ python -m studio make "..." --checkpoints                        # pause after s
 python -m studio resume <project-folder-name>                    # continue after a pause or error
 python -m studio rerender <project-folder-name> 4 7               # re-render scenes 4 and 7
 python -m studio list | doctor | serve
+python -m studio admin you@example.com                           # website (hosted mode): make an admin
 ```
 
 Use `.venv/bin/python` (Linux) or `.venv\Scripts\python` (Windows) if you didn't activate the venv.
@@ -121,7 +144,9 @@ scenes/000.json    one scene per beat, in the JSON scene language
 previews/          storyboard stills
 audio/             one WAV per beat + voice.json (durations, word timing)
 segments/          one MP4 per scene
-final/             video.mp4, video_share.mp4, mix.wav, thumbnail.png, youtube.json, description.txt
+final/             video.mp4, video_share.mp4, mix.wav, thumbnail.png, youtube.json, description.txt,
+                   short.mp4 (+ short_ai.mp4 from Calliope), short.json
+shorts/            the Short's scenes without the small captions
 ```
 
 Settings live in `data/settings.json`, the project index and cost ledger in `data/studio.db` (SQLite),
@@ -168,7 +193,8 @@ the Kokoro model in `data/models/`.
 ## Development
 
 ```bash
-python -m pytest                        # tests: TopoJSON, scene schema/compiler, captions, years, chapters, costs
+python -m pytest                        # tests: TopoJSON, scene schema/compiler, captions, years, chapters, costs,
+                                        # accounts/plans/Stripe webhooks, Shorts, the Claude Code MCP bridge
 python -m studio.engine.measure_props   # after adding/changing a prop
 cd web && npm install && npm run dev    # dashboard with hot reload (proxy to python -m studio serve)
 cd web && npm run build                 # rebuild web/dist

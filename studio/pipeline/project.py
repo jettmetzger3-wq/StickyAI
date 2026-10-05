@@ -8,7 +8,9 @@
     audio/             b_NNN.wav per beat + voice.json (durations, word timing)
     music/             music beds
     segments/          s_NNN.mp4 per scene + manifest.json
-    final/             video.mp4, video_share.mp4, mix.wav, thumbnail.png, youtube.json, description.txt
+    final/             video.mp4, video_share.mp4, mix.wav, thumbnail.png, youtube.json, description.txt,
+                       short.mp4 (+ short_ai.mp4 from Calliope), short.json
+    shorts/            caption-less scenes for the Short
 """
 import json
 import os
@@ -20,9 +22,9 @@ import unicodedata
 
 from ..config import PROJECTS_DIR, ensure_dirs
 
-STAGES = ["source", "script", "storyboard", "voice", "render", "mix", "package"]
+STAGES = ["source", "script", "storyboard", "voice", "render", "mix", "package", "shorts"]
 STAGE_LABELS = {"source": "Watch source video", "script": "Script", "storyboard": "Storyboard", "voice": "Voice",
-                "render": "Render scenes", "mix": "Music & mix", "package": "YouTube package"}
+                "render": "Render scenes", "mix": "Music & mix", "package": "YouTube package", "shorts": "Shorts teaser"}
 CHECKPOINTS = ("script", "storyboard", "voice")
 
 _locks = {}

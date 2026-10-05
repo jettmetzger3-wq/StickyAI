@@ -3,8 +3,9 @@ from .base import Cost, FREE, Provider, ProviderError, NeedsSetup
 from .llm import ClaudeCLI, AnthropicAPI, Ollama, OfflineLLM, extract_json
 from .voice import Kokoro, ElevenLabsVoice, SystemVoice
 from .music import SynthMusic, UploadMusic, ElevenLabsMusic
-from .transcript import YouTubeCaptions, WhisperLocal, ElevenLabsScribe, video_id
+from .transcript import YouTubeCaptions, WhisperLocal, ElevenLabsScribe, video_id, canonical_url
 from .image import LocalImage, ElevenLabsImage, HiggsfieldImage
+from .shorts import StickmanShorts, CalliopeShorts, NoShorts
 
 REGISTRY = {
     "llm": [ClaudeCLI(), AnthropicAPI(), Ollama(), OfflineLLM()],
@@ -12,6 +13,7 @@ REGISTRY = {
     "music": [SynthMusic(), UploadMusic(), ElevenLabsMusic()],
     "transcript": [YouTubeCaptions(), WhisperLocal(), ElevenLabsScribe()],
     "image": [LocalImage(), ElevenLabsImage(), HiggsfieldImage()],
+    "shorts": [StickmanShorts(), CalliopeShorts(), NoShorts()],
 }
 
 STAGE_LABELS = {
@@ -20,13 +22,15 @@ STAGE_LABELS = {
     "voice": "Voice",
     "music": "Music",
     "image": "Thumbnail art",
+    "shorts": "Shorts teaser",
 }
 
 # Quality presets the New Video form offers. "free" never costs anything.
 TIERS = {
-    "free": {"transcript": "youtube_captions", "llm": "claude_cli", "voice": "kokoro", "music": "synth", "image": "local"},
+    "free": {"transcript": "youtube_captions", "llm": "claude_cli", "voice": "kokoro", "music": "synth", "image": "local",
+             "shorts": "stickman"},
     "pro": {"transcript": "youtube_captions", "llm": "anthropic", "voice": "elevenlabs", "music": "elevenlabs_music",
-            "image": "elevenlabs_image"},
+            "image": "elevenlabs_image", "shorts": "calliope"},
 }
 
 
@@ -42,4 +46,4 @@ def catalog():
 
 
 __all__ = ["REGISTRY", "STAGE_LABELS", "TIERS", "get", "catalog", "Cost", "FREE", "Provider", "ProviderError",
-           "NeedsSetup", "extract_json", "video_id"]
+           "NeedsSetup", "extract_json", "video_id", "canonical_url"]

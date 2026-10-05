@@ -11,6 +11,7 @@ import os
 import re
 
 from .base import TranscriptProvider, Cost, FREE, ProviderError
+from ..config import ytdlp_opts
 from . import elevenlabs_common as el
 
 
@@ -21,6 +22,12 @@ def video_id(url):
     if re.fullmatch(r"[A-Za-z0-9_-]{11}", (url or "").strip()):
         return url.strip()
     return None
+
+
+def canonical_url(url):
+    """Rebuild a clean YouTube watch URL from the video id, so we never hand yt-dlp some other site's URL."""
+    vid = video_id(url)
+    return f"https://www.youtube.com/watch?v={vid}" if vid else ""
 
 
 def parse_vtt(text):
@@ -101,7 +108,7 @@ class YouTubeCaptions(TranscriptProvider):
         try:
             import yt_dlp
             os.makedirs(workdir, exist_ok=True)
-            opts = dict(skip_download=True, writesubtitles=True, writeautomaticsub=True, subtitleslangs=["en.*", "en"],
+            opts = ytdlp_opts(skip_download=True, writesubtitles=True, writeautomaticsub=True, subtitleslangs=["en.*", "en"],
                         subtitlesformat="json3/vtt/best", outtmpl=os.path.join(workdir, "subs.%(ext)s"), quiet=True,
                         no_warnings=True)
             with yt_dlp.YoutubeDL(opts) as ydl:
@@ -137,7 +144,7 @@ class WhisperLocal(TranscriptProvider):
         os.makedirs(workdir, exist_ok=True)
         if progress:
             progress("downloading audio", 0.05)
-        opts = dict(format="bestaudio/best", outtmpl=os.path.join(workdir, "audio.%(ext)s"), quiet=True, no_warnings=True)
+        opts = ytdlp_opts(format="bestaudio/best", outtmpl=os.path.join(workdir, "audio.%(ext)s"), quiet=True, no_warnings=True)
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=True)
             path = ydl.prepare_filename(info)

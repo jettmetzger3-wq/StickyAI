@@ -149,6 +149,7 @@ vite.config.ts.timestamp-*
 .turbo
 
 # Stickman Studio
+!web/dist
 projects/
 data/
 __pycache__/

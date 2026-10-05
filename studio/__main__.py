@@ -3,6 +3,7 @@
   make "The Fall of Rome" --minutes 3        topic -> finished video (free mode by default)
   make https://youtube.com/watch?v=...        remake a YouTube video as a new stickman video
   serve                                       start the dashboard (http://localhost:8765)
+  admin you@example.com                       hosted mode: create/promote an admin account
   list | resume <slug> | rerender <slug> <scene numbers> | estimate ... | doctor
 """
 import argparse
@@ -149,9 +150,33 @@ def cmd_doctor(a):
 
 def cmd_serve(a):
     import uvicorn
-    port = a.port or int(config.load_settings().get("port") or 8765)
-    print(f"Stickman Studio running at http://localhost:{port}")
-    uvicorn.run("studio.server.app:app", host=a.host, port=port, log_level="warning")
+    port = a.port or int(os.environ.get("PORT") or config.load_settings().get("port") or 8765)
+    os.environ["STUDIO_BIND_HOST"] = a.host
+    if config.hosted():
+        print(f"Stickman Studio (hosted mode) listening on {a.host}:{port}, public URL {config.PUBLIC_URL}")
+    else:
+        print(f"Stickman Studio running at http://localhost:{port}")
+    uvicorn.run("studio.server.app:app", host=a.host, port=port, log_level="warning",
+                proxy_headers=os.environ.get("STUDIO_TRUST_PROXY") == "1", forwarded_allow_ips="*")
+    return 0
+
+
+def cmd_admin(a):
+    """Hosted mode: create an admin account or make an existing account admin (run on the server)."""
+    import getpass
+    from .hosted import accounts
+    u = accounts.find_user(a.email)
+    if u:
+        accounts.update_user(u["id"], is_admin=1, disabled=0)
+        print(f"{a.email} is now an admin")
+    else:
+        pw = os.environ.get("STUDIO_ADMIN_PASSWORD") or getpass.getpass("New password (8+ characters): ")
+        u = accounts.create_user(a.email, pw)
+        accounts.update_user(u["id"], is_admin=1)
+        print(f"created admin account {a.email}")
+    if a.password:
+        accounts.set_password(u["id"], getpass.getpass("New password (8+ characters): "))
+        print("password changed")
     return 0
 
 
@@ -192,6 +217,10 @@ def main(argv=None):
     sv.add_argument("--port", type=int, default=0)
     sv.add_argument("--host", default="127.0.0.1")
     sv.set_defaults(fn=cmd_serve)
+    ad = sub.add_parser("admin", help="hosted mode: create an admin account or promote one")
+    ad.add_argument("email")
+    ad.add_argument("--password", action="store_true", help="also set a new password")
+    ad.set_defaults(fn=cmd_admin)
     a = ap.parse_args(argv)
     config.ensure_dirs()
     return a.fn(a)

@@ -40,12 +40,27 @@ def render_still(job, out_path, t_frac=0.85, size=(640, 360), captions=False):
     return sc.warnings
 
 
+def watermark_image(text, size=26):
+    """A small semi-transparent label for the top-right corner (Free plan in hosted mode)."""
+    from PIL import Image, ImageDraw
+    from .fonts import font
+    f = font("semi", size)
+    x0, y0, x1, y1 = f.getbbox(text)
+    pad = 10
+    im = Image.new("RGBA", (x1 - x0 + 2 * pad, y1 - y0 + 2 * pad), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle((0, 0, im.width - 1, im.height - 1), radius=10, fill=(20, 20, 30, 110))
+    d.text((pad - x0, pad - y0), text, font=f, fill=(255, 255, 255, 200))
+    return im
+
+
 def render_segment(job):
-    """job: dict(idx, scene, dur, mood, text, word_times, frames, out, captions=True).
+    """job: dict(idx, scene, dur, mood, text, word_times, frames, out, captions=True, watermark="").
     Returns dict(idx, sfx=[(t, kind)], warnings=[...], seconds=elapsed)."""
     t0 = time.time()
     sc, timer = make_scene(job)
     caps = make_captions(job["text"], job["dur"], timer=timer) if job.get("captions", True) else ()
+    wm = watermark_image(job["watermark"]) if job.get("watermark") else None
     tmp = job["out"] + ".part.mp4"
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", job.get("preset", "veryfast"),
@@ -54,6 +69,8 @@ def render_segment(job):
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
         for fr in sc.render_frames(job["frames"], caps):
+            if wm is not None:
+                fr.paste(wm, (W - wm.width - 24, 22), wm)
             p.stdin.write(fr.convert("RGB").tobytes())
         p.stdin.close()
     except BrokenPipeError:

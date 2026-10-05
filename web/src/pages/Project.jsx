@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, fmtCost, sumCosts, useEvents } from "../api.js";
 import { Badge, Button, Card, cx, ErrorBox, Progress, Spinner } from "../ui.jsx";
-import { go } from "../App.jsx";
+import { go, useConfig } from "../App.jsx";
 import ScriptTab from "./ScriptTab.jsx";
 import StoryboardTab from "./StoryboardTab.jsx";
 import OutputTab from "./OutputTab.jsx";
 import { AudioTab, SourceTab, CostsTab } from "./MiscTabs.jsx";
 
-const STAGES = ["source", "script", "storyboard", "voice", "render", "mix", "package"];
+const STAGES = ["source", "script", "storyboard", "voice", "render", "mix", "package", "shorts"];
 
 export default function ProjectPage({ slug }) {
+  const cfg = useConfig();
   const [d, setD] = useState(null);
   const [error, setError] = useState(null);
   const [tab, setTab] = useState(null);
@@ -25,7 +26,10 @@ export default function ProjectPage({ slug }) {
         const st = x.meta.status;
         // jump to the right tab when a run finishes or pauses for review
         if (lastStatus.current && lastStatus.current !== st) {
-          if (st === "done") setTab("output");
+          if (st === "done") {
+            setTab("output");
+            if (cfg.mode === "hosted") cfg.reload(); // unused Pro minutes came back
+          }
           else if (st === "awaiting_review") setTab(x.meta.pending?.stage === "voice" ? "audio" : x.meta.pending?.stage);
         }
         lastStatus.current = st;
@@ -66,7 +70,7 @@ export default function ProjectPage({ slug }) {
   if (error) return <ErrorBox error={error} />;
   if (!d) return <Spinner />;
   const m = d.meta;
-  const running = d.running || m.status === "running";
+  const running = d.running || m.status === "running" || m.status === "queued";
   const pend = m.pending;
 
   async function action(path, body) {
@@ -104,6 +108,7 @@ export default function ProjectPage({ slug }) {
               </a>
             )}
             <span>· autopilot {m.options?.autopilot === false ? "off" : "on"}</span>
+            {m.tier && <Badge kind={m.tier === "pro" ? "paid" : "free"}>{m.tier === "pro" ? "Pro" : "Free"}</Badge>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -140,7 +145,16 @@ export default function ProjectPage({ slug }) {
           }
         />
       )}
-      {pend && !running && <PendingBanner slug={slug} pend={pend} onDone={load} setTab={setTab} />}
+      {m.status === "queued" && (
+        <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm dark:border-sky-800 dark:bg-sky-500/10">
+          <b>In line{d.queue_position ? ` (number ${d.queue_position})` : ""}.</b> Other videos are being made right now; yours starts automatically as soon as
+          one finishes.
+        </div>
+      )}
+      {m.notes?.length > 0 && (
+        <div className="rounded-xl bg-stone-100 p-3 text-xs text-stone-600 dark:bg-zinc-800 dark:text-zinc-400">{m.notes.join(" · ")}</div>
+      )}
+      {pend && !running && <PendingBanner slug={slug} pend={pend} onDone={load} setTab={setTab} canApprove={cfg.mode !== "hosted" || cfg.user?.is_admin} />}
 
       <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
         <Card className="h-fit p-4">
@@ -219,7 +233,7 @@ export default function ProjectPage({ slug }) {
   );
 }
 
-function PendingBanner({ slug, pend, onDone, setTab }) {
+function PendingBanner({ slug, pend, onDone, setTab, canApprove }) {
   const [busy, setBusy] = useState(false);
   const labels = { script: "script", storyboard: "storyboard", voice: "voice" };
   if (pend.type === "review") {
@@ -248,9 +262,24 @@ function PendingBanner({ slug, pend, onDone, setTab }) {
     );
   }
   const total = pend.estimate;
+  if (!canApprove) {
+    return (
+      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-500/10">
+        <b>This video hit the website's safety limit for one video.</b> The site admin has been asked to check it. You can also shorten the script and try
+        again.
+      </div>
+    );
+  }
+  const ob = pend.over_budget;
   return (
     <div className="rounded-2xl border border-violet-300 bg-violet-50 p-4 dark:border-violet-800 dark:bg-violet-500/10">
       <div className="font-semibold">This step uses paid services: {fmtCost(total)}</div>
+      {ob && (
+        <div className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+          This would take this video's spending to about ${(ob.spent + (total.usd || 0)).toFixed(2)}, above your limit of ${ob.budget.toFixed(2)} per video
+          (Settings). Approving raises the limit for this video only.
+        </div>
+      )}
       <ul className="mt-1 text-sm text-stone-600 dark:text-zinc-400">
         {(pend.lines || []).map((l, i) => (
           <li key={i}>

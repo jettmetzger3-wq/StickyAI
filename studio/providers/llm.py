@@ -6,6 +6,8 @@
 - offline:    no AI at all; the pipeline uses simple rules instead (for testing).
 """
 import base64
+import contextlib
+import contextvars
 import json
 import mimetypes
 import os
@@ -159,6 +161,18 @@ PRICES = {  # USD per million tokens (input, output)
 }
 FALLBACK_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5")
 
+# Per-run model choice (hosted mode: each plan can pick its Anthropic model). Set by the runner for one run.
+MODEL_OVERRIDE = contextvars.ContextVar("studio_llm_model", default=None)
+
+
+@contextlib.contextmanager
+def using_model(model):
+    tok = MODEL_OVERRIDE.set(model or None)
+    try:
+        yield
+    finally:
+        MODEL_OVERRIDE.reset(tok)
+
 
 class AnthropicAPI(LLMBackend):
     id = "anthropic"
@@ -172,7 +186,7 @@ class AnthropicAPI(LLMBackend):
     needs_modules = ("anthropic",)
 
     def model(self, model=None):
-        return model or load_settings().get("llm_models", {}).get("anthropic") or "claude-opus-5-5"
+        return model or MODEL_OVERRIDE.get() or load_settings().get("llm_models", {}).get("anthropic") or "claude-opus-5-5"
 
     def estimate_tokens(self, in_chars, out_tokens, model=None):
         m = self.model(model)

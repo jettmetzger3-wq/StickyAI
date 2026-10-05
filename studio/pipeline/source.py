@@ -10,9 +10,12 @@ from ..engine.fonts import font
 from ..providers import video_id, ProviderError
 
 
+from ..config import ytdlp_opts
+
+
 def fetch_meta(url):
     import yt_dlp
-    opts = dict(skip_download=True, quiet=True, no_warnings=True, noplaylist=True)
+    opts = ytdlp_opts(skip_download=True, quiet=True, no_warnings=True, noplaylist=True)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
     keep = ("id", "title", "channel", "uploader", "duration", "description", "chapters", "thumbnail", "webpage_url",
@@ -42,7 +45,7 @@ def download_lowres(url, workdir):
     os.makedirs(workdir, exist_ok=True)
     for f in glob.glob(os.path.join(workdir, "lowres.*")):
         return f
-    opts = dict(format="worst[ext=mp4][height>=240]/worst[height>=240]/worst", quiet=True, no_warnings=True,
+    opts = ytdlp_opts(format="worst[ext=mp4][height>=240]/worst[height>=240]/worst", quiet=True, no_warnings=True,
                 outtmpl=os.path.join(workdir, "lowres.%(ext)s"), noplaylist=True)
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)

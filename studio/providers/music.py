@@ -1,5 +1,6 @@
 """Music providers: built-in synth (free), your own uploaded track (free), ElevenLabs Music (paid)."""
 import os
+import shutil
 
 from .base import MusicProvider, Cost, FREE, ProviderError
 from . import elevenlabs_common as el
@@ -41,8 +42,18 @@ class ElevenLabsMusic(MusicProvider):
     needs_modules = ("elevenlabs",)
     BED_SECONDS = 90
 
+    def cache_path(self, mood):
+        """Music beds are reused across videos (Settings > reuse_music_beds), so each mood is paid for once."""
+        from ..config import CACHE_DIR, load_settings
+        if not load_settings().get("reuse_music_beds", True):
+            return None
+        return os.path.join(CACHE_DIR, "music", f"elevenlabs_{mood}_{self.BED_SECONDS}s.mp3")
+
     def estimate(self, moods=(), **job):
-        n = len(set(moods)) or 1
+        todo = [m for m in set(moods) if not (self.cache_path(m) and os.path.exists(self.cache_path(m)))]
+        if moods and not todo:
+            return Cost(0.0, note="reusing music beds you already paid for")
+        n = len(todo) or 1
         return Cost(0.0, known=False, credit_unit="ElevenLabs credits",
                     note=f"{n} track(s) x {self.BED_SECONDS}s of music. ElevenLabs bills music from your credit "
                          f"balance; the exact rate depends on your plan, so the real usage is measured after.")
@@ -57,6 +68,11 @@ class ElevenLabsMusic(MusicProvider):
         moods = sorted(set(moods))
         for i, m in enumerate(moods):
             path = os.path.join(workdir, f"bed_{m}.mp3")
+            cache = self.cache_path(m)
+            if not os.path.exists(path) and cache and os.path.exists(cache):
+                shutil.copy(cache, path)
+            if cache:
+                ms = self.BED_SECONDS * 1000
             if not os.path.exists(path):
                 if progress:
                     progress(f"composing {m} music", i / max(1, len(moods)))
@@ -67,6 +83,9 @@ class ElevenLabsMusic(MusicProvider):
                         for c in chunks:
                             f.write(c)
                     os.replace(path + ".part", path)
+                    if cache:
+                        os.makedirs(os.path.dirname(cache), exist_ok=True)
+                        shutil.copy(path, cache)
                 except Exception as e:
                     raise ProviderError(f"ElevenLabs music failed: {str(e)[:300]}")
             out[m] = path

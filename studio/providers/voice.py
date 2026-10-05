@@ -2,6 +2,7 @@
 import base64
 import io
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -210,7 +211,8 @@ class ElevenLabsVoice(VoiceProvider):
 def preview_path(provider_id, voice):
     d = os.path.join(CACHE_DIR, "voice_previews")
     os.makedirs(d, exist_ok=True)
-    return os.path.join(d, f"{provider_id}_{voice}.wav")
+    safe = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{provider_id}_{voice}")[:120].lstrip(".")
+    return os.path.join(d, f"{safe}.wav")
 
 
 PREVIEW_TEXT = "In 1941, Japan made a very bold decision. Let's find out why."

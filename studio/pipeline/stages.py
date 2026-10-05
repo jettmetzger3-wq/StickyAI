@@ -409,17 +409,19 @@ def stage_render(ctx, only=None, force=False):
     sfx = {int(k): v for k, v in (info.get("sfx") or {}).items()}
     warns = {int(k): v for k, v in (info.get("warnings") or {}).items()}
     jobs = []
+    opts = pr.meta().get("options") or {}
+    wm = opts.get("watermark") or ""
     for i, b in enumerate(beats):
         scene = read_json(pr.scene_path(i))
         if scene is None:
             raise P.ProviderError(f"scene {i} is missing; run the Storyboard stage first")
-        key = h(scene, b, frames[i], vb[i].get("word_times"))
+        key = h(scene, b, frames[i], vb[i].get("word_times"), wm) if wm else h(scene, b, frames[i], vb[i].get("word_times"))
         up_to_date = manifest.get(str(i)) == key and os.path.exists(pr.segment_path(i))
         if not (force or not up_to_date or (only is not None and i in only)):
             continue
         jobs.append((key, dict(idx=i, scene=scene, dur=durs[i], mood=b["mood"], text=b["text"],
                                word_times=vb[i].get("word_times"), frames=frames[i], out=pr.segment_path(i),
-                               captions=(pr.meta().get("options") or {}).get("captions", True))))
+                               captions=opts.get("captions", True), watermark=wm)))
     ctx.log(f"render: {len(jobs)} of {len(beats)} scenes need rendering ({workers()} workers)")
     t0 = time.time()
     total_frames = sum(j["frames"] for _, j in jobs) or 1
@@ -621,5 +623,10 @@ def stage_package(ctx):
     ctx.progress(1.0, "ready to post")
 
 
+def stage_shorts(ctx):
+    from .shorts import stage_shorts as run_shorts
+    return run_shorts(ctx)
+
+
 STAGE_FUNCS = {"source": stage_source, "script": stage_script, "storyboard": stage_storyboard, "voice": stage_voice,
-               "render": stage_render, "mix": stage_mix, "package": stage_package}
+               "render": stage_render, "mix": stage_mix, "package": stage_package, "shorts": stage_shorts}
