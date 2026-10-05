@@ -14,9 +14,35 @@ router = APIRouter()
 _signups = {}   # ip -> [timestamps]
 
 
-def _cookie(resp, token, max_age):
-    resp.set_cookie(COOKIE, token, max_age=max_age, httponly=True, samesite="lax", path="/",
-                    secure=config.PUBLIC_URL.startswith("https://"))
+LOOPBACK = ("localhost", "127.0.0.1", "::1", "[::1]")
+
+
+def is_local(request):
+    """Opened on this computer itself (not through the Cloudflare link or a proxy)."""
+    host = (request.headers.get("host") or "").rsplit(":", 1)[0]
+    client = (request.client.host if request.client else "") or ""
+    return host in LOOPBACK and client in ("127.0.0.1", "::1", "localhost", "testclient") \
+        and not request.headers.get("cf-connecting-ip") and not request.headers.get("x-forwarded-for")
+
+
+def _cookie(resp, token, max_age, request=None):
+    secure = config.PUBLIC_URL.startswith("https://") or bool(request and not is_local(request))
+    resp.set_cookie(COOKIE, token, max_age=max_age, httponly=True, samesite="lax", path="/", secure=secure)
+
+
+def online_url():
+    try:
+        with open(os.path.join(config.DATA_DIR, "online_url.txt"), encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def signup_open(request):
+    if config.private():
+        # one owner, created on the PC itself; nobody can sign up through the online link
+        return accounts.count_users() == 0 and is_local(request)
+    return bool(config.load_settings()["hosted"].get("allow_signup", True))
 
 
 def me_payload(u):
@@ -30,13 +56,17 @@ def me_payload(u):
 
 
 @router.get("/api/config")
-def get_config():
+def get_config(request: Request):
     u = current()
-    out = dict(mode=config.MODE, user=me_payload(u))
+    out = dict(mode=config.MODE, user=me_payload(u), private=config.private())
     if config.hosted():
         h = config.load_settings()["hosted"]
-        out.update(signup=bool(h.get("allow_signup", True)), billing=billing.status(), pricing=plans.public_plans(),
+        out.update(signup=signup_open(request), billing=billing.status(), pricing=plans.public_plans(),
                    ai_edits_per_video=h.get("ai_edits_per_video"))
+        if config.private():
+            out["needs_owner"] = accounts.count_users() == 0
+            if u and u.get("is_admin"):
+                out["online_url"] = online_url()
     return out
 
 
@@ -54,19 +84,24 @@ class Creds(BaseModel):
 def signup(b: Creds, request: Request, response: Response):
     if not config.hosted():
         raise HTTPException(400, "accounts are only used on the hosted website")
-    if not config.load_settings()["hosted"].get("allow_signup", True):
+    if config.private() and not signup_open(request):
+        raise HTTPException(403, "this is a private studio. The owner account can only be created on the computer "
+                                 "it runs on (http://localhost)." if accounts.count_users() == 0 else
+                                 "this is a private studio; sign-ups are off")
+    if not signup_open(request):
         raise HTTPException(403, "sign-ups are closed right now")
     ip = request.scope.get("state", {}).get("ip", "")
     now = time.time()
     hits = [t for t in _signups.get(ip, []) if now - t < 86400]
-    if len(hits) >= int(os.environ.get("STUDIO_SIGNUPS_PER_IP", "3")):
+    if not config.private() and len(hits) >= int(os.environ.get("STUDIO_SIGNUPS_PER_IP", "3")):
         raise HTTPException(429, "too many new accounts from this network today")
     try:
-        u = accounts.create_user(b.email, b.password, admin_email=os.environ.get("STUDIO_ADMIN_EMAIL", ""))
+        u = accounts.create_user(b.email, b.password,
+                                 admin_email="" if config.private() else os.environ.get("STUDIO_ADMIN_EMAIL", ""))
     except accounts.AuthError as e:
         raise HTTPException(400, str(e))
     _signups[ip] = hits + [now]
-    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400)
+    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400, request)
     return dict(user=me_payload(u))
 
 
@@ -78,7 +113,7 @@ def login(b: Creds, request: Request, response: Response):
         u = accounts.login(b.email, b.password, request.scope.get("state", {}).get("ip", ""))
     except accounts.AuthError as e:
         raise HTTPException(401, str(e))
-    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400)
+    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400, request)
     return dict(user=me_payload(u))
 
 
@@ -104,7 +139,7 @@ def change_password(b: PasswordBody, request: Request, response: Response):
         accounts.set_password(u["id"], b.new)
     except accounts.AuthError as e:
         raise HTTPException(400, str(e))
-    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400)
+    _cookie(response, accounts.new_session(u["id"]), accounts.SESSION_DAYS * 86400, request)
     return dict(ok=True)
 
 
@@ -221,4 +256,5 @@ def admin_stats():
     price = plans.plans()["pro"]["price_usd"]
     return dict(month=plans.month(), users=len(users), pro_users=pro, mrr_usd=round(pro * price, 2),
                 tool_spend_usd=round(row["usd"], 2), videos_with_spend=row["n"], by_provider=per,
-                billing=billing.status())
+                billing=billing.status(), paid_plans=plans.paid_on(),
+                monthly_budget_usd=float(plans.cfg().get("monthly_budget_usd") or 0), budget_left_usd=plans.budget_left())

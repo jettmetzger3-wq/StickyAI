@@ -14,8 +14,12 @@ Paste a stickman video's link and the app:
 
 Then you post it yourself.
 
-Want to run it as a **website other people pay for**? See [DEPLOY.md](DEPLOY.md) (accounts, Free/Pro plans,
-Stripe) and [PRICING.md](PRICING.md) (why Pro is $19.99).
+**On your own PC there are no limits:** make as many videos as you want. With the free tools
+(Claude Code on your plan, Kokoro voice, built-in music) they cost nothing.
+
+Want it **on your phone**? `start.bat online` / `./start.sh online` gives you a free private link (see below).
+Want a **public website for other people**? See [DEPLOY.md](DEPLOY.md). It starts **free-only**; a Pro plan with
+Stripe payments is built in and can be switched on later ([PRICING.md](PRICING.md)).
 
 Every step has a **free** option. **Paid tools are optional** (better voice, music and AI art), and the
 app **never spends money or credits without showing you an estimate and waiting for your click**.
@@ -41,6 +45,25 @@ once with `npm install -g @anthropic-ai/claude-code` and run `claude` to log in.
 `claude -p` in the background. No Claude Code? Pick "Ollama (local model)" or "Basic (no AI, for testing)".
 
 **Free voice:** Kokoro downloads its model (~340 MB) from GitHub the first time you preview or use it.
+
+### Use it from your phone (free, just for you)
+
+```bash
+start.bat online        # Windows
+./start.sh online       # Linux / macOS
+```
+
+This runs the same studio with a login and opens a free Cloudflare link like
+`https://some-random-words.trycloudflare.com` that works on your phone or any computer while the start
+window is open. It needs Cloudflare's free `cloudflared` program (no account):
+`winget install --id Cloudflare.cloudflared` (Windows), `brew install cloudflared` (macOS) or the `.deb` from
+https://github.com/cloudflare/cloudflared/releases (Debian/Ubuntu).
+
+- The first time, the browser on your PC asks you to create your **owner account**. Only you can log in; nobody
+  can sign up through the link, and the owner account can only be created on the PC itself.
+- Same videos, same free tools, no limits. Your PC does the work, so it has to stay on.
+- The link changes every time you start it. Don't post it publicly: it's your private studio.
+- Live progress updates arrive every few seconds instead of instantly (Cloudflare's free links don't stream them).
 
 ---
 
@@ -125,6 +148,7 @@ python -m studio make "..." --checkpoints                        # pause after s
 python -m studio resume <project-folder-name>                    # continue after a pause or error
 python -m studio rerender <project-folder-name> 4 7               # re-render scenes 4 and 7
 python -m studio list | doctor | serve
+python -m studio online                                          # your studio + a free private link for your phone
 python -m studio admin you@example.com                           # website (hosted mode): make an admin
 ```
 

@@ -3,6 +3,12 @@
 These are the numbers behind the default plans in hosted mode. All of them can be changed in
 **Settings → Website (hosted mode)** (and the real price people pay is the Price you create in Stripe).
 
+> **Right now the website is free-only.** Paid plans are off by default (Settings → Website → Paid plans), so
+> people only see the Free plan, and a monthly AI budget ($20 by default) caps what free videos can cost you.
+> Everything below is ready for the day you switch Pro on.
+>
+> On your own PC there are no plans at all: you make as many videos as you want, free with the free tools.
+
 ## What the tools cost per video
 
 Estimates from the app's own cost formulas (they include headroom for the model's thinking tokens, so real

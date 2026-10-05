@@ -47,6 +47,8 @@ def cookie_value(header, name):
 
 
 def client_ip(scope, headers):
+    if os.environ.get("STUDIO_PRIVATE") == "1" and headers.get("cf-connecting-ip"):
+        return headers["cf-connecting-ip"]          # the visitor's address, passed on by the Cloudflare link
     if os.environ.get("STUDIO_TRUST_PROXY") == "1" and headers.get("x-forwarded-for"):
         return headers["x-forwarded-for"].split(",")[0].strip()
     return (scope.get("client") or ("", 0))[0]

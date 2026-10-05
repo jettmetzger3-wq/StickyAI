@@ -49,6 +49,25 @@ function ThemeToggle() {
   );
 }
 
+function OnlineLink({ url }) {
+  const [copied, setCopied] = useState(false);
+  if (!url) return null;
+  return (
+    <button
+      title={`Your online link (works while the start window is open): ${url}`}
+      onClick={() => {
+        navigator.clipboard?.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+      className="hidden max-w-[16rem] truncate rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900 sm:inline dark:bg-emerald-900/40 dark:text-emerald-300"
+    >
+      {copied ? "Copied!" : `📱 ${url.replace("https://", "")}`}
+    </button>
+  );
+}
+
 function UsageChip({ user }) {
   const u = user?.usage;
   if (!u || u.unlimited) return null;
@@ -93,28 +112,30 @@ export default function App() {
     );
   }
   const hosted = cfg.mode === "hosted";
+  const priv = !!cfg.private; // your own studio online: one owner, no plans or payments
+  const paid = !!cfg.pricing?.paid_plans; // Pro + payments switched on in Settings (off: the site is free-only)
   const user = cfg.user;
   const admin = !hosted || user?.is_admin;
 
   let page;
   if (hosted && !user) {
-    if (route.startsWith("/pricing")) page = <Pricing />;
+    if (route.startsWith("/pricing") && !priv && paid) page = <Pricing />;
     else page = <Login signup={route.startsWith("/signup")} />;
   } else if (route.startsWith("/p/")) page = <ProjectPage slug={decodeURIComponent(route.slice(3))} />;
   else if (route.startsWith("/new")) page = <NewVideo />;
   else if (route.startsWith("/settings") && admin) page = <Settings />;
-  else if (route.startsWith("/pricing") && hosted) page = <Pricing />;
+  else if (route.startsWith("/pricing") && hosted && !priv && paid) page = <Pricing />;
   else if (route.startsWith("/account") && hosted) page = <Account />;
-  else if (route.startsWith("/admin") && hosted && user?.is_admin) page = <Admin />;
+  else if (route.startsWith("/admin") && hosted && !priv && user?.is_admin) page = <Admin />;
   else page = <Library />;
 
   const nav = [];
   if (!hosted || user) {
     nav.push(["#/", "Library", route === "/" || route === ""], ["#/new", "New video", route.startsWith("/new")]);
   }
-  if (hosted) nav.push(["#/pricing", "Pricing", route.startsWith("/pricing")]);
+  if (hosted && !priv && paid) nav.push(["#/pricing", "Pricing", route.startsWith("/pricing")]);
   if (hosted && user) nav.push(["#/account", "Account", route.startsWith("/account")]);
-  if (hosted && user?.is_admin) nav.push(["#/admin", "Admin", route.startsWith("/admin")]);
+  if (hosted && !priv && user?.is_admin) nav.push(["#/admin", "Admin", route.startsWith("/admin")]);
   if (admin && (!hosted || user)) nav.push(["#/settings", "Settings", route.startsWith("/settings")]);
 
   async function logout() {
@@ -153,12 +174,13 @@ export default function App() {
                 </span>
               )}
               {hosted && user && <UsageChip user={user} />}
+              {priv && user && <OnlineLink url={cfg.online_url} />}
               {hosted && user && (
                 <button onClick={logout} className="rounded-lg px-2 py-1.5 text-sm hover:bg-stone-200/70 dark:hover:bg-zinc-800" title={user.email}>
                   Log out
                 </button>
               )}
-              {hosted && !user && !route.startsWith("/login") && route !== "/" && route !== "" && (
+              {hosted && !priv && !user && !route.startsWith("/login") && route !== "/" && route !== "" && (
                 <a href="#/login" className="rounded-lg bg-amber-500 px-3 py-1.5 text-sm font-medium text-zinc-950">
                   Log in
                 </a>

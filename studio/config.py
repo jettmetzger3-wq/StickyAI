@@ -27,6 +27,12 @@ def hosted():
     return MODE == "hosted"
 
 
+def private():
+    """Your own studio online, for you alone: hosted mode on your PC behind a free Cloudflare link
+    (python -m studio online / start.bat online). One owner account, no sign-ups, no plans."""
+    return hosted() and os.environ.get("STUDIO_PRIVATE") == "1"
+
+
 def ytdlp_opts(**kw):
     """yt-dlp options. YouTube often blocks server IPs; STUDIO_YTDLP_COOKIES can point at a cookies.txt export."""
     cookies = os.environ.get("STUDIO_YTDLP_COOKIES", "")
@@ -89,6 +95,11 @@ DEFAULT_SETTINGS = {
     },
     # Hosted mode only (STUDIO_MODE=hosted)
     "hosted": {
+        # Start free-only: no Pro plan, no payments. Turn this on once people use the site (needs Stripe keys).
+        "paid_plans": False,
+        # Most the website may spend on AI tools (Anthropic, ElevenLabs) per calendar month for everyone's videos
+        # but the admins'. When it's used up, new videos wait until the 1st. 0 = no limit.
+        "monthly_budget_usd": 20.0,
         "allow_signup": True,
         "max_concurrent_runs": 2,
         "max_usd_per_video": 8.0,      # refuse jobs whose estimated tool cost is above this

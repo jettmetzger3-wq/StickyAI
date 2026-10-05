@@ -16,7 +16,7 @@ class BillingError(Exception):
 
 
 def enabled():
-    return bool(secret("STRIPE_SECRET_KEY") and secret("STRIPE_PRICE_PRO"))
+    return bool(plans.paid_on() and secret("STRIPE_SECRET_KEY") and secret("STRIPE_PRICE_PRO"))
 
 
 def status():
@@ -42,6 +42,8 @@ def _customer(c, user):
 
 def checkout(user, kind):
     """Return the URL of a Stripe Checkout page for 'pro' (subscription) or 'pack' (one-time minutes)."""
+    if not plans.paid_on():
+        raise BillingError("paid plans aren't open yet; everything on this site is free for now")
     c = client()
     if kind == "pro":
         price = secret("STRIPE_PRICE_PRO")

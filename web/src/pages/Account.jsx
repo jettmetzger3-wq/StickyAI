@@ -114,7 +114,7 @@ export default function Account() {
               {busy === "portal" && <Spinner />} Manage billing & invoices
             </Button>
           )}
-          {!billing.enabled && <span className="text-sm text-stone-500">Online payments aren't switched on yet.</span>}
+          {!pricing?.paid_plans && <span className="text-sm text-stone-500">Everything on this site is free for now.</span>}
         </div>
         {user.sub_status && user.sub_status !== "active" && (
           <p className="mt-3 text-sm text-amber-700 dark:text-amber-300">Subscription status: {user.sub_status.replace("_", " ")}</p>

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Stickman Studio launcher for Linux (Debian/Ubuntu) and macOS.
 # First run: creates .venv, installs Python packages, builds the dashboard if needed. Then opens the browser.
+#   ./start.sh          the studio on this computer (http://localhost:8765)
+#   ./start.sh online   the same, plus a free https link so you can use it from your phone (needs cloudflared)
 set -e
 cd "$(dirname "$0")"
 
@@ -46,6 +48,9 @@ if ! command -v claude >/dev/null 2>&1; then
 fi
 
 PORT="$(python -c 'from studio.config import load_settings; print(load_settings()["port"])')"
+if [ "${1:-}" = "online" ]; then
+  exec python -m studio online --port "$PORT"
+fi
 URL="http://localhost:${PORT}"
 echo "Stickman Studio: ${URL}   (Ctrl+C to stop)"
 ( sleep 2; (command -v xdg-open >/dev/null && xdg-open "$URL") || (command -v open >/dev/null && open "$URL") ) >/dev/null 2>&1 &

@@ -1,8 +1,20 @@
 # Running Stickman Studio as a public website (hosted mode)
 
-The same app that runs on your PC can run as a website where people sign up, make videos on a **Free** plan
-and pay for **Pro** with Stripe. You pay for the AI tools (Anthropic, ElevenLabs) from your own accounts;
-your customers pay you a subscription. See [PRICING.md](PRICING.md) for the cost math behind the default prices.
+The same app that runs on your PC can run as a website where people sign up and make videos.
+
+**It starts free-only:** everyone gets 2 free videos a month (up to 3 minutes, small watermark). There's no Pro
+plan and no payment page until you switch on **Settings → Website → Paid plans** (with Stripe, see step 2).
+The idea: launch free, and add Pro once people are actually using it. [PRICING.md](PRICING.md) has the cost math
+for when you do.
+
+**Free for them isn't free for you.** The website writes scripts with the Anthropic API (a personal Claude
+subscription can't be used to serve other people), so each free video costs you about $0.80–0.90 with Claude
+Opus 5.5, or roughly half that with Sonnet 5.5 (Settings → Website → writer model). The **monthly AI budget**
+(default **$20**, about 20–25 free videos a month with Opus) stops new videos for the rest of the month when it's
+used up, so a busy month can't run up a surprise bill. Your own videos never count against it and are never
+limited. Plus the server itself (a few dollars to ~$40 a month).
+
+Just want to use it yourself from your phone? You don't need any of this: run `start.bat online` (see README).
 
 Nothing here is switched on by default. The app on your PC (`start.bat` / `start.sh`) stays exactly as it is.
 
@@ -47,7 +59,10 @@ docker compose exec studio python -m studio admin you@example.com            # m
 docker compose exec studio python -m studio admin you@example.com --password # and set its password
 ```
 
-## 2. Set up Stripe
+## 2. Later: turn on Pro and payments
+
+Skip this while the site is free-only. When you're ready, set up Stripe below, then switch on
+**Settings → Website → Paid plans**. The Pricing page, the Pro plan and the upgrade buttons appear by themselves.
 
 Do this in **test mode** first (the toggle at the top of the Stripe dashboard), then repeat with live keys.
 
@@ -69,6 +84,7 @@ only what the Pricing page shows. Card details never touch your server: Stripe h
 
 **Settings → Website (hosted mode)** (admins only):
 
+- **Paid plans** (off = free-only) and the **monthly AI budget** for other people's videos ($20).
 - Free videos per month, the longest video per plan, Pro minutes per month, the minutes pack.
 - Writer model per plan (Opus by default; Sonnet or Haiku make the Free plan much cheaper).
 - **Tool cost cap per video** ($8): above this a run waits for an admin to approve it on the project page.

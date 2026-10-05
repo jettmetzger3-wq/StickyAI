@@ -22,6 +22,8 @@ function PlanPicker({ cfg, tier, setTier, minutes }) {
   const plans = cfg.pricing.plans;
   const freeLeft = Math.max(0, u.free_videos_limit - u.free_videos_used);
   const proOk = u.plan === "pro" || u.extra_minutes > 0;
+  const paid = !!cfg.pricing.paid_plans;
+  const showPro = paid || proOk; // while the site is free-only, Pro only shows for people an admin gave it to
   const card = (id, title, lines, ok) => (
     <button
       key={id}
@@ -45,16 +47,19 @@ function PlanPicker({ cfg, tier, setTier, minutes }) {
   );
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={cx("grid gap-3", showPro && "sm:grid-cols-2")}>
         {card(
           "free",
           "Free",
           [`Up to ${plans.free.max_minutes} min`, "Kokoro voice, built-in music & thumbnail", plans.free.watermark ? "Small watermark" : "No watermark"],
           freeLeft > 0
         )}
-        {card("pro", "Pro", [`Up to ${plans.pro.max_minutes} min`, "ElevenLabs voice, AI music & thumbnail art", "No watermark"], proOk)}
+        {showPro && card("pro", "Pro", [`Up to ${plans.pro.max_minutes} min`, "ElevenLabs voice, AI music & thumbnail art", "No watermark"], proOk)}
       </div>
-      {!proOk && (
+      {freeLeft === 0 && !proOk && (
+        <p className="mt-3 text-sm">You've made all your free videos for this month. More on the 1st!</p>
+      )}
+      {!proOk && paid && (
         <p className="mt-3 text-sm">
           Want studio voices and AI music?{" "}
           <a href="#/pricing" className="font-medium text-amber-700 underline dark:text-amber-400">
@@ -358,7 +363,12 @@ export default function NewVideo() {
         {!planMode && (
         <Card title="Quality">
           <div className="grid gap-3 sm:grid-cols-3">
-            {tierCard("free", "Free", "$0", ["Claude Code writes (your plan)", "Kokoro voice (offline)", "Built-in music & thumbnail"])}
+            {tierCard("free", "Free", "$0", [
+              "Unlimited videos",
+              "Claude Code writes (your plan)",
+              "Kokoro voice (offline)",
+              "Built-in music, thumbnail & Short",
+            ])}
             {tierCard("pro", "Pro", "paid", [
               "Anthropic API writer",
               "ElevenLabs voice + exact word timing",

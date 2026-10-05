@@ -5,12 +5,14 @@ import { go, useConfig } from "../App.jsx";
 
 export default function Login({ signup: startSignup }) {
   const cfg = useConfig();
-  const [signup, setSignup] = useState(!!startSignup && cfg.signup !== false);
+  const priv = !!cfg.private;
+  const [signup, setSignup] = useState((!!startSignup || (priv && cfg.needs_owner)) && cfg.signup !== false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState(null);
   const [busy, setBusy] = useState(false);
   const free = cfg.pricing?.plans?.free;
+  const paid = !!cfg.pricing?.paid_plans;
 
   async function submit(e) {
     e.preventDefault();
@@ -25,6 +27,44 @@ export default function Login({ signup: startSignup }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (priv) {
+    return (
+      <div className="mx-auto max-w-md py-10">
+        <h1 className="mb-1 text-2xl font-bold">Your Stickman Studio</h1>
+        <p className="mb-5 text-sm text-stone-500 dark:text-zinc-400">
+          {cfg.needs_owner
+            ? cfg.signup
+              ? "First time: create your owner account. Only you can log in here; nobody can sign up through the online link."
+              : "This studio has no owner account yet. Open it on the computer it runs on (http://localhost) to create one."
+            : "Private studio. Log in with your owner account."}
+        </p>
+        <Card>
+          <form onSubmit={submit} className="space-y-4">
+            <Field label="Email">
+              <input type="email" autoComplete="email" required className="w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </Field>
+            <Field label="Password" hint={signup ? "At least 8 characters. You'll use it on your phone too." : ""}>
+              <input
+                type="password"
+                autoComplete={signup ? "new-password" : "current-password"}
+                required
+                minLength={signup ? 8 : undefined}
+                className="w-full"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </Field>
+            <ErrorBox error={err} />
+            <Button variant="primary" size="lg" className="w-full" disabled={busy || (cfg.needs_owner && !cfg.signup)}>
+              {busy && <Spinner />}
+              {signup ? "Create my owner account" : "Log in"}
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -45,12 +85,16 @@ export default function Login({ signup: startSignup }) {
               • <b>Free:</b> {free.videos_per_month} videos a month, up to {free.max_minutes} minutes each
             </li>
           )}
-          <li>
-            • <b>Pro:</b> studio voices, AI music and thumbnail art.{" "}
-            <a href="#/pricing" className="underline">
-              See pricing
-            </a>
-          </li>
+          {paid ? (
+            <li>
+              • <b>Pro:</b> studio voices, AI music and thumbnail art.{" "}
+              <a href="#/pricing" className="underline">
+                See pricing
+              </a>
+            </li>
+          ) : (
+            <li>• No card needed: everything here is free.</li>
+          )}
         </ul>
       </div>
       <Card>

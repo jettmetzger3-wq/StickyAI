@@ -9,7 +9,7 @@ from .events import bus
 from .project import Project, STAGES, CHECKPOINTS, STAGE_LABELS
 from .stages import STAGE_FUNCS, Cancelled
 from .. import providers as P
-from ..config import hosted, load_settings
+from ..config import hosted, private, load_settings
 from ..providers.llm import using_model
 
 _running = {}          # slug -> thread
@@ -91,6 +91,10 @@ def auto_approver(meta):
     def ok(na):
         if na.cost.credits and not na.cost.usd:
             return False          # credits with no known dollar value: the admin decides
+        from ..hosted import plans
+        left = plans.budget_left()
+        if left is not None and na.cost.usd > left:
+            return False          # the website's monthly AI budget is used up: the admin decides
         return costs.spent(meta) + na.cost.usd <= cap
     return ok
 
@@ -237,7 +241,7 @@ def is_running(slug):
 
 def max_runs():
     """Hosted mode limits how many videos are made at once (rendering uses every CPU core)."""
-    if not hosted():
+    if not hosted() or private():
         return 0
     return max(1, int(load_settings()["hosted"].get("max_concurrent_runs") or 1))
 

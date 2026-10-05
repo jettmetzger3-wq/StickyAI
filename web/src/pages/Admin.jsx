@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
-import { Badge, Button, Card, ErrorBox, Spinner } from "../ui.jsx";
+import { Badge, Button, Card, ErrorBox, Progress, Spinner } from "../ui.jsx";
 
 export default function Admin() {
   const [users, setUsers] = useState(null);
@@ -34,8 +34,12 @@ export default function Admin() {
         <div className="grid gap-3 sm:grid-cols-4">
           {[
             ["Users", stats.users],
-            ["Pro subscribers", stats.pro_users],
-            ["Monthly revenue", `$${stats.mrr_usd.toFixed(2)}`],
+            ...(stats.paid_plans
+              ? [
+                  ["Pro subscribers", stats.pro_users],
+                  ["Monthly revenue", `$${stats.mrr_usd.toFixed(2)}`],
+                ]
+              : []),
             [`Tool spend (${stats.month})`, `$${stats.tool_spend_usd.toFixed(2)}`],
           ].map(([k, v]) => (
             <Card key={k}>
@@ -45,10 +49,27 @@ export default function Admin() {
           ))}
         </div>
       )}
-      {stats && !stats.billing.enabled && (
+      {stats && stats.monthly_budget_usd > 0 && (
+        <Card>
+          <div className="mb-1 flex justify-between text-sm">
+            <span>AI budget for other people's videos ({stats.month})</span>
+            <span>
+              ${Math.max(0, stats.monthly_budget_usd - stats.budget_left_usd).toFixed(2)} of ${stats.monthly_budget_usd.toFixed(2)} used
+            </span>
+          </div>
+          <Progress value={Math.min(1, (stats.monthly_budget_usd - stats.budget_left_usd) / stats.monthly_budget_usd)} />
+          <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">When it runs out, new videos wait until the 1st. Your own videos don't count. Change it in Settings.</p>
+        </Card>
+      )}
+      {stats && !stats.paid_plans && (
+        <div className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900 dark:bg-emerald-500/10 dark:text-emerald-300">
+          The site is free-only: no Pro plan, no payments. When people are using it, turn on "Paid plans" in Settings and add your Stripe keys (see DEPLOY.md).
+        </div>
+      )}
+      {stats && stats.paid_plans && !stats.billing.enabled && (
         <div className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-500/10 dark:text-amber-300">
-          Payments are off: add STRIPE_SECRET_KEY, STRIPE_PRICE_PRO, STRIPE_PRICE_PACK and STRIPE_WEBHOOK_SECRET (see DEPLOY.md). Until then you can give people Pro by hand
-          below.
+          Paid plans are on but payments aren't set up: add STRIPE_SECRET_KEY, STRIPE_PRICE_PRO, STRIPE_PRICE_PACK and STRIPE_WEBHOOK_SECRET (see DEPLOY.md). Until then you can
+          give people Pro by hand below.
         </div>
       )}
       <Card title="Users" actions={<input placeholder="search email" value={q} onChange={(e) => setQ(e.target.value)} />}>

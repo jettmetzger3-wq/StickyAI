@@ -230,3 +230,32 @@ def test_login_rate_limit():
     with pytest.raises(accounts.AuthError, match="too many"):
         accounts.login(e, "correct horse", ip="9.9.9.9")
     assert accounts.login(e, "correct horse", ip="8.8.8.8")["email"] == e
+
+
+def test_site_starts_free_only(hosted, monkeypatch):
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_dummy")
+    monkeypatch.setenv("STRIPE_PRICE_PRO", "price_dummy")
+    c = client()
+    signup(c, "lou")
+    cfg = c.get("/api/config").json()
+    assert cfg["pricing"]["paid_plans"] is False and cfg["billing"]["enabled"] is False
+    r = c.post("/api/billing/checkout", json=dict(kind="pro"), headers=H)
+    assert r.status_code == 400 and "free" in r.json()["detail"]
+
+
+def test_monthly_budget_stops_new_videos(hosted, monkeypatch):
+    c = client()
+    _, u = signup(c, "max")
+    r = c.post("/api/projects", json=dict(mode="topic", topic="Spendy", minutes=2, start=False, tier="free"), headers=H)
+    slug = r.json()["slug"]
+    from studio.pipeline import Project, costs as pcosts
+    pcosts.record(Project(slug), "storyboard", "anthropic", usd=19.8, note="test")
+    assert plans.budget_left() <= 0.5
+    r = c.post("/api/projects", json=dict(mode="topic", topic="Next", minutes=2, start=False, tier="free"), headers=H)
+    assert r.status_code == 503 and "1st" in r.json()["detail"]
+    # the owner's own videos don't count against it, and the owner is never stopped by it
+    s = config.load_settings()["hosted"]
+    s["monthly_budget_usd"] = 0
+    config.save_settings({"hosted": s})
+    assert plans.budget_left() is None
+    c.delete(f"/api/projects/{slug}", headers=H)

@@ -71,6 +71,26 @@ def remove(slug):
             con.close()
 
 
+def month_spend(slugs=None, since=None):
+    """Dollars recorded this calendar month (UTC), optionally only for these projects."""
+    import calendar
+    import time
+    if since is None:
+        t = time.gmtime()
+        since = calendar.timegm((t.tm_year, t.tm_mon, 1, 0, 0, 0))
+    if slugs is not None and not slugs:
+        return 0.0
+    con = connect()
+    try:
+        q, args = "SELECT COALESCE(SUM(usd),0) FROM costs WHERE at >= ?", [since]
+        if slugs is not None:
+            q += f" AND slug IN ({','.join('?' * len(slugs))})"
+            args += list(slugs)
+        return float(con.execute(q, args).fetchone()[0])
+    finally:
+        con.close()
+
+
 def spend_summary():
     con = connect()
     try:

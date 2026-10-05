@@ -3,6 +3,7 @@
   make "The Fall of Rome" --minutes 3        topic -> finished video (free mode by default)
   make https://youtube.com/watch?v=...        remake a YouTube video as a new stickman video
   serve                                       start the dashboard (http://localhost:8765)
+  online                                      your studio online (login + free https link for your phone)
   admin you@example.com                       hosted mode: create/promote an admin account
   list | resume <slug> | rerender <slug> <scene numbers> | estimate ... | doctor
 """
@@ -161,6 +162,11 @@ def cmd_serve(a):
     return 0
 
 
+def cmd_online(a):
+    from . import online
+    return online.main(a.port or None, open_browser=not a.no_browser)
+
+
 def cmd_admin(a):
     """Hosted mode: create an admin account or make an existing account admin (run on the server)."""
     import getpass
@@ -217,6 +223,10 @@ def main(argv=None):
     sv.add_argument("--port", type=int, default=0)
     sv.add_argument("--host", default="127.0.0.1")
     sv.set_defaults(fn=cmd_serve)
+    on = sub.add_parser("online", help="your studio online for you alone, with a free Cloudflare link")
+    on.add_argument("--port", type=int, default=0)
+    on.add_argument("--no-browser", action="store_true")
+    on.set_defaults(fn=cmd_online)
     ad = sub.add_parser("admin", help="hosted mode: create an admin account or promote one")
     ad.add_argument("email")
     ad.add_argument("--password", action="store_true", help="also set a new password")

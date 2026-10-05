@@ -32,6 +32,28 @@ def plans():
     return cfg()["plans"]
 
 
+def paid_on():
+    """Pro and payments are switched on (Settings > Website). Off by default: the site starts free-only."""
+    return bool(cfg().get("paid_plans"))
+
+
+def site_spend():
+    """This month's AI tool spending on other people's videos (the admins' own videos don't count)."""
+    from .. import db
+    from ..pipeline import list_projects
+    admins = {u["id"] for u in accounts.list_users() if u["is_admin"]}
+    slugs = [m["slug"] for m in list_projects() if m.get("owner") is not None and m.get("owner") not in admins]
+    return db.month_spend(slugs=slugs)
+
+
+def budget_left():
+    """Dollars left in the website's monthly AI budget (None = no limit)."""
+    b = float(cfg().get("monthly_budget_usd") or 0)
+    if b <= 0:
+        return None
+    return round(b - site_spend(), 2)
+
+
 def public_plans():
     c = cfg()
     out = {}
@@ -39,7 +61,8 @@ def public_plans():
         out[pid] = dict(id=pid, name=p["name"], price_usd=p["price_usd"], videos_per_month=p["videos_per_month"],
                         max_minutes=p["max_minutes"], pro_minutes=p["pro_minutes"], watermark=p["watermark"],
                         shorts=p.get("shorts", []))
-    return dict(plans=out, pack=c["pack"], ai_short_minutes=load_settings()["calliope"].get("ai_short_minutes", 5))
+    return dict(plans=out, pack=c["pack"], ai_short_minutes=load_settings()["calliope"].get("ai_short_minutes", 5),
+                paid_plans=paid_on())
 
 
 def effective_plan(user):

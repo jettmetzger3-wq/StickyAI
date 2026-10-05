@@ -83,8 +83,19 @@ function HostedCard({ s, set }) {
   const num = (v) => Number(v);
   return (
     <Card title="Website (hosted mode)">
+      <div className="mb-4 grid gap-4 sm:grid-cols-2">
+        <Toggle
+          checked={!!h.paid_plans}
+          onChange={(v) => setH({ paid_plans: v })}
+          label="Paid plans (Pro + payments)"
+          hint="Off: the site is free-only. Turn on when people are using it and your Stripe keys are in (DEPLOY.md)."
+        />
+        <Field label="Monthly AI budget for other people's videos ($)" hint="New videos wait until the 1st once it's used up. Your own videos don't count. 0 = no limit.">
+          <input type="number" step="1" min="0" className="w-full" value={h.monthly_budget_usd} onChange={(e) => setH({ monthly_budget_usd: num(e.target.value) })} />
+        </Field>
+      </div>
       <p className="mb-3 text-xs text-stone-500 dark:text-zinc-400">
-        Prices shown on the Pricing page. The amount people actually pay is the Price you created in Stripe, so keep them the same.
+        Prices shown on the Pricing page (when paid plans are on). The amount people actually pay is the Price you created in Stripe, so keep them the same.
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         {["free", "pro"].map((id) => (

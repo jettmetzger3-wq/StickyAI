@@ -1,6 +1,8 @@
 @echo off
 REM Stickman Studio launcher for Windows 10/11.
 REM First run: creates .venv, installs Python packages, builds the dashboard if needed. Then opens the browser.
+REM   start.bat          the studio on this computer (http://localhost:8765)
+REM   start.bat online   the same, plus a free https link so you can use it from your phone (needs cloudflared)
 setlocal
 cd /d "%~dp0"
 
@@ -68,6 +70,11 @@ where claude >nul 2>nul
 if errorlevel 1 echo Tip: the free writer uses Claude Code. Install it ^(npm install -g @anthropic-ai/claude-code^) and run "claude" once to log in.
 
 for /f "delims=" %%p in ('python -c "from studio.config import load_settings; print(load_settings()['port'])"') do set "PORT=%%p"
+if /i "%~1"=="online" (
+  python -m studio online --port %PORT%
+  pause
+  exit /b
+)
 echo Stickman Studio: http://localhost:%PORT%   (close this window to stop)
 start "" cmd /c "timeout /t 3 /nobreak >nul & start http://localhost:%PORT%"
 python -m studio serve --port %PORT%

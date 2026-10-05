@@ -10,7 +10,7 @@ import os
 import time
 import urllib.request
 
-from ..config import hosted, load_settings, save_settings
+from ..config import hosted, private, load_settings, save_settings
 from .base import Provider, Cost, FREE, ProviderError
 from . import mcp_bridge
 
@@ -76,7 +76,7 @@ class CalliopeShorts(Provider):
 
     def available(self):
         from .llm import ClaudeCLI
-        if hosted() and not load_settings()["hosted"].get("ai_shorts"):
+        if hosted() and not private() and not load_settings()["hosted"].get("ai_shorts"):
             return False, "AI Shorts are turned off on this website"
         if not ClaudeCLI().path():
             return False, "needs Claude Code (the `claude` command) with the Calliope connector"

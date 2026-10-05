@@ -21,6 +21,19 @@ export default function Pricing() {
   const [busy, setBusy] = useState(null);
   const p = cfg.pricing;
   if (!p) return <Spinner />;
+  if (!p.paid_plans) {
+    return (
+      <div className="mx-auto max-w-xl py-10 text-center">
+        <h1 className="text-3xl font-bold">It's free</h1>
+        <p className="mt-2 text-stone-600 dark:text-zinc-400">
+          Everyone gets {p.plans.free.videos_per_month} videos a month, up to {p.plans.free.max_minutes} minutes each. No card needed.
+        </p>
+        <Button variant="primary" size="lg" className="mt-6" onClick={() => go(cfg.user ? "/new" : "/signup")}>
+          {cfg.user ? "Make a video" : "Create a free account"}
+        </Button>
+      </div>
+    );
+  }
   const free = p.plans.free;
   const pro = p.plans.pro;
   const user = cfg.user;

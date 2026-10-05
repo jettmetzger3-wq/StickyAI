@@ -247,6 +247,9 @@ def _create_hosted(b, u):
     """Hosted mode, normal user: the plan picks the tools, the allowance is reserved, steps auto-approve."""
     from ..hosted import plans
     h = config.load_settings()["hosted"]
+    left = plans.budget_left()
+    if left is not None and left <= 0.5:
+        raise HTTPException(503, "free videos are used up on this website for this month. They come back on the 1st!")
     tier = b.tier if b.tier in ("free", "pro") else ("pro" if plans.effective_plan(u) == "pro" else "free")
     plan = plans.plans()[tier]
     minutes = round(max(1.0, min(float(b.minutes or 3), 60.0)), 1)

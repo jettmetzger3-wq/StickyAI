@@ -13,7 +13,7 @@ import os
 import subprocess
 import tempfile
 
-from ..config import hosted, load_settings
+from ..config import hosted, private, load_settings
 from .base import ProviderError
 
 
@@ -74,8 +74,8 @@ def call_tool(server, tool, args, timeout=300):
         raise ProviderError("this needs Claude Code (the `claude` command) with the connector added")
     name = tool_name(server, tool)
     env = dict(os.environ)
-    if not hosted():
-        # local mode: use your Claude subscription, never an API key that happens to be in .env
+    if not hosted() or private():
+        # your own videos: use your Claude subscription, never an API key that happens to be in .env
         for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
             env.pop(k, None)
     model = (load_settings().get("calliope") or {}).get("bridge_model") or ""
