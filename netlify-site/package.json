@@ -1,0 +1,16 @@
+{
+  "name": "stickman-studio-site",
+  "private": true,
+  "description": "The Stickman Studio website on Netlify: landing page, waitlist and the owner's studio link",
+  "type": "module",
+  "dependencies": {
+    "@netlify/blobs": "^11.1.3",
+    "@netlify/functions": "^6.0.2"
+  },
+  "scripts": {
+    "test": "node --test test/studio-link.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}

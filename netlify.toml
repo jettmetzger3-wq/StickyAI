@@ -1,0 +1,17 @@
+# The website on Netlify (free plan): landing page, waitlist (Netlify Forms) and /api/studio-link,
+# which sends the owner to their studio running on their own PC. The video engine itself runs on the PC:
+# Netlify can't run Python, ffmpeg or multi-minute renders. See netlify-site/README.md.
+[build]
+  base = "netlify-site"
+  publish = "public"
+  command = "echo 'static site, nothing to build'"
+
+[functions]
+  directory = "netlify/functions"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"

@@ -150,6 +150,7 @@ vite.config.ts.timestamp-*
 
 # Stickman Studio
 !web/dist
+.netlify/
 projects/
 data/
 __pycache__/

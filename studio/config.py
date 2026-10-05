@@ -49,10 +49,14 @@ SECRET_KEYS = {
     "STRIPE_WEBHOOK_SECRET": "Stripe webhook signing secret (hosted mode)",
     "STRIPE_PRICE_PRO": "Stripe Price ID of the Pro monthly subscription (price_...)",
     "STRIPE_PRICE_PACK": "Stripe Price ID of the +10 Pro minutes pack (price_...)",
+    "STUDIO_LINK_SECRET": "Netlify site: the secret that lets this PC post its online link (same value as on Netlify)",
 }
 
 DEFAULT_SETTINGS = {
     "port": 8765,
+    # Your Netlify website (e.g. https://stickman-studio.netlify.app). While `start.bat online` runs, this PC tells
+    # it the current link, so its "Open my studio" button always works. Empty = off.
+    "netlify_site": "",
     "autopilot": True,
     "providers": {
         "transcript": "youtube_captions",

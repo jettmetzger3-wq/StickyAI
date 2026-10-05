@@ -18,7 +18,8 @@ Then you post it yourself.
 (Claude Code on your plan, Kokoro voice, built-in music) they cost nothing.
 
 Want it **on your phone**? `start.bat online` / `./start.sh online` gives you a free private link (see below).
-Want a **public website for other people**? See [DEPLOY.md](DEPLOY.md). It starts **free-only**; a Pro plan with
+Your **free website on Netlify** (landing page, waitlist and an "Open my studio" button that finds your PC) is in
+[`netlify-site/`](netlify-site/README.md). Want a full **public website where other people make videos**? See [DEPLOY.md](DEPLOY.md). It starts **free-only**; a Pro plan with
 Stripe payments is built in and can be switched on later ([PRICING.md](PRICING.md)).
 
 Every step has a **free** option. **Paid tools are optional** (better voice, music and AI art), and the

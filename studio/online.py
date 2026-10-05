@@ -81,6 +81,54 @@ def banner(url):
           f"  The link changes each time you start. Don't post it publicly.\n{line}\n", flush=True)
 
 
+class SiteLink:
+    """Tell your Netlify site where the studio is right now (start, every minute, and 'offline' at the end)."""
+
+    def __init__(self, site, secret):
+        self.site = (site or "").rstrip("/")
+        self.secret = secret or ""
+        self.url = None
+        self.warned = False
+        self.stop = threading.Event()
+
+    @property
+    def on(self):
+        return bool(self.site and self.secret)
+
+    def post(self, body):
+        import json
+        req = urllib.request.Request(self.site + "/api/studio-link", data=json.dumps(body).encode(), method="POST",
+                                     headers={"Authorization": f"Bearer {self.secret}",
+                                              "Content-Type": "application/json", "User-Agent": "StickmanStudio"})
+        try:
+            with urllib.request.urlopen(req, timeout=15) as r:
+                return r.status == 200
+        except Exception as e:
+            if not self.warned:
+                self.warned = True
+                code = getattr(e, "code", None)
+                why = "the secret doesn't match the one on Netlify" if code == 401 else str(e)[:120]
+                print(f"Couldn't update your Netlify site ({self.site}): {why}", flush=True)
+            return False
+
+    def start(self, url):
+        self.url = url
+        if not self.on:
+            return
+        if self.post({"url": url}):
+            print(f"Your Netlify site's \"Open my studio\" button now points here: {self.site}", flush=True)
+        threading.Thread(target=self._beat, daemon=True).start()
+
+    def _beat(self):
+        while not self.stop.wait(60):
+            self.post({"url": self.url})
+
+    def offline(self):
+        self.stop.set()
+        if self.on and self.url:
+            self.post({"offline": True})
+
+
 def wait_until_up(port, timeout=60):
     t0 = time.time()
     while time.time() - t0 < timeout:
@@ -109,10 +157,13 @@ def main(port=None, open_browser=True):
     except OSError:
         pass
 
+    site = SiteLink(config.load_settings().get("netlify_site"), config.secret("STUDIO_LINK_SECRET"))
+
     def on_url(url):
         with open(url_file(), "w", encoding="utf-8") as f:
             f.write(url)
         banner(url)
+        site.start(url)
 
     proc = start_tunnel(exe, port, on_url)
 
@@ -130,6 +181,7 @@ def main(port=None, open_browser=True):
         import uvicorn
         uvicorn.run("studio.server.app:app", host="127.0.0.1", port=port, log_level="warning")
     finally:
+        site.offline()
         proc.terminate()
         try:
             proc.wait(timeout=5)

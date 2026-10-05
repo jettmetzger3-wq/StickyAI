@@ -78,3 +78,33 @@ def test_online_explains_how_to_get_cloudflared(monkeypatch, capsys):
     assert online.main(port=8799, open_browser=False) == 1
     out = capsys.readouterr().out
     assert "winget install --id Cloudflare.cloudflared" in out and "cloudflared-linux-amd64.deb" in out
+
+
+def test_site_link_tells_netlify_where_the_studio_is():
+    import http.server
+    import json
+    import threading
+    got = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            got.append((self.path, self.headers["Authorization"], body))
+            self.send_response(200 if self.headers["Authorization"] == "Bearer right-secret-123456" else 401)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        site = online.SiteLink(f"http://127.0.0.1:{srv.server_port}/", "right-secret-123456")
+        site.start("https://lucky-words-here.trycloudflare.com")
+        site.offline()
+        assert got[0] == ("/api/studio-link", "Bearer right-secret-123456", {"url": "https://lucky-words-here.trycloudflare.com"})
+        assert got[-1][2] == {"offline": True}
+        wrong = online.SiteLink(f"http://127.0.0.1:{srv.server_port}", "wrong")
+        assert wrong.post({"url": "x"}) is False and wrong.warned
+        assert not online.SiteLink("", "x").on                # no site set: nothing is sent
+    finally:
+        srv.shutdown()

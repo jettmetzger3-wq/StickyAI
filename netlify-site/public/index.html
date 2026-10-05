@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stickman Studio</title>
+<meta name="description" content="Paste a stickman YouTube video and get a brand-new, original stickman video on the same subject: script, animated doodle scenes, voice, music, captions, thumbnail and a Short.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="Stickman Studio">
+<meta property="og:description" content="Paste a stickman video. Get a brand-new one.">
+<meta property="og:image" content="/img/thumbnail.jpg">
+<style>
+  @font-face { font-family: "Fredoka"; src: url("/fonts/fredoka-latin-700-normal.woff") format("woff"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Fredoka"; src: url("/fonts/fredoka-latin-600-normal.woff") format("woff"); font-weight: 600; font-display: swap; }
+  :root {
+    --bg: #fafaf9; --card: #ffffff; --ink: #1c1917; --muted: #57534e; --line: #e7e5e4;
+    --accent: #f59e0b; --accent-ink: #18181b; --soft: #fef3c7; --soft-ink: #78350f; --ok: #047857;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #09090b; --card: #18181b; --ink: #f4f4f5; --muted: #a1a1aa; --line: #27272a;
+            --soft: #422006; --soft-ink: #fcd34d; --ok: #34d399; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1, h2, h3, .brand { font-family: "Fredoka", system-ui, sans-serif; font-weight: 700; letter-spacing: -0.01em; }
+  a { color: inherit; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  header { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; gap: 12px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-size: 20px; text-decoration: none; }
+  .brand img { width: 32px; height: 32px; }
+  header nav { margin-left: auto; display: flex; gap: 4px; align-items: center; }
+  header nav a { text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: 14px; color: var(--muted); }
+  header nav a:hover { background: var(--line); color: var(--ink); }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 10px; padding: 12px 20px; font: 600 16px/1 system-ui, sans-serif; cursor: pointer; text-decoration: none; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn.small { padding: 7px 12px; font-size: 14px; }
+  .hero { padding: 56px 0 32px; display: grid; gap: 32px; grid-template-columns: 1.05fr 1fr; align-items: center; }
+  .hero h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.05; margin: 0 0 16px; }
+  .hero p { color: var(--muted); font-size: 18px; margin: 0 0 24px; }
+  .hero .ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+  .hero figure { margin: 0; }
+  .hero figure img { width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--line); display: block; }
+  .hero figcaption { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  section { padding: 40px 0; }
+  section h2 { font-size: 30px; margin: 0 0 8px; }
+  section > .wrap > p.lead { color: var(--muted); margin: 0 0 24px; max-width: 680px; }
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+  .grid img { width: 100%; height: auto; aspect-ratio: 16 / 9; border-radius: 12px; border: 1px solid var(--line); display: block; }
+  .samples { display: grid; gap: 16px; grid-template-columns: 1fr 230px; align-items: start; }
+  .samples .short img { width: 100%; height: auto; aspect-ratio: 9 / 16; border-radius: 14px; border: 1px solid var(--line); display: block; }
+  .samples .note { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .steps { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); counter-reset: s; padding: 0; margin: 0; list-style: none; }
+  .steps li { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; counter-increment: s; }
+  .steps li::before { content: counter(s); display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 99px; background: var(--soft); color: var(--soft-ink); font: 700 14px "Fredoka", sans-serif; margin-bottom: 8px; }
+  .steps b { display: block; margin-bottom: 2px; }
+  .steps span { color: var(--muted); font-size: 14px; }
+  .cards { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 22px; }
+  .card p { color: var(--muted); margin: 0 0 14px; }
+  .tag { display: inline-block; background: var(--soft); color: var(--soft-ink); border-radius: 99px; padding: 2px 10px; font-size: 12px; font-weight: 600; margin-bottom: 10px; }
+  code, pre { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; overflow-x: auto; margin: 6px 0 12px; white-space: pre-wrap; word-break: break-word; }
+  .os { font-size: 13px; font-weight: 600; color: var(--muted); margin-top: 10px; }
+  ul.plain { margin: 0 0 14px; padding-left: 18px; color: var(--muted); font-size: 14px; }
+  form .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=email], input[type=text] { flex: 1 1 220px; min-width: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 16px; }
+  .hp { position: absolute; left: -9999px; }
+  .msg { font-size: 14px; margin-top: 10px; min-height: 1.2em; }
+  .msg.ok { color: var(--ok); }
+  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+  #studio-msg { font-size: 13px; color: var(--muted); }
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; padding-top: 32px; }
+    .samples { grid-template-columns: 1fr; }
+    .samples .short { max-width: 220px; }
+    .steps { grid-template-columns: 1fr; }
+    .cards { grid-template-columns: 1fr; }
+    header nav a.hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a class="brand" href="/"><img src="/favicon.svg" alt=""> Stickman Studio</a>
+    <nav>
+      <a class="hide-sm" href="#samples">Examples</a>
+      <a class="hide-sm" href="#how">How it works</a>
+      <a class="hide-sm" href="#free">Get it free</a>
+      <button class="btn ghost small" id="open-studio" type="button" title="For the owner of this studio">Open my studio</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div id="studio-msg" role="status" aria-live="polite"></div>
+    <div class="hero">
+      <div>
+        <h1>Paste a stickman video.<br>Get a brand-new one.</h1>
+        <p>Stickman Studio watches a YouTube video, writes an original script on the same subject, draws every scene as an animated doodle, records the voice and adds music, captions, a thumbnail and a Short. Then you post it.</p>
+        <div class="ctas">
+          <a class="btn primary" href="#free">Get it free</a>
+          <a class="btn ghost" href="#samples">See what it makes</a>
+        </div>
+      </div>
+      <figure>
+        <img src="/img/thumbnail.jpg" width="640" height="360" alt="A thumbnail made by Stickman Studio: two stickmen and a bold title">
+        <figcaption>A thumbnail it drew for "The Day Rome Quietly Clocked Out".</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <section id="samples">
+    <div class="wrap">
+      <h2>Made by the app</h2>
+      <p class="lead">Frames from a 2-minute video about the fall of Rome, and the vertical Short it cut from it. Every scene is drawn by the app: no stock footage, no copied clips.</p>
+      <div class="samples">
+        <div class="grid">
+          <img src="/img/scene-6.jpg" width="640" height="360" loading="lazy" alt="A Roman stickman next to a temple asking 'wait, it fell?'">
+          <img src="/img/scene-30.jpg" width="640" height="360" loading="lazy" alt="Rows of tiny stickmen labelled 26 emperors">
+          <img src="/img/scene-55.jpg" width="640" height="360" loading="lazy" alt="A worried Roman next to a list called Rome's problems">
+          <img src="/img/scene-80.jpg" width="640" height="360" loading="lazy" alt="A stickman emperor with a crown, the word chickens">
+        </div>
+        <div class="short">
+          <img src="/img/short.jpg" width="360" height="640" loading="lazy" alt="A vertical Short with a title on top and big captions">
+          <div class="note">The Short: 43 seconds, picked by the AI.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <p class="lead">You paste a link (or type a topic). The rest happens on its own, or it can stop after each step so you can edit.</p>
+      <ol class="steps">
+        <li><b>Watch</b><span>Reads the captions and looks at frames, so it gets the drawing style and the jokes.</span></li>
+        <li><b>Write</b><span>A new script in its own words, with a fact checklist. It never copies sentences.</span></li>
+        <li><b>Draw</b><span>One animated scene per line: maps, stickmen with hats, props, speech bubbles.</span></li>
+        <li><b>Voice</b><span>Natural narration, with captions timed to the words.</span></li>
+        <li><b>Mix</b><span>Music and sound effects under the voice, at YouTube loudness.</span></li>
+        <li><b>Package</b><span>3 titles, a description with real chapters, tags, a thumbnail and a Short.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="free">
+    <div class="wrap">
+      <h2>Get it free</h2>
+      <p class="lead">Stickman Studio runs on your own computer. Make as many videos as you want: with the free tools it costs nothing.</p>
+      <div class="cards">
+        <div class="card">
+          <span class="tag">Free · unlimited</span>
+          <h3>On your computer</h3>
+          <p>Windows 11, Linux or macOS. You need Python and ffmpeg (the steps install them).</p>
+          <a class="btn primary" id="download" href="https://github.com/jettmetzger3-wq/StickyAI/archive/refs/heads/claude/stickman-video-generator-ox3n1n.zip">Download</a>
+          <div class="os">Windows</div>
+          <pre>winget install --id Gyan.FFmpeg -e
+winget install --id Python.Python.3.12 -e</pre>
+          <p style="margin:0 0 4px">Unzip, then double-click <code>start.bat</code>.</p>
+          <div class="os">Debian / Ubuntu</div>
+          <pre>sudo apt install ffmpeg python3 python3-venv
+./start.sh</pre>
+          <ul class="plain">
+            <li>The writer is Claude Code on your own Claude plan (no extra bill), or a free local model.</li>
+            <li>Paid voices and AI music are optional, and it asks before spending anything.</li>
+            <li>Use it from your phone: <code>start.bat online</code> gives you a private link.</li>
+          </ul>
+          <a href="https://github.com/jettmetzger3-wq/StickyAI" class="os" style="display:inline-block">Source code on GitHub</a>
+        </div>
+        <div class="card">
+          <span class="tag">Coming if you want it</span>
+          <h3>Online, no install</h3>
+          <p>We'll open an online version where you just log in, if enough people ask for it. Leave your email and we'll let you know. No spam, one email when it's ready.</p>
+          <form name="waitlist" method="POST" data-netlify="true" netlify-honeypot="bot-field" id="waitlist">
+            <input type="hidden" name="form-name" value="waitlist">
+            <p class="hp"><label>Don't fill this in: <input name="bot-field"></label></p>
+            <div class="row">
+              <input type="email" name="email" required placeholder="you@example.com" aria-label="Email">
+              <button class="btn primary" type="submit">Notify me</button>
+            </div>
+            <div class="row" style="margin-top:8px">
+              <input type="text" name="idea" placeholder="What would you make? (optional)" aria-label="What would you make?" maxlength="300">
+            </div>
+            <div class="msg" id="waitlist-msg" role="status" aria-live="polite"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Stickman Studio · videos are drawn by the app; the narration is an AI voice.</span>
+    <span>Fredoka font: SIL Open Font License · Map data: Natural Earth</span>
+  </div>
+</footer>
+
+<script>
+  // Waitlist: Netlify Forms, sent in the background so the page stays put.
+  const form = document.getElementById("waitlist");
+  const msg = document.getElementById("waitlist-msg");
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.className = "msg";
+    msg.textContent = "Sending…";
+    try {
+      const body = new URLSearchParams(new FormData(form)).toString();
+      const r = await fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      form.reset();
+      msg.className = "msg ok";
+      msg.textContent = "Thanks! You're on the list.";
+    } catch (err) {
+      msg.textContent = "That didn't go through. Please try again in a minute.";
+    }
+  });
+
+  // "Open my studio": the owner's studio runs on their own PC and reports its current link here.
+  const studioMsg = document.getElementById("studio-msg");
+  document.getElementById("open-studio").addEventListener("click", async () => {
+    studioMsg.textContent = "Looking for the studio…";
+    try {
+      const r = await fetch("/api/studio-link", { cache: "no-store" });
+      const d = await r.json();
+      if (d.online && d.url) {
+        window.location.href = d.url;
+        return;
+      }
+      studioMsg.textContent = "The studio is offline right now. Owner: run start.bat online on your PC, then try again.";
+    } catch (err) {
+      studioMsg.textContent = "Couldn't reach the studio link right now. Try again in a minute.";
+    }
+  });
+</script>
+</body>
+</html>

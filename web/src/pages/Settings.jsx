@@ -390,6 +390,9 @@ export default function Settings() {
           <Field label="Render workers (0 = CPU cores minus one)">
             <input type="number" min="0" className="w-full" value={s.render_workers} onChange={(e) => set({ render_workers: Number(e.target.value) })} />
           </Field>
+          <Field label="Your Netlify website (optional)" hint='e.g. https://stickman-studio.netlify.app. While "start.bat online" runs, its "Open my studio" button sends you here. Also add STUDIO_LINK_SECRET under API keys.'>
+            <input className="w-full" placeholder="https://your-site.netlify.app" value={s.netlify_site || ""} onChange={(e) => set({ netlify_site: e.target.value.trim() })} />
+          </Field>
           <Field label="Port" hint="Takes effect after a restart.">
             <input type="number" className="w-full" value={s.port} onChange={(e) => set({ port: Number(e.target.value) })} />
           </Field>
