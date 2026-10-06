@@ -11,7 +11,7 @@ from contextlib import contextmanager
 import numpy as np
 from PIL import Image, ImageOps
 
-from .doodle import W, H, SS
+from .doodle import W, H, SS, shrink
 from .palette import INK, PAPER, SEA, SEA2, LAND, RED, NAVY, WHITE, SUN, DARK, YELLOW, color as to_color, darker
 from .pen import Pen
 from .geo import View, geom_polys
@@ -337,7 +337,7 @@ class Scene:
             if im is None:
                 p = Pen(seed, rgba=True, size=(w, h))
                 draw(p, k / fps)
-                im = p.im.convert("RGBa").resize((int(w), int(h)), Image.LANCZOS).convert("RGBA")
+                im = shrink(p.im, w, h)
                 if len(cache) < 400:
                     cache[k] = im
             return im
@@ -656,7 +656,9 @@ class Scene:
         # camera (sub-pixel, smooth, clamped so we never see past the frame edge)
         z, cx, cy = self.cam_at(t)
         if abs(z - 1) > 1e-4 or cx != W / 2 or cy != H / 2:
-            fr = fr.transform((W, H), Image.AFFINE, (1 / z, 0, cx - W / 2 / z, 0, 1 / z, cy - H / 2 / z), Image.BILINEAR)
+            # a sub-pixel crop-and-scale (twice as fast as an affine transform, same picture)
+            x0, y0 = cx - W / 2 / z, cy - H / 2 / z
+            fr = fr.resize((W, H), Image.BILINEAR, box=(x0, y0, x0 + W / z, y0 + H / z))
         # whip pans get motion blur along the direction the camera moves
         whip = any(sh["move"] == "whip" and sh["t"] <= t < sh["t"] + self.MOVE_TIME["whip"] + 0.04 for sh in self.shots)
         if whip:

@@ -14,7 +14,7 @@ import random
 
 from PIL import Image
 
-from .doodle import SS
+from .doodle import SS, shrink
 from .pen import Pen, ARMS, LEGS, MOUNTS
 
 LOOKABLE = ("dot", "wide", "angry", "sad", "worried")
@@ -340,7 +340,7 @@ class Puppet:
                   blink=bool(p.get("blink")), shadow=p.get("shadow", True) and not rot and not self.ride,
                   hat_color=p.get("hat_color"), head=(round(p["head"][0]), round(p["head"][1])),
                   lean=q(p.get("lean", 0), 2), coat=p.get("coat"))
-        im = pen.im.convert("RGBa").resize((int(self.cw), int(self.ch)), Image.LANCZOS).convert("RGBA")
+        im = shrink(pen.im, self.cw, self.ch)
         ox, oy = -self.foot[0], -self.foot[1]
         if rot:
             # rotate around the feet (falling over)

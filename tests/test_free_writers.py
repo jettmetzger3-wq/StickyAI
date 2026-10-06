@@ -149,7 +149,7 @@ def test_storyboard_splits_batches_for_small_free_limits(monkeypatch):
             return json.dumps({"scenes": [{"beat": idx[0], "scene": {"bg": {"type": "field"}, "elements": [
                 {"type": "char", "kind": "bicorne", "x": 600, "y": 900}]}}]}), {}
 
-    monkeypatch.setattr(stages, "provider", lambda meta, stage: SmallWriter())
+    monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None: SmallWriter())
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
     pr = new_project("Small limits", "topic", topic="Napoleon", options={"minutes": 1})
     pr.save_script({"title": "Small limits", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],
@@ -158,3 +158,68 @@ def test_storyboard_splits_batches_for_small_free_limits(monkeypatch):
     sb = json.load(open(pr.p("storyboard.json")))
     assert all(sb["scenes"][str(i)]["source"] == "groq" for i in range(4))
     assert sizes[0] == (4, True) and (1, True) in sizes
+
+
+def test_backup_writer_takes_over_when_the_claude_plan_runs_out(monkeypatch):
+    """Claude Code says the plan's limit is reached: the rest of the step is written by the free backup."""
+    from studio.providers import backup as B
+    from studio.pipeline import new_project, stages
+    from studio.pipeline.runner import Ctx
+    B.clear()
+    calls = []
+
+    class FakeClaude:
+        id, label, short, paid, supports_images, supports_web = "claude_cli", "Claude", "Claude", False, True, True
+        batch_beats, parallel, examples, compact = 8, 1, 20, False
+
+        def available(self):
+            return True, ""
+
+        def complete(self, system, prompt, label="", **kw):
+            calls.append(("claude", label))
+            if label == "props":
+                return '{"props": []}', {}
+            raise B.PlanLimit("Claude AI usage limit reached|1999999999")
+
+    class FakeGemini:
+        id, label, short, paid, supports_images, supports_web = "gemini", "Gemini", "Gemini", False, True, False
+        batch_beats, parallel, examples, compact = 16, 1, 20, False
+
+        def available(self):
+            return True, ""
+
+        def complete(self, system, prompt, label="", **kw):
+            assert "web" not in kw
+            calls.append(("gemini", label))
+            idx = [int(x) for x in label.split()[1].split("-")]
+            return json.dumps({"scenes": [{"beat": i, "scene": {"bg": {"type": "field"}, "elements": [
+                {"type": "char", "kind": "bicorne", "x": 600, "y": 900}]}} for i in range(idx[0], idx[1] + 1)]}), {}
+
+    claude, gem = FakeClaude(), FakeGemini()
+    monkeypatch.setattr(stages.P, "get", lambda stage, pid: claude if stage == "llm" else None)
+    monkeypatch.setattr(stages.P, "backup_for", lambda pid: gem)
+    monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
+    pr = new_project("Backup", "topic", topic="Napoleon", options={"minutes": 1})
+    pr.save_script({"title": "Backup", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],
+                    "beats": [{"mood": "fun", "text": f"Beat {i} about Napoleon."} for i in range(3)]})
+    stages.stage_storyboard(Ctx(pr, "storyboard"))
+    sb = json.load(open(pr.p("storyboard.json")))
+    assert all(sb["scenes"][str(i)]["source"] == "gemini" for i in range(3))
+    assert ("claude", "storyboard 0-2") in calls and ("gemini", "storyboard 0-2") in calls
+    meta = pr.meta()
+    assert meta["writer_switches"][0]["to"] == "gemini"
+    assert any("usage limit" in w["message"] for w in meta["warnings"])
+    # the next step starts with the backup right away (Claude is left alone until its reset time)
+    assert B.limited()
+    w = B.WithBackup(claude, gem)
+    assert w.active is gem and w.id == "gemini"
+    B.clear()
+
+
+def test_plan_limit_messages_are_recognized():
+    from studio.providers.backup import is_plan_limit, reset_time
+    assert is_plan_limit("Claude AI usage limit reached|1745000000")
+    assert is_plan_limit("5-hour limit reached ∙ resets 3pm")
+    assert is_plan_limit("You've hit your limit · resets Oct 7 at 2am")
+    assert not is_plan_limit("Invalid JSON schema")
+    assert reset_time("Claude AI usage limit reached|1745000000") == 1745000000

@@ -88,6 +88,7 @@ DEFAULT_SETTINGS = {
                    "gemini": "gemini-flash-latest", "groq": "openai/gpt-oss-120b"},
     "ollama_url": "http://localhost:11434",
     "claude_cli_path": "",
+    "backup_writer": "auto",           # when the Claude plan's limit is hit mid-video: auto (Gemini, else Groq) | gemini | groq | off
     "voice": {
         "kokoro_voice": "am_michael",
         "kokoro_speed": 1.2,

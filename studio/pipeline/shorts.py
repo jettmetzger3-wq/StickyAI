@@ -74,7 +74,7 @@ def pick_clip(ctx):
     old = read_json(pr.p("final", "short.json"), {}) or {}
     if old.get("key") == key and old.get("pick"):
         return old["pick"], durs
-    llm = st.provider(meta, "llm")
+    llm = st.provider(meta, "llm", ctx)
     pick = None
     if llm.id != "offline" and llm.available()[0]:
         try:

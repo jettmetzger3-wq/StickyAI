@@ -146,9 +146,15 @@ class ClaudeCLI(LLMBackend):
         try:
             data = json.loads(out[out.find("{"):]) if out else {}
         except json.JSONDecodeError:
+            from .backup import is_plan_limit, PlanLimit
+            if is_plan_limit(out + " " + r.stderr):
+                raise PlanLimit(f"your Claude plan's usage limit was reached: {(out or r.stderr)[:300]}")
             raise ProviderError(f"claude CLI returned something unexpected: {out[:300]} {r.stderr[:300]}")
         if data.get("is_error") or data.get("subtype") not in (None, "success"):
             msg = data.get("result") or r.stderr or "unknown error"
+            from .backup import is_plan_limit, PlanLimit
+            if is_plan_limit(msg):
+                raise PlanLimit(f"your Claude plan's usage limit was reached: {str(msg)[:300]}")
             raise ProviderError(f"claude CLI error: {str(msg)[:500]}")
         text = data.get("result", "")
         if schema and data.get("structured_output") is not None:

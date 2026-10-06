@@ -576,7 +576,7 @@ PACKAGE_SCHEMA = {
                       "required": ["line1", "line2", "small_kind", "big_kind", "image_prompt"],
                       "properties": {"line1": {"type": "string"}, "line2": {"type": "string"},
                                      "small_kind": {"type": "string"}, "big_kind": {"type": "string"},
-                                     "image_prompt": {"type": "string"}}},
+                                     "image_prompt": {"type": "string"}, "prop": {"type": "string"}}},
     },
 }
 
@@ -598,9 +598,12 @@ Return:
   chapter must start at beat 0. Chapters must be at least ~10 seconds apart (several beats).
 - question: one question to ask viewers in the comments.
 - tags: 10-15 search tags. hashtags: 3 hashtags like "#history".
-- thumbnail: line1 (2-4 punchy words), line2 (2-4 words), small_kind (the small angry character's hat kind),
-  big_kind (the giant smug character's kind), image_prompt (a short scene description for an AI image
-  background, no text in the image). Kinds come from: {", ".join(h for h in HATS if h != "none")}.
+- thumbnail: line1 (2-4 punchy words, the hook), line2 (1-3 words that raise a question or an emotion, like
+  "BIG MISTAKE", "WHY?!", "IT FAILED"), small_kind (the small furious underdog's hat kind), big_kind (the giant smug
+  one's kind), prop (one object that sums up the story, from the prop library: cannon, crown, galleon, explosion,
+  moneybag, oil barrel...), image_prompt (a short scene description for an AI image background, no text in the
+  image). Thumbnails are read at phone size: fewer words beat more words. Kinds come from:
+  {", ".join(h for h in HATS if h != "none")}.
 Plain spoken English, no em dashes, no AI filler words. Answer with JSON only."""
 
 

@@ -402,6 +402,14 @@ export default function Settings() {
           <Field label="Path to the claude command (optional)" hint="Only if it isn't found automatically.">
             <input className="w-full" value={s.claude_cli_path || ""} onChange={(e) => set({ claude_cli_path: e.target.value })} />
           </Field>
+          <Field label="When my Claude plan runs out mid-video" hint="A free writer takes over for the rest of the video instead of stopping (needs its free key under API keys). Claude is used again as soon as your plan allows.">
+            <select className="w-full" value={s.backup_writer || "auto"} onChange={(e) => set({ backup_writer: e.target.value })}>
+              <option value="auto">Switch to Gemini (or Groq if that's the key I have)</option>
+              <option value="gemini">Switch to Gemini</option>
+              <option value="groq">Switch to Groq</option>
+              <option value="off">Stop and wait for me</option>
+            </select>
+          </Field>
           <FreeModel id="gemini" label="Gemini model (free key)" s={s} set={set}
             hint="gemini-flash-latest: best free quality. gemini-flash-lite-latest: more free requests per day, plainer scenes." />
           <FreeModel id="groq" label="Groq model (free key)" s={s} set={set}

@@ -533,3 +533,17 @@ def caption_band(im, text, size=46):
 
 __all__ = ["Canvas", "W", "H", "SS", "INK", "PAPER", "SEA", "SEA2", "LAND", "RED", "NAVY", "GREEN", "GRAY", "DGRAY",
            "ORANGE", "SKIN", "BROWN", "YELLOW", "WHITE", "lighter", "darker"]
+
+
+def shrink(im, w, h):
+    """A 2x supersampled RGBA drawing down to (w, h): a 2x2 box average in premultiplied alpha (the right filter for
+    exactly 2x, and much faster than LANCZOS for drawings that are redrawn many times)."""
+    w, h = max(1, int(w)), max(1, int(h))
+    pm = im.convert("RGBa")
+    out = pm.reduce(SS) if SS > 1 else pm
+    if out.size != (w, h):
+        if abs(out.width - w) <= 2 and abs(out.height - h) <= 2:
+            out = out.crop((0, 0, w, h))            # off by a pixel from rounding: trim or pad, don't rescale
+        else:
+            out = out.resize((w, h), Image.BILINEAR)
+    return out.convert("RGBA")

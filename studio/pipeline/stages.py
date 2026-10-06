@@ -37,9 +37,22 @@ def h(*parts):
     return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def provider(meta, stage):
+def provider(meta, stage, ctx=None):
     pid = (meta.get("providers") or {}).get(stage) or P.TIERS["free"][stage]
-    return P.get(stage, pid)
+    p = P.get(stage, pid)
+    if stage == "llm":
+        backup = P.backup_for(p.id)
+        if backup is not None:
+            # Claude Code first; if the plan runs out mid-video a free writer takes over instead of stopping
+            return P.WithBackup(p, backup, (lambda a, b, why: switched_writer(ctx, a, b, why)) if ctx else None)
+    return p
+
+
+def switched_writer(ctx, primary, backup, why):
+    ctx.warn(f"Your Claude plan reached its usage limit, so {backup.short} (free) took over for the rest of this "
+             f"step. Scenes it draws may be a bit plainer; you can redraw them with Claude later. ({why[:160]})")
+    ctx.project.update(lambda m: m.setdefault("writer_switches", []).append(
+        dict(stage=ctx.stage, to=backup.id, at=time.time())))
 
 
 def workers():
@@ -128,7 +141,7 @@ def stage_source(ctx):
     with open(pr.p("source", "transcript.txt"), "w", encoding="utf-8") as f:
         f.write(transcript_text(segs))
     ctx.log(f"transcript: {len(segs)} segments, {sum(len(s['text'].split()) for s in segs)} words")
-    llm = provider(meta, "llm")
+    llm = provider(meta, "llm", ctx)
     if opts.get("watch", True) and llm.supports_images and llm.id != "offline" and llm.available()[0]:
         try:
             ctx.progress(0.55, "downloading a low-res copy to watch")
@@ -199,7 +212,7 @@ def source_bundle(pr, meta):
 def stage_script(ctx):
     pr, meta = ctx.project, ctx.project.meta()
     opts = meta.get("options") or {}
-    llm = provider(meta, "llm")
+    llm = provider(meta, "llm", ctx)
     minutes = float(opts.get("minutes") or 10)
     youtube = meta.get("mode") == "youtube"
     src = source_bundle(pr, meta) if (youtube or opts.get("style_url")) else None
@@ -300,7 +313,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         key = h(beats[i]["text"], beats[i]["mood"])
         if force or not os.path.exists(pr.scene_path(i)) or made.get(str(i), {}).get("key") != key:
             todo.append(i)
-    llm = provider(meta, "llm")
+    llm = provider(meta, "llm", ctx)
     hints = {}
     if meta.get("mode") == "youtube":
         vn = read_json(pr.p("source", "visual_notes.json"))
@@ -338,8 +351,11 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 raise
 
         def ask_batch(idx, n_ex):
+            # the active writer can change mid-way (backup writer), so size the request for the one answering now
+            n_ex = min(n_ex, int(getattr(llm, "examples", 20)))
             prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, cast, script.get("title", ""), hints,
-                                          kit_text=kit_text, custom=custom, examples=n_ex, compact=compact)
+                                          kit_text=kit_text, custom=custom, examples=n_ex,
+                                          compact=compact or bool(getattr(llm, "compact", False)))
             if instruction:
                 prompt += f"\n\nEXTRA DIRECTION FROM THE USER: {instruction}"
             data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, prompt, label=f"storyboard {idx[0]}-{idx[-1]}")
@@ -774,7 +790,7 @@ def stage_package(ctx):
     script = pr.script()
     info = pr.render_info()
     total = float(info.get("total") or 0)
-    llm = provider(meta, "llm")
+    llm = provider(meta, "llm", ctx)
     ctx.progress(0.05, "writing title, description and tags")
     data = None
     if llm.id != "offline" and llm.available()[0]:
@@ -822,9 +838,11 @@ def stage_package(ctx):
                 record_credits(ctx, ip, before, "thumbnail image")
         else:
             ctx.warn(f"{ip.label} not available ({why}); used the built-in thumbnail.")
+    coat_of = {resolve_kind(c.get("kind")): c.get("coat") for c in script.get("cast") or [] if c.get("coat")}
+    small, big = th.get("small_kind") or "civ", th.get("big_kind") or "crown"
     render_thumbnail(pr.p("final", "thumbnail.png"), th.get("line1") or script.get("title", "")[:20],
-                     th.get("line2") or "", th.get("small_kind") or "civ", th.get("big_kind") or "crown",
-                     background_image=bg_img)
+                     th.get("line2") or "", small, big, background_image=bg_img, prop=th.get("prop") or None,
+                     small_coat=coat_of.get(resolve_kind(small)), big_coat=coat_of.get(resolve_kind(big)))
     yt = dict(titles=[clean_line(t)[:100] for t in data.get("titles") or []][:3], description=description, tags=tags,
               hashtags=hashtags, chapters=[dict(time=fmt_ts(t), seconds=t, title=title) for t, title in chapters],
               question=clean_line(data.get("question", "")), thumbnail="final/thumbnail.png",
