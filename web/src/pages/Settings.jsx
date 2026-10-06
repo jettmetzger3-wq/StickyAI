@@ -381,6 +381,12 @@ export default function Settings() {
         <div className="grid gap-4 sm:grid-cols-2">
           <Toggle checked={s.autopilot} onChange={(v) => set({ autopilot: v })} label="Autopilot by default" hint="Off = pause after script, storyboard and voice." />
           <Toggle checked={s.share_copy} onChange={(v) => set({ share_copy: v })} label="Make a small share copy" />
+          <Toggle
+            checked={s.custom_props !== false}
+            onChange={(v) => set({ custom_props: v })}
+            label="Draw extra props for each video"
+            hint="Before the storyboard, the writer designs a few props this story needs (one more AI call, free on Claude Code)."
+          />
           <Field label={`Music level: ${s.music_db} dB`} hint="Relative to full scale; the voice sits at about -1 dB, so -13 is ~12 dB under it.">
             <input type="range" min="-24" max="-6" step="1" value={s.music_db} onChange={(e) => set({ music_db: Number(e.target.value) })} className="w-full" />
           </Field>

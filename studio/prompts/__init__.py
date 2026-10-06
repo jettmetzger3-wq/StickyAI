@@ -4,7 +4,8 @@ import json
 import os
 
 from ..engine.pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES
-from ..engine.registry import PROPS, ICONABLE
+from ..engine.registry import PROPS, ICONABLE, PROP_GROUPS
+from ..engine.places import SKYLINES, STREET_STYLES
 from ..engine.geo import REGIONS
 from ..engine.schema import ENTERS, IDLES, BG_TYPES
 from ..engine.puppet import ACTIONS
@@ -145,8 +146,18 @@ STORYBOARD_SYSTEM = ("You are the storyboard artist of a funny stickman history 
                      "code, only JSON.")
 
 
+def props_doc():
+    out = []
+    for label, names in PROP_GROUPS:
+        out.append(f"  {label}:")
+        for n in names:
+            a, _, d = PROPS[n]
+            out.append(f"    - {n}{' (center)' if a == 'center' else ''}: {d}")
+    return "\n".join(out)
+
+
 def scene_language():
-    props = "\n".join(f"  - {n} ({a}): {d}" for n, (a, _, d) in sorted(PROPS.items()))
+    props = props_doc()
     regions = ", ".join(sorted(REGIONS))
     return f"""SCENE LANGUAGE (1920x1080 frame, x to the right, y down. Bottom 180 px (y > 900) is reserved for captions:
 never put text there. Characters' feet may stand at y 860-930.)
@@ -156,8 +167,14 @@ A scene is: {{"bg": {{...}}, "elements": [...], "camera": {{...}}}}
 BACKGROUNDS ("bg"): type is one of {", ".join(BG_TYPES)}.
   paper {{color}} | sunburst {{color, ray}} | ground {{sky, ground, y: horizon y (default 860)}} |
   painted places (sky gradient, scenery; add "time": day|dawn|dusk|night|storm):
-    field (grass, a tree line: armies, farms, speeches) | hills | desert | snow | city (skyline) |
-    battlefield (smoke, mud; default stormy) | interior {{wall, floor}} (rooms, palaces, offices) |
+    field (grass, a tree line: armies, farms, speeches) | hills | desert | snow |
+    city {{skyline?}} (a skyline; skyline adds the city's landmarks: {", ".join(sorted(SKYLINES))}) |
+    street {{style: {"|".join(STREET_STYLES)}}} (a town street with houses, shops, cobbles; western = saloons) |
+    palace (grand hall: columns, curtains, chandelier, checkered marble: kings, courts, treaties, balls) |
+    harbor (quay, moored sailing ships: ports, trade, navies, explorers leaving) | beach (sand, palms, waves) |
+    underwater (light rays, seaweed, fish: submarines, shipwrecks, sea life) | space (stars, Earth, moon) |
+    jungle | mountains (snowy peaks, pines: Alps, Himalayas, crossings) | trench (WW1 trench, sandbags, wire) |
+    battlefield (smoke, mud; default stormy) | interior {{wall, floor}} (rooms, offices, small halls) |
   sea {{sky, sea, horizon (default 520)}} | night | dark {{color}} (use for somber beats) |
   map {{center: [lon, lat], width: degrees of longitude across the frame (Europe ~40, a country ~15-25, Pacific ~110),
        territories: [{{countries: [...] | region: preset, color, clip?: [[lon,lat],...], box?: [lon0,lat0,lon1,lat1]}}],
@@ -174,19 +191,27 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          legs: {", ".join(LEGS)}
          mouth: {", ".join(MOUTHS)}    eyes: {", ".join(EYES)}
          extras: {", ".join(EXTRAS)} ("q" = question mark)   prop: {", ".join(HELD)}
-         Characters are ALIVE on their own (breathing, blinking, glancing around) and talk automatically while a
-         speech bubble next to them is up. Make them ACT with "do": a list of actions, each
+         say: what the character SAYS, as a list of 1-3 short lines (max ~8 words each), shown one after another in
+         speech bubbles over their head while they talk: ["Soldiers! Glory awaits!", {{"text": "CHARGE!",
+         "at": "word:attacked"}}]. The engine positions the bubbles and points the tails; no need for bubble elements.
+         Characters are ALIVE on their own (breathing, blinking, glancing around) and talk automatically while
+         they have something to say. Make them ACT with "do": a list of actions, each
          {{act, at ("word:..." or 0-1), dur (seconds, optional)}}:
            {", ".join(sorted(ACTIONS))}
            walk/run/sneak also take "to": [x, y] (or dx); "offscreen": true lets them leave the frame.
            e.g. "do": [{{"act": "walk", "to": [1200, 900], "at": "word:marched"}}, {{"act": "cheer", "at": "word:won"}}]
   crowd: rows of the same character with depth, all alive {{kind, count (2-40), rows (1-4), x, y (front row feet),
-         width (px), scale (0.4-0.9), pose, mouth, eyes, flip, do: [...]}} (armies, mobs, voters, workers)
+         width (px), scale (0.4-0.9), pose, mouth, eyes, flip, do: [...], say: [...] (the crowd shouts back)}}
+         (armies, mobs, voters, workers)
   text:  {{text, x, y (center), size (40-120), color, font: "bold" (Fredoka) | "hand" (handwritten), align}}
-  prop:  {{name, x, y, scale, color?, params?}}. Anchor "bottom" = x,y is the bottom-center (things standing on the
-         ground); anchor "center" = x,y is the middle. Available props:
+  prop:  {{name, x, y, scale, color?, params?}}. Props stand on x,y (bottom-center) unless marked (center), then x,y is
+         their middle. Scale 1 is roughly life-size next to a scale-1 stickman for objects, and about 1.5-2x a
+         person for buildings and landmarks. Props flagged with "params: flip" face left with params {{"flip": true}}.
+         Available props (detailed doodles, pick the most specific one):
 {props}
-  bubble: speech bubble {{text ("\\n" for new line), x, y (center), size, tail: "left"|"right"|"down", font}}
+         Plus any CUSTOM PROPS listed for this video below (use them by name like library props).
+  bubble: a free-standing speech/thought bubble {{text ("\\n" for new line), x, y (center), size, tail:
+         "left"|"right"|"down"|"none", font}} (prefer a character's "say"; use bubble for narrator asides)
   note:  yellow sticky note {{text, x, y, size}}
   sign:  wooden sign on a post {{text, x, y = bottom of the post, size}}
   board: whiteboard list {{x, y (center), title, lines: [...], size}} (great for "THE PLAN", pros/cons, rankings)
@@ -220,6 +245,14 @@ COLORS: ink, red, darkred, navy, blue, lightblue, green, darkgreen, olive, gray,
 
 STYLE RULES
 - One clear idea per scene. 3 to 8 elements. Big readable labels (size 50-110). Leave breathing room.
+- Put the story in its world: Napoleon gets Paris streets, palaces, battlefields, muskets and cannons; pirates get
+  harbors, beaches, underwater shots and treasure; Rome gets the Colosseum skyline and chariots. Use the VISUAL KIT
+  and specific props (eiffel_tower, galleon, guillotine...) instead of generic ones.
+- DIALOGUE: characters talk a lot. Whenever the narration says someone said, ordered, promised, warned, asked,
+  boasted, refused, declared, rallied or motivated people, or reacts to news, give that character "say" lines in
+  their own voice (funny, short, in character: Napoleon rallying his men says "Soldiers! Glory awaits!", his army
+  answers "Vive l'Empereur!"). Two characters can trade lines (each with its own "at"). Aim for a speaking character
+  in at least half the scenes that have characters. Never just repeat the narration word for word.
 - Characters ARE the nations/people (use the cast). Size shows power (big = strong, small = weak).
 - Make the joke visual: exaggerated faces, a bubble with a funny one-liner, a sticky note callback, a sign.
 - Time the reveals to the narration with "word:..." so things pop in as they are said.
@@ -228,7 +261,7 @@ STYLE RULES
 - Keep things moving: give the main character at least one action ("do"), use 1-3 camera shots in scenes longer
   than ~5 seconds, and on maps let arrows draw, pointers bob and the camera travel.
 - Somber beats: bg "dark", "paper" or a dusk/storm place, fade entrances, no jokes, no grins, no explosions as gags,
-  candles are fine; slow actions only (bow, cry, look, walk).
+  candles are fine; slow actions only (bow, cry, look, walk); any "say" lines are quiet and respectful.
 - Keep every element fully inside the frame; text never below y=880.
 """
 
@@ -238,7 +271,7 @@ def load_examples():
         return json.load(f)
 
 
-def examples_block(limit=15):
+def examples_block(limit=18):
     ex = load_examples()[:limit]
     out = []
     for e in ex:
@@ -246,8 +279,16 @@ def examples_block(limit=15):
     return "\n\n".join(out)
 
 
-def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None):
-    """batch: list of (index, beat). visual_hints: {index: "what the source video showed around then"}."""
+def custom_props_block(kit):
+    if not kit:
+        return ""
+    lines = [f"- {d['name']}{' (center)' if d['anchor'] == 'center' else ''}: {d['desc']}" for d in kit]
+    return "CUSTOM PROPS DRAWN FOR THIS VIDEO (use them by name as props, they look great):\n" + "\n".join(lines)
+
+
+def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text="", custom=None):
+    """batch: list of (index, beat). visual_hints: {index: "what the source video showed around then"}.
+    kit_text: the topic's VISUAL KIT block. custom: props designed for this video."""
     cast_lines = "\n".join(f"- {c.get('name')}: kind={c.get('kind')}" + (f", hat_color={c['hat_color']}" if c.get("hat_color") else "")
                            for c in cast or [])
     first = batch[0][0]
@@ -267,6 +308,10 @@ VIDEO: {title}
 CAST (use these kinds consistently):
 {cast_lines or "- (pick sensible kinds)"}
 
+{kit_text}
+
+{custom_props_block(custom)}
+
 Previous beats for context:
 {chr(10).join(ctx) or "(start of video)"}
 
@@ -274,6 +319,43 @@ Make one scene for each of these beats:
 {chr(10).join(beats)}
 
 Answer with JSON only: {{"scenes": [{{"beat": <index>, "scene": {{"bg": ..., "elements": [...], "camera": ...}}}}, ...]}}"""
+
+
+# ------------------------------------------------------------------ props designed for one video
+PROP_DESIGN_SYSTEM = ("You design simple, bold doodle props for a stickman history cartoon, as lists of flat shapes "
+                      "with dark outlines. You only answer with JSON.")
+
+
+def prop_design_prompt(title, topic, beats, kit_text=""):
+    text = " ".join(b.get("text", "") for b in beats)[:9000]
+    library = ", ".join(sorted(n for n in PROPS if n != "custom"))
+    return f"""VIDEO: {title} ({topic})
+NARRATION: {text}
+
+{kit_text}
+
+The animation library already has these props: {library}
+
+Design 4 to 8 EXTRA props this specific story needs that the library does not have: the famous objects, symbols,
+vehicles, weapons, food, documents, inventions and items that are named or important in the narration (for example
+Napoleon's bicorne on a pillow, the Rosetta Stone, a Spitfire, the Declaration of Independence, a spinning jenny, a
+Viking rune stone). Skip anything the library already covers well.
+
+Draw each one on a 100 x 100 grid (x to the right, y DOWN, 0,0 = top-left) as a list of shapes, back to front:
+  {{"shape": "rect", "x": left, "y": top, "w": width, "h": height, "fill": color, "r": corner radius (optional)}}
+  {{"shape": "circle", "x": cx, "y": cy, "r": radius, "fill": color}}
+  {{"shape": "ellipse", "x": cx, "y": cy, "rx": rx, "ry": ry, "fill": color}}
+  {{"shape": "poly", "points": [[x, y], ...], "fill": color}}           (3-24 points, closed)
+  {{"shape": "line", "points": [[x, y], ...], "color": color, "width": 1-6}}   (open line)
+  {{"shape": "text", "text": "short", "x": cx, "y": cy, "size": 8-30, "color": color}}
+Every filled shape gets a dark outline automatically ("outline": false to skip it, good for highlights/shading).
+Colors: names (red, navy, gold, brown, gray, white, black, green, darkgreen, cream, khaki, silver, ...) or "#rrggbb".
+Style: bold and readable when small, 6-25 shapes, big shapes first, a few details (stripes, rivets, shading,
+highlights), flat cartoon colors, no tiny text. Fill most of the grid. "anchor": "bottom" for things that stand on
+the ground (rest them on y = 100), "center" for floating or held items.
+
+Answer with JSON only: {{"props": [{{"name": "snake_case_name", "anchor": "bottom|center",
+"description": "what it is, a few words", "parts": [...]}}]}}"""
 
 
 def fix_scene_prompt(scene, errors, beat):

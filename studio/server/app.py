@@ -390,6 +390,12 @@ def project_detail(slug: str):
                        has_transcript=os.path.exists(pr.p("source", "transcript.json")),
                        visual_notes=read_json(pr.p("source", "visual_notes.json")),
                        sheets=sorted(os.listdir(pr.p("source", "sheets"))) if os.path.isdir(pr.p("source", "sheets")) else [])
+    from ..pipeline import themes as TH
+    kit = read_json(pr.p("props.json"), {}) or {}
+    world = dict(themes=[TH.THEMES[k]["label"] for k in (sb.get("themes") or kit.get("themes") or []) if k in TH.THEMES],
+                 props=[d.get("name") for d in kit.get("props") or []],
+                 sheet="props.png" if os.path.exists(pr.p("props.png")) else None,
+                 sheet_v=int(os.path.getmtime(pr.p("props.png"))) if os.path.exists(pr.p("props.png")) else 0)
     final = {}
     for k, f in (("video", "video.mp4"), ("share", "video_share.mp4"), ("thumbnail", "thumbnail.png"), ("mix", "mix.wav"),
                  ("short", "short.mp4"), ("short_ai", "short_ai.mp4")):
@@ -412,7 +418,7 @@ def project_detail(slug: str):
                 voice=dict(provider=v.get("provider"), voice=v.get("voice"), total=v.get("total"),
                            beats=[dict(dur=(e or {}).get("dur"), text=(e or {}).get("text")) for e in (v.get("beats") or [])]),
                 render=dict(total=ri.get("total"), starts=ri.get("starts")), youtube=pr.youtube(), final=final,
-                estimate=est, stage_labels=STAGE_LABELS)
+                estimate=est, stage_labels=STAGE_LABELS, world=world)
 
 
 @app.delete("/api/projects/{slug}")
@@ -627,7 +633,7 @@ def put_scene(slug: str, i: int, body: dict):
         raise HTTPException(404, "no such beat")
     beat = script["beats"][i]
     scene = body.get("scene", body)
-    fixed, fixes, errs = check_scene(scene, beat["mood"], beat["text"])
+    fixed, fixes, errs = check_scene(scene, beat["mood"], beat["text"], pr.prop_kit())
     if errs:
         return JSONResponse(status_code=422, content=dict(errors=errs, fixes=fixes))
     pr.save_scene(i, fixed)

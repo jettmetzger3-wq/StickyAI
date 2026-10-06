@@ -97,6 +97,7 @@ DEFAULT_SETTINGS = {
     "pronunciations": {},
     "music_db": -13.0,
     "reuse_music_beds": True,          # pay for each ElevenLabs music mood once, reuse it in later videos
+    "custom_props": True,              # let the writer design a few extra props for each video (one more AI call)
     "share_copy": True,
     "share_max_mb": 30,
     "render_workers": 0,

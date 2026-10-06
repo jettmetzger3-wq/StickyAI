@@ -12,8 +12,27 @@ export default function StoryboardTab({ d, slug, reload, running }) {
         <p className="text-sm text-stone-500 dark:text-zinc-400">{running ? "Drawing the storyboard…" : "No storyboard yet."}</p>
       </Card>
     );
+  const world = d.world || {};
   return (
     <>
+      {(world.themes?.length > 0 || world.sheet) && (
+        <Card className="mb-3">
+          {world.themes?.length > 0 && (
+            <p className="text-sm text-stone-600 dark:text-zinc-400">
+              <span className="font-semibold text-stone-800 dark:text-zinc-200">This video's world: </span>
+              {world.themes.join(" · ")}. Scenes use its places, props and catchphrases.
+            </p>
+          )}
+          {world.sheet && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-sm font-semibold text-stone-800 dark:text-zinc-200">
+                {world.props.length} props drawn just for this video
+              </summary>
+              <img src={fileUrl(slug, world.sheet, world.sheet_v)} alt="custom props" className="mt-2 max-h-72 rounded-lg border border-stone-200 dark:border-zinc-800" />
+            </details>
+          )}
+        </Card>
+      )}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {d.scenes.map((s) => (
           <button

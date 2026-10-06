@@ -210,9 +210,26 @@ the Kokoro model in `data/models/`.
   several camera shots (cuts to close-ups, pans, whip pans with motion blur), maps can be light or dark with bobbing
   pointer arrows, and backgrounds include painted places (field, hills, desert, snow, city, battlefield, rooms) at
   any time of day. Old storyboards get automatic motion too.
+- **Each video gets its own world** (`studio/pipeline/themes.py`, `studio/engine/places.py`): the studio reads the
+  title, topic and script and picks topic kits (about 30: France, Britain, USA, Russia, Rome, Egypt, Japan, China,
+  the sea, space, the Middle Ages, WW1, WW2, the Cold War, the Wild West, pirates' Caribbean...). Each kit brings
+  places, props, hats and catchphrases, so a Napoleon video happens on Paris streets, in palaces and on
+  battlefields, and a pirate video in harbors, on beaches and underwater. Places include city skylines with real
+  landmarks (Paris, London, New York, Washington, Moscow, Rome, Cairo, Istanbul, Delhi, Tokyo, Beijing, Berlin...),
+  town streets (European, medieval, Asian, Arab, Wild West), palace halls, harbors, beaches, underwater, space,
+  jungle, mountains and WW1 trenches. Two scenes in a row never look the same (colors or time of day change).
+- **Props** (`studio/engine/props_*.py`): about 230 detailed doodles: world landmarks, ships from Viking longships to
+  the Titanic, sea life, animals, food from baguettes to sushi, weapons and machines across history, and everyday
+  objects. On top of that, before the storyboard the writer designs a few extra props this particular story needs
+  (the Rosetta Stone, a Spitfire, Napoleon's hat on a pillow...) as simple shapes, which are checked, saved with the
+  project and shown on the Storyboard tab. Turn this off in Settings ("Draw extra props for each video").
+- **Dialogue**: characters talk. A character's `"say"` lines appear one after another in speech bubbles over their
+  head (placed to dodge labels and props, tail pointing at them) while their mouth moves, and crowds can shout back.
+  When the narration says someone spoke, ordered, promised or rallied people and the scene has nobody talking, the
+  studio gives that character a short in-character line.
 - **`studio/engine/`**: the video engine from the first video, cleaned up into a package: doodle drawing at 2x
   with LANCZOS downsampling, stickmen with ~45 hats (nations, crown, Roman, Viking, pharaoh, knight, shako, ...),
-  ~75 props, Natural Earth maps (Mercator, any region; Pacific islands wrap correctly), easing, blinking,
+  ~230 props, Natural Earth maps (Mercator, any region; Pacific islands wrap correctly), easing, blinking,
   bobbing, a smooth float camera clamped so it never shows black edges, captions (7 words max, double spaces,
   out of everyone's way), procedural music and sound effects, and the mix (voice first, music ~13 dB under
   with light ducking, then two-pass `loudnorm` to -15 LUFS / -1.5 dB true peak).
@@ -220,7 +237,8 @@ the Kokoro model in `data/models/`.
   JSON like `{"bg": {"type": "map", ...}, "elements": [{"type": "char", "kind": "roman", "at": "word:Caesar"}]}`.
   Every scene is auto-repaired (wrong names, off-screen positions, text in the caption area, labels on faces,
   somber-scene rules) and validated against a JSON Schema before rendering. If a scene is broken the AI is asked
-  to fix it, and as a last resort a simple rule-based scene is used. 14 hand-made example scenes
+  to fix it, and as a last resort a simple rule-based scene (that still follows the video's topic) is used.
+  18 hand-made example scenes
   (`studio/prompts/examples.json`) teach the AI the style.
 - **Rendering**: each scene is composited frame by frame and piped raw into ffmpeg (x264), one MP4 per scene in
   a process pool (CPU cores minus one), then concatenated with the final mix.

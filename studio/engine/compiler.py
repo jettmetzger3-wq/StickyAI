@@ -10,7 +10,8 @@ from .palette import color as C, INK, RED, NAVY, WHITE, PAPER, SUN, SEA, DARK, d
 from .pen import ARMS, LEGS, resolve_kind
 from .puppet import ACTIONS, resolve_action
 from . import props as P
-from .registry import PROPS, resolve_prop, prop_bounds
+from .registry import PROPS, resolve_prop, prop_bounds, prop_anchor
+from .places import PAINTERS
 import random
 
 NO_NORMALIZE = {"wall", "bar_chart", "line_chart", "railway", "skyline", "table", "crowd"}
@@ -86,14 +87,15 @@ def draw_prop(p, el, sc):
     if not name:
         sc.warn(f"unknown prop '{el.get('name')}' skipped")
         return
-    anchor, fn, _ = PROPS[name]
+    _, fn, _ = PROPS[name]
     s = max(0.1, min(num(el.get("scale"), 1.0), 4.0))
     x, y = pos(el, sc)
     params = dict(el.get("params") or {})
+    anchor = prop_anchor(name, params)
     if name in NO_NORMALIZE:
         rx, ry = x, y
     else:
-        x0, y0, x1, y1 = prop_bounds(name)
+        x0, y0, x1, y1 = prop_bounds(name, params)
         if anchor == "bottom":
             rx, ry = x - (x0 + x1) / 2 * s, y - y1 * s
         else:
@@ -176,7 +178,7 @@ def draw_icons(p, el, sc):
     per = int(max(1, num(el.get("per_row"), min(n, 10))))
     s = num(el.get("scale"), 0.35)
     x0, y0 = pos(el, sc)
-    bx0, by0, bx1, by1 = prop_bounds(name)
+    bx0, by0, bx1, by1 = prop_bounds(name, el.get("params"))
     gap = num(el.get("gap"), (bx1 - bx0) * s * 1.15 + 6)
     gap_y = num(el.get("gap_y"), (by1 - by0) * s * 1.1 + 6)
     rows = math.ceil(n / per)
@@ -276,10 +278,16 @@ def build_background(sc, bg):
         sc.bg_night()
     elif t == "dark":
         sc.bg_dark(C(bg.get("color"), DARK))
-    elif t in ("field", "hills", "desert", "snow", "city", "battlefield"):
+    elif t == "city":
+        from .places import skyline_key
+        time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else "day"
+        sc.bg_city(time, skyline=skyline_key(bg.get("skyline")))
+    elif t in ("field", "hills", "desert", "snow", "battlefield"):
         time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else \
             ("storm" if t == "battlefield" else "day")
         getattr(sc, f"bg_{t}")(time)
+    elif t in PAINTERS:
+        PAINTERS[t](sc, bg)
     elif t == "interior":
         sc.bg_interior(C(bg.get("wall"), (236, 222, 196)), C(bg.get("floor"), (176, 132, 92)))
     else:

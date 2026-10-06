@@ -133,6 +133,10 @@ class Project:
     def save_scene(self, i, scene):
         write_json(self.scene_path(i), scene)
 
+    def prop_kit(self):
+        """Props the writer designed for this video (see engine/custom_props.py)."""
+        return (read_json(self.p("props.json"), {}) or {}).get("props") or []
+
     def voice(self):
         return read_json(self.p("audio", "voice.json"), {}) or {}
 

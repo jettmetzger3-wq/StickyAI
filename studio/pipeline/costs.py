@@ -4,6 +4,7 @@ An approval stores the estimate the user saw. A stage may run if its fresh estim
 approved dollars/credits (estimates move a little once the real script exists). Otherwise it pauses and asks again.
 """
 import json
+import os
 import time
 
 from .. import providers as P
@@ -71,7 +72,9 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
         lines.append((llm.label, llm.estimate_tokens(min(tchars, 120000) + 9000, n * 70 + 1500)))
     elif stage == "storyboard" and llm.paid:
         batches = max(1, (n + 7) // 8)
-        lines.append((llm.label, llm.estimate_tokens(batches * 24500, n * 650)))
+        lines.append((llm.label, llm.estimate_tokens(batches * 28000, n * 700)))
+        if load_settings().get("custom_props", True) and not os.path.exists(project.p("props.json")):
+            lines.append((llm.label + " (designing props)", llm.estimate_tokens(n * 40 + 9000, 5000)))
     elif stage == "voice":
         vp = _prov(meta, "voice")
         if vp.paid:

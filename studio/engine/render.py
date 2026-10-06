@@ -9,7 +9,7 @@ from .captions import make_captions
 from .timing import WordTimer, LEAD, TAIL
 
 # bump when drawing or animation changes, so finished videos get re-rendered with the new look
-ENGINE_VERSION = 2
+ENGINE_VERSION = 3
 
 
 def plan_timeline(voice_durs, lead=LEAD, tail=TAIL):

@@ -16,7 +16,7 @@ def test_schema_is_valid_json_schema():
 
 def test_all_examples_validate_and_compile_without_fixes():
     ex = json.load(open(EXAMPLES))
-    assert 10 <= len(ex) <= 15
+    assert 10 <= len(ex) <= 20
     for i, e in enumerate(ex):
         fixed, fixes, errs = check_scene(e["scene"], e["mood"], e["text"])
         assert errs == [], (e["name"], errs)
@@ -83,8 +83,8 @@ def test_map_lonlat_offscreen_converted():
 
 
 def test_validate_reports_bad_enums():
-    errs = validate_scene({"bg": {"type": "space"}, "elements": [{"type": "char", "mouth": "laugh"}]})
-    assert any("space" in e for e in errs)
+    errs = validate_scene({"bg": {"type": "spaceship"}, "elements": [{"type": "char", "mouth": "laugh"}]})
+    assert any("spaceship" in e for e in errs)
     assert any("laugh" in e for e in errs)
 
 

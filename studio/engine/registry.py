@@ -130,22 +130,108 @@ PROPS = {
     "mini_carrier": ("center", lambda p, x, y, s, c, k: P.mini_carrier(p, x, y, 2 * s), "tiny carrier icon (for counts)"),
 }
 
+# detailed prop sets (each: name -> (anchor, draw, description)); UPGRADES replace the first, simpler drawings
+from .props_places import PLACES  # noqa: E402
+from .props_nature import SEA_NATURE, UPGRADES as _NATURE_UP  # noqa: E402
+from .props_life import ANIMALS, FOOD  # noqa: E402
+from .props_things import THINGS, UPGRADES as _THING_UP  # noqa: E402
+
+for _d in (PLACES, SEA_NATURE, ANIMALS, FOOD, THINGS, _NATURE_UP, _THING_UP):
+    PROPS.update(_d)
+
+from .custom_props import draw_custom, custom_bounds  # noqa: E402
+
+PROPS["custom"] = ("bottom", draw_custom, "a prop drawn from shapes: params {parts: [...], anchor}")
+
+_SEA = ("fish", "shark", "whale", "octopus", "crab", "jellyfish", "anchor", "wave", "iceberg", "submarine",
+        "periscope", "buoy", "lifebuoy", "treasure_chest", "palm_tree", "seagull", "rowboat", "galleon", "viking_ship",
+        "ocean_liner", "dock", "bottle", "seaweed", "coral")
+PROP_GROUPS = [
+    ("Landmarks & buildings", sorted(PLACES) + ["castle", "fort", "palace", "temple", "pyramid", "house", "tent",
+                                                "factory", "skyline", "wall", "door", "derrick"]),
+    ("Sea & ships", list(_SEA) + ["ship", "carrier", "tanker", "sailboat", "island", "mini_carrier"]),
+    ("Nature & sky", [n for n in SEA_NATURE if n not in _SEA] + ["tree", "mountain", "cloud", "smoke", "fire"]),
+    ("Animals", sorted(ANIMALS) + ["bear", "dove"]),
+    ("Food & drink", sorted(FOOD)),
+    ("War, travel & machines", ["catapult", "chariot", "guillotine", "barricade", "sandbags", "wagon", "musket",
+                                "shield", "spear", "axe", "sword", "drum", "medal", "helmet", "cannon", "tank", "bomb",
+                                "explosion", "mushroom_cloud", "plane", "biplane", "zeppelin", "hot_air_balloon",
+                                "helicopter", "rocket", "satellite", "train", "car", "bike", "dynamite", "barbed_wire"]),
+    ("Objects", ["crate", "barrel", "keg", "moneybag", "coin", "cash", "gold_bars", "piggy_bank", "crown", "throne",
+                 "trophy", "book", "scroll", "document", "quill", "envelope", "newspaper", "flag", "radio", "tv",
+                 "telephone", "computer", "microphone", "podium", "megaphone", "camera", "ballot", "lock", "key",
+                 "magnifier", "lightbulb", "globe", "compass", "treasure_map", "telescope", "candle", "lantern",
+                 "torch", "gravestone", "bell", "briefcase", "atom", "flask", "gear", "chess_piece", "amphora",
+                 "pickaxe", "hammer", "table", "railway", "mousetrap", "folding_screen", "puppet", "crowd"]),
+    ("Charts & symbols", ["line_chart", "bar_chart", "pie", "gauge", "clock", "calendar", "hourglass", "xmark", "check",
+                          "speed_lines", "rewind", "subscribe"]),
+]
+
 PROP_ALIASES = {
-    "boat": "sailboat", "galley": "sailboat", "galleon": "sailboat", "warship": "ship", "battleship": "ship",
-    "destroyer": "ship", "submarine": "periscope", "airplane": "plane", "aeroplane": "plane", "boom": "explosion",
-    "bomb_explosion": "explosion", "mushroom": "mushroom_cloud", "nuke": "mushroom_cloud", "city": "skyline",
-    "buildings": "skyline", "money": "moneybag", "gold": "coin", "chart": "line_chart", "graph": "line_chart",
-    "bars": "bar_chart", "x": "xmark", "cross": "xmark", "x_mark": "xmark", "check_mark": "check", "tick": "check",
-    "paper": "document", "letter": "document", "treaty": "scroll", "fortress": "fort", "senate": "temple",
-    "colosseum": "temple", "church": "house", "oil": "barrel", "oil_barrel": "barrel", "flame": "fire",
-    "idea": "lightbulb", "bulb": "lightbulb", "grave": "gravestone", "tombstone": "gravestone", "planet": "globe",
-    "earth": "globe", "world": "globe", "cart": "car", "truck": "car", "oil_rig": "derrick", "people": "crowd",
-    "speed": "speed_lines", "tanker_ship": "tanker", "tank_ship": "tanker", "subscribe_button": "subscribe",
-    "pie_chart": "pie", "fuel_gauge": "gauge", "time": "clock",
+    "boat": "rowboat", "galley": "galleon", "pirate_ship": "galleon", "man_o_war": "galleon", "frigate": "galleon",
+    "warship": "ship", "battleship": "ship", "destroyer": "ship", "cruiser": "ship", "airplane": "plane",
+    "aeroplane": "plane", "boom": "explosion", "bomb_explosion": "explosion", "mushroom": "mushroom_cloud",
+    "nuke": "mushroom_cloud", "city": "skyline", "buildings": "skyline", "money": "moneybag", "gold": "gold_bars",
+    "chart": "line_chart", "graph": "line_chart", "bars": "bar_chart", "x": "xmark", "cross": "xmark",
+    "x_mark": "xmark", "check_mark": "check", "tick": "check", "paper": "document", "letter": "envelope",
+    "treaty": "scroll", "decree": "scroll", "fortress": "fort", "senate": "temple", "parthenon": "temple",
+    "oil": "barrel", "oil_barrel": "barrel", "oil_drum": "barrel", "flame": "fire", "bonfire": "fire",
+    "campfire": "fire", "idea": "lightbulb", "bulb": "lightbulb", "grave": "gravestone", "tombstone": "gravestone",
+    "earth": "globe", "world": "globe", "truck": "car", "cart": "wagon", "carriage": "wagon",
+    "covered_wagon": "wagon", "oil_rig": "derrick", "people": "crowd", "speed": "speed_lines", "tanker_ship": "tanker",
+    "tank_ship": "tanker", "subscribe_button": "subscribe", "pie_chart": "pie", "fuel_gauge": "gauge", "time": "clock",
+    # landmarks and places
+    "eiffel": "eiffel_tower", "paris": "eiffel_tower", "arc": "arc_de_triomphe", "triumphal_arch": "arc_de_triomphe",
+    "london": "big_ben", "clock_tower": "big_ben", "parliament": "big_ben", "pisa": "leaning_tower", "mill": "windmill",
+    "notre_dame": "cathedral", "abbey": "cathedral", "basilica": "cathedral", "chapel": "church",
+    "moscow": "kremlin", "red_square": "kremlin", "st_basils": "onion_domes", "saint_basil": "onion_domes",
+    "russian_church": "onion_domes", "berlin": "brandenburg_gate", "minaret": "mosque", "shrine": "torii",
+    "japanese_gate": "torii", "egypt": "pyramid", "ziggurat": "step_pyramid", "aztec_temple": "step_pyramid",
+    "aztec_pyramid": "step_pyramid", "mayan_pyramid": "step_pyramid", "maya_temple": "step_pyramid",
+    "easter_island": "moai", "china_wall": "great_wall", "wall_of_china": "great_wall", "liberty": "statue_of_liberty",
+    "new_york": "statue_of_liberty", "congress": "capitol", "government": "capitol", "empire_state": "skyscraper",
+    "tower_block": "skyscraper", "monument": "statue", "sydney": "opera_house", "golden_gate": "suspension_bridge",
+    "roman_aqueduct": "aqueduct", "rome": "colosseum", "arena": "colosseum", "farm": "barn", "village": "hut",
+    "tower": "watchtower", "lookout": "watchtower", "teepee": "tent", "india": "taj_mahal",
+    # sea
+    "u_boat": "submarine", "uboat": "submarine", "sub": "submarine", "life_ring": "lifebuoy", "treasure": "treasure_chest",
+    "chest": "treasure_chest", "gull": "seagull", "canoe": "rowboat", "fishing_boat": "rowboat", "tsunami": "wave",
+    "ice": "iceberg", "squid": "octopus", "lobster": "crab", "titanic": "ocean_liner", "liner": "ocean_liner",
+    "steamship": "ocean_liner", "cruise_ship": "ocean_liner", "longship": "viking_ship", "pier": "dock",
+    "harbor": "dock", "jetty": "dock", "kelp": "seaweed", "reef": "coral", "palm": "palm_tree",
+    # nature
+    "pine": "pine_tree", "fir": "pine_tree", "evergreen": "pine_tree", "eruption": "volcano", "lava": "volcano",
+    "tulip": "flowers", "tulips": "flowers", "flower": "flowers", "rose": "flowers", "boulder": "rocks", "rock": "rocks",
+    "stone": "rocks", "shrub": "bush", "crescent": "moon", "bolt": "lightning", "storm": "rain_cloud",
+    "rain": "rain_cloud", "grain": "wheat", "harvest": "wheat", "saturn": "planet", "mountains": "mountain",
+    # animals
+    "pony": "horse", "stallion": "horse", "cavalry": "horse", "ox": "bull", "cattle": "cow", "lamb": "sheep",
+    "hen": "chicken", "cockerel": "rooster", "hog": "pig", "puppy": "dog", "hound": "dog", "kitten": "cat",
+    "mouse": "rat", "dromedary": "camel", "mammoth": "elephant", "hawk": "eagle", "falcon": "eagle", "bird": "dove",
+    "wyvern": "dragon",
+    # food
+    "bread": "baguette", "wine_bottle": "wine", "beer_mug": "beer", "stein": "beer", "tea": "teapot", "cup": "coffee",
+    "rice": "rice_bowl", "noodles": "rice_bowl", "hamburger": "burger", "nesting_doll": "matryoshka",
+    # war & machines
+    "trebuchet": "catapult", "siege_engine": "catapult", "ballista": "catapult", "rifle": "musket", "gun": "musket",
+    "bayonet": "musket", "lance": "spear", "pike": "spear", "battle_axe": "axe", "airship": "zeppelin",
+    "blimp": "zeppelin", "hindenburg": "zeppelin", "balloon": "hot_air_balloon", "chopper": "helicopter",
+    "tnt": "dynamite", "explosives": "dynamite", "wire": "barbed_wire", "sputnik": "satellite", "trench": "sandbags",
+    # objects
+    "pen": "quill", "ink": "quill", "mail": "envelope", "telegram": "envelope", "news": "newspaper",
+    "headline": "newspaper", "gold_bar": "gold_bars", "bullion": "gold_bars", "ingot": "gold_bars",
+    "spyglass": "telescope", "old_map": "treasure_map", "phone": "telephone", "hotline": "telephone", "pc": "computer",
+    "mic": "microphone", "lectern": "podium", "pulpit": "podium", "bullhorn": "megaphone", "pick": "pickaxe",
+    "liberty_bell": "bell", "suitcase": "briefcase", "nuclear": "atom", "science": "flask", "beaker": "flask",
+    "potion": "flask", "cog": "gear", "chess": "chess_piece", "vase": "amphora", "money_stack": "cash",
+    "banknotes": "cash", "dollars": "cash", "powder_keg": "keg", "gunpowder": "keg", "beer_barrel": "keg",
+    "wine_barrel": "keg",
 }
 
 ICONABLE = ("mini_carrier", "ship", "plane", "tank", "barrel", "moneybag", "coin", "house", "tree", "sailboat",
-            "factory", "candle", "crowd", "flag", "castle", "rocket", "book", "trophy", "skyline")
+            "factory", "candle", "crowd", "flag", "castle", "rocket", "book", "trophy", "skyline", "galleon",
+            "submarine", "horse", "cow", "sheep", "fish", "gold_bars", "cash", "musket", "cannon", "wheat",
+            "pine_tree", "hut", "camel", "elephant", "biplane", "helicopter", "keg", "crate", "medal", "star")
 
 
 def resolve_prop(name):
@@ -154,12 +240,45 @@ def resolve_prop(name):
     return n if n in PROPS else None
 
 
+def guess_prop(name):
+    """Best effort for a name the LLM made up: 'british_warship' -> 'ship', 'gold_coin' -> 'coin'.
+    Returns None when nothing is close (a custom prop or nothing is better than a wrong drawing)."""
+    import difflib
+    n = str(name or "").strip().lower().replace(" ", "_").replace("-", "_")
+    hit = resolve_prop(n)
+    if hit:
+        return hit
+    names = list(PROPS) + list(PROP_ALIASES)
+    m = difflib.get_close_matches(n, names, n=1, cutoff=0.86)
+    if m:
+        return resolve_prop(m[0])
+    parts = [w for w in n.split("_") if len(w) >= 3]
+    for i in range(len(parts)):
+        hit = resolve_prop("_".join(parts[i:]))
+        if hit:
+            return hit
+    for w in reversed(parts):
+        hit = resolve_prop(w) or resolve_prop(w.rstrip("s"))
+        if hit:
+            return hit
+    m = difflib.get_close_matches(n, names, n=1, cutoff=0.8)
+    return resolve_prop(m[0]) if m else None
+
+
 _bounds = None
 
 
-def prop_bounds(name):
+def prop_anchor(name, params=None):
+    if name == "custom":
+        return "center" if (params or {}).get("anchor") == "center" else "bottom"
+    return PROPS.get(name, ("bottom",))[0]
+
+
+def prop_bounds(name, params=None):
     """(x0, y0, x1, y1) of the prop at scale 1 relative to its anchor point."""
     global _bounds
+    if name == "custom":
+        return custom_bounds(params)
     if _bounds is None:
         try:
             with open(BOUNDS_FILE, encoding="utf-8") as f:

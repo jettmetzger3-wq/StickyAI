@@ -13,12 +13,22 @@ from .doodle import W, H
 from .fonts import font
 from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES
 from .puppet import resolve_action
-from .registry import PROPS, PROP_ALIASES, resolve_prop, prop_bounds
+from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
+from .custom_props import clean_parts, kit_lookup, to_element_params, slug
 from .geo import REGIONS, View, unknown_names
 from .captions import CAPTION_ZONE
 
 BG_TYPES = ("paper", "sunburst", "ground", "field", "hills", "desert", "snow", "city", "interior", "battlefield",
-            "sea", "night", "dark", "map")
+            "sea", "night", "dark", "map", "street", "palace", "harbor", "beach", "underwater", "space", "jungle",
+            "mountains", "trench")
+BG_ALIASES = {"ocean": "sea", "port": "harbor", "docks": "harbor", "harbour": "harbor", "coast": "beach",
+              "island": "beach", "shore": "beach", "seabed": "underwater", "under_water": "underwater",
+              "deep_sea": "underwater", "town": "street", "village": "street", "market": "street", "road": "street",
+              "throne_room": "palace", "court": "palace", "ballroom": "palace", "castle_hall": "palace",
+              "room": "interior", "office": "interior", "house": "interior", "stars": "space", "orbit": "space",
+              "forest": "jungle", "rainforest": "jungle", "alps": "mountains", "mountain": "mountains",
+              "trenches": "trench", "war": "battlefield", "skyline": "city", "plain": "field", "meadow": "field",
+              "farm": "field", "countryside": "hills", "sand": "desert", "arctic": "snow", "winter": "snow"}
 TIMES = ("day", "dawn", "dusk", "night", "storm")
 ENTERS = ("pop", "drop", "grow", "fade", "slide_left", "slide_right", "slide_up", "slide_down",
           "wipe_right", "wipe_left", "wipe_up", "wipe_down", "none")
@@ -74,7 +84,7 @@ ELEMENT_SCHEMAS = {
     "prop": _obj(("type", "name"), type={"const": "prop"}, **_xy, **_anim, name={"enum": sorted(PROPS)}, scale=_num,
                  color={"type": "string"}, params={"type": "object"}),
     "bubble": _obj(("type", "text"), type={"const": "bubble"}, **_xy, **_anim, text={"type": "string"}, size=_num,
-                   w=_num, h=_num, font={"enum": ["bold", "hand"]},
+                   w=_num, h=_num, font={"enum": ["bold", "hand"]}, placed={"type": "boolean"},
                    tail={"anyOf": [{"enum": ["left", "right", "down", "none"]}, {"type": "array"}]}),
     "note": _obj(("type", "text"), type={"const": "note"}, **_xy, **_anim, text={"type": "string"}, size=_num, w=_num, h=_num),
     "sign": _obj(("type", "text"), type={"const": "sign"}, **_xy, **_anim, text={"type": "string"}, size=_num, w=_num, h=_num),
@@ -108,7 +118,8 @@ SCENE_SCHEMA = {
             "type": "object", "required": ["type"],
             "properties": {
                 "type": {"enum": list(BG_TYPES)}, "time": {"enum": list(TIMES)},
-                "style": {"enum": ["paper", "dark"]}, "wall": {"type": "string"}, "floor": {"type": "string"},
+                "style": {"enum": ["paper", "dark", "europe", "medieval", "asia", "arab", "western"]},
+                "skyline": {"type": "string"}, "wall": {"type": "string"}, "floor": {"type": "string"},
                 "color": {"type": "string"}, "ray": {"type": "string"}, "sky": {"type": "string"},
                 "ground": {"type": "string"}, "sea": {"type": "string"}, "land": {"type": "string"},
                 "y": _num, "horizon": _num, "clouds": {"type": "boolean"},
@@ -232,8 +243,8 @@ def element_bbox(el):
         if not name:
             return None
         s = _f(el.get("scale"), 1.0)
-        x0, y0, x1, y1 = prop_bounds(name)
-        anchor = PROPS[name][0]
+        x0, y0, x1, y1 = prop_bounds(name, el.get("params"))
+        anchor = prop_anchor(name, el.get("params"))
         w, h = (x1 - x0) * s, (y1 - y0) * s
         if name in ("railway",):
             return None
@@ -308,22 +319,155 @@ def overlaps(a, b, pad=4):
     return not (a[2] + pad <= b[0] or b[2] + pad <= a[0] or a[3] + pad <= b[1] or b[3] + pad <= a[1])
 
 
-def repair_scene(scene, mood="fun", text=""):
-    """Fix common LLM mistakes. Returns (scene, list_of_fixes)."""
+TALL_HATS = ("bearskin", "shako", "tophat", "tophat_gray", "mitre", "wizard", "chef", "pharaoh", "crown", "bicorne",
+             "turban")
+
+
+def wrap_line(text, n=18, max_lines=3):
+    words = str(text).replace("\n", " ").split()
+    lines, cur = [], ""
+    for w in words:
+        if cur and len(cur) + 1 + len(w) > n:
+            lines.append(cur)
+            cur = w
+        else:
+            cur = (cur + " " + w).strip()
+    if cur:
+        lines.append(cur)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+        lines[-1] = lines[-1].rstrip(".,!?;:") + "..."
+    return "\n".join(lines)
+
+
+def say_lines(says):
+    if isinstance(says, (str, dict)):
+        says = [says]
+    out = []
+    for s in says if isinstance(says, list) else []:
+        if isinstance(s, str):
+            s = {"text": s}
+        if not isinstance(s, dict):
+            continue
+        txt = str(s.get("text") or s.get("line") or "").strip()
+        if txt:
+            out.append({"text": txt[:90], "at": s.get("at")})
+    return out[:3]
+
+
+def _at_num(v, default):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return default
+
+
+def say_bubbles(el, says, safe, mood="fun", others=()):
+    """Speech bubbles for a character's (or crowd's) "say" lines: above the head, tail pointing at the speaker,
+    shown one after another."""
+    from .compiler import bubble_size
+    lines = say_lines(says)
+    if not lines or el.get("lon") is not None:
+        return []
+    crowd = el.get("type") == "crowd"
+    s = _f(el.get("scale"), 0.6 if crowd else 1.0)
+    cx, fy = _f(el.get("x"), 960), _f(el.get("y"), 900)
+    if crowd:
+        head_top = fy - 400 * s - 70 * (int(_f(el.get("rows"), 2)) - 1)
+    else:
+        kind = str(el.get("kind") or "")
+        head_top = fy - (375 + (75 if kind in TALL_HATS else 30)) * s
+    first = -1 if el.get("flip") else 1
+    base = _at_num(el.get("at"), 0.0) if not isinstance(el.get("at"), str) else 0.0
+    n = len(lines)
+    times = []
+    for k, ln in enumerate(lines):
+        if ln["at"] is not None:
+            times.append(ln["at"])
+        elif k == 0 and isinstance(el.get("at"), str):
+            times.append(el["at"])
+        else:
+            times.append(round(min(0.9, base + 0.08 + k * (0.86 - base) / n), 2))
+    texty = [element_bbox(o) for o in others if o.get("type") in ("text", "note", "board", "bubble", "sign")
+             and o.get("exit") is None and element_bbox(o)]
+    solid = [element_bbox(o) for o in others if o.get("type") in ("prop", "icons") and element_bbox(o)]
+
+    def area(a, b):
+        return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
+
+    made = []
+    for k, ln in enumerate(lines):
+        b = {"type": "bubble", "text": wrap_line(ln["text"]), "size": 44 if len(ln["text"]) <= 36 else 40}
+        w, h, _ = bubble_size(b)
+        cands = []
+        for side in (first, -first):
+            tip_x, tip_y = cx + side * 34 * s, head_top - 4
+            for shift, lift in ((0, 0), (0.55, 0), (0, 1), (1.0, 0.5)):
+                bx = tip_x + side * (w / 2 - 46 + shift * w)
+                by = tip_y - 72 - h / 2
+                if by - h / 2 < safe[1] + 4:
+                    by = safe[1] + 4 + h / 2
+                    bx = cx + side * (70 * s + w / 2 + 10 + shift * w * 0.5)
+                bx = max(safe[0] + w / 2 + 4, min(bx, safe[2] - w / 2 - 4))
+                if lift:
+                    bb = (bx - w / 2, by - h / 2, bx + w / 2, by + h / 2)
+                    hits = [o for o in texty if overlaps(bb, o)]
+                    if hits:
+                        up = min(o[1] for o in hits) - 14 - h / 2
+                        if up - h / 2 >= safe[1] + 4 and by - up <= 170:
+                            by = up
+                bb = (bx - w / 2, by - h / 2, bx + w / 2, by + h / 2)
+                score = sum(area(bb, o) for o in texty) * 10 + sum(area(bb, o) for o in solid) + \
+                    abs(bx - tip_x) * 2 + (tip_y - by) * 3
+                cands.append((score, bx, by, tip_x, tip_y))
+        _, bx, by, tip_x, tip_y = min(cands)
+        ty = tip_y - (by + h / 2)
+        b.update(x=round(bx), y=round(by), tail=[round(tip_x - bx), round(ty)] if ty >= 24 else "none",
+                 at=times[k], enter="fade" if mood == "somber" else "pop", z=6, placed=True)
+        if k < n - 1:
+            b["exit"] = times[k + 1]
+        made.append(b)
+    # later speakers keep clear of these (this speaker's own lines replace each other, so they may share a spot)
+    others_out = [element_bbox(m) for m in made]
+    texty.extend(o for o in others_out if o)
+    return made
+
+
+def repair_scene(scene, mood="fun", text="", kit=None):
+    """Fix common LLM mistakes. Returns (scene, list_of_fixes).
+    kit: the props designed for this video (see custom_props); scenes may use them by name."""
     fixes = []
+    custom = kit_lookup(kit)
     if not isinstance(scene, dict):
         return {"bg": {"type": "paper"}, "elements": []}, ["scene was not an object; replaced with an empty one"]
     sc = copy.deepcopy(scene)
     # background
     bg = sc.get("bg") if isinstance(sc.get("bg"), dict) else {"type": sc.get("bg") if isinstance(sc.get("bg"), str) else "paper"}
-    bt = nearest(bg.get("type"), BG_TYPES, "paper")
+    bt = str(bg.get("type") or "").strip().lower().replace(" ", "_")
+    bt = BG_ALIASES.get(bt, bt)
+    bt = nearest(bt, BG_TYPES, "paper")
     if bt != bg.get("type"):
         fixes.append(f"bg type {bg.get('type')!r} -> {bt!r}")
     bg["type"] = bt
     if bg.get("time") is not None and bg["time"] not in TIMES:
         bg["time"] = nearest(bg["time"], TIMES, "day")
-    if bg.get("style") is not None and bg["style"] not in ("paper", "dark"):
+    if bt == "street":
+        from .places import STREET_STYLES
+        st = str(bg.get("style") or "europe").strip().lower().replace(" ", "_").replace("-", "_")
+        st = {"european": "europe", "medieval_europe": "medieval", "old": "medieval", "asian": "asia",
+              "chinese": "asia", "japanese": "asia", "middle_east": "arab", "arabic": "arab", "desert": "arab",
+              "wild_west": "western", "cowboy": "western", "american_west": "western"}.get(st, st)
+        bg["style"] = st if st in STREET_STYLES else "europe"
+    elif bg.get("style") is not None and bg["style"] not in ("paper", "dark"):
         bg["style"] = "dark" if "dark" in str(bg["style"]).lower() else "paper"
+    if bt == "city" and bg.get("skyline") is not None:
+        from .places import skyline_key
+        key = skyline_key(bg.get("skyline"))
+        if key:
+            bg["skyline"] = key
+        else:
+            fixes.append(f"unknown skyline {bg.get('skyline')!r}, used a plain city")
+            bg.pop("skyline")
     if mood == "somber" and bt in ("sunburst",):
         bg["type"] = "dark"
         fixes.append("somber scene: sunburst background -> dark")
@@ -373,6 +517,7 @@ def repair_scene(scene, mood="fun", text=""):
     if not isinstance(els, list):
         els = []
     out = []
+    pending_says = []
     for el in els:
         if not isinstance(el, dict):
             continue
@@ -387,6 +532,9 @@ def repair_scene(scene, mood="fun", text=""):
             fixes.append(f"element type {t!r} -> {t2!r}")
             el["type"] = t2
         t = t2
+        says = el.pop("say", None) if t in ("char", "crowd") else None
+        if says:
+            pending_says.append((el, says))
         if t in ("territory", "city") and not is_map:
             fixes.append(f"dropped {t} in a non-map scene")
             continue
@@ -486,9 +634,18 @@ def repair_scene(scene, mood="fun", text=""):
                     el["eyes"] = "closed"
         elif t == "prop":
             n = resolve_prop(el.get("name"))
+            design = custom.get(slug(el.get("name"))) or custom.get(slug(el.get("name")).replace("_", ""))
+            if design and n is None:
+                el["params"] = to_element_params(design, el.get("params"))
+                n = "custom"
+            elif n == "custom":
+                parts = clean_parts((el.get("params") or {}).get("parts"))
+                if len(parts) < 2:
+                    fixes.append("dropped a custom prop without shapes")
+                    continue
+                el["params"] = dict(el.get("params") or {}, parts=parts)
             if n is None:
-                guess = nearest(el.get("name"), list(PROPS) + list(PROP_ALIASES), None)
-                n = resolve_prop(guess) if guess else None
+                n = guess_prop(el.get("name"))
                 if n is None:
                     fixes.append(f"dropped unknown prop {el.get('name')!r}")
                     continue
@@ -496,14 +653,23 @@ def repair_scene(scene, mood="fun", text=""):
             el["name"] = n
             el["scale"] = max(0.1, min(_f(el.get("scale"), 1.0), 3.0))
         elif t == "icons":
-            n = resolve_prop(el.get("icon")) or "mini_carrier"
+            design = custom.get(slug(el.get("icon")))
+            if design and resolve_prop(el.get("icon")) is None:
+                el["params"] = to_element_params(design, el.get("params"))
+                n = "custom"
+            else:
+                n = resolve_prop(el.get("icon")) or guess_prop(el.get("icon")) or "mini_carrier"
+                if n == "custom" and len(clean_parts((el.get("params") or {}).get("parts"))) < 2:
+                    n = "mini_carrier"
             el["icon"] = n
             el["count"] = int(max(1, min(_f(el.get("count"), 6), 120)))
         elif t == "text":
             el["text"] = str(el.get("text", ""))[:120]
             el["size"] = max(30, min(_f(el.get("size"), 64), 200))
-            if bg["type"] in ("dark", "night") or (bg["type"] == "map" and bg.get("style") == "dark") or \
-                    (bg.get("time") == "night" and bg["type"] in ("field", "hills", "city", "snow")):
+            if bg["type"] in ("dark", "night", "space", "underwater") or \
+                    (bg["type"] == "map" and bg.get("style") == "dark") or \
+                    (bg.get("time") == "night" and bg["type"] in ("field", "hills", "city", "snow", "street", "harbor",
+                                                                   "beach", "jungle", "mountains")):
                 from .palette import color as _col
                 from .compiler import luminance
                 if el.get("color") is None or luminance(_col(el.get("color"))) < 0.45:
@@ -554,6 +720,12 @@ def repair_scene(scene, mood="fun", text=""):
                 fixes.append(f"{t} moved inside the frame / out of the caption zone")
         out.append(el)
 
+    # "say" lines -> speech bubbles over the speaker's head, one after another
+    for el, says in pending_says:
+        if el in out:
+            made = say_bubbles(el, says, safe, mood, out)
+            out.extend(made)
+
     # labels sitting on a character's face move above its head
     heads = []
     for e in out:
@@ -579,7 +751,8 @@ def repair_scene(scene, mood="fun", text=""):
     for i, a in enumerate(textish):
         for b in textish[i + 1:]:
             ba, bb_ = element_bbox(a), element_bbox(b)
-            if ba and bb_ and overlaps(ba, bb_) and a.get("exit") is None and b.get("exit") is None:
+            if ba and bb_ and overlaps(ba, bb_) and a.get("exit") is None and b.get("exit") is None and \
+                    not b.get("placed"):
                 hb = bb_[3] - bb_[1]
                 down = ba[3] + 10 - bb_[1]
                 up = bb_[3] - (ba[1] - 10)
@@ -600,7 +773,7 @@ def repair_scene(scene, mood="fun", text=""):
     return sc, fixes
 
 
-def check_scene(scene, mood="fun", text=""):
+def check_scene(scene, mood="fun", text="", kit=None):
     """repair + validate. Returns (scene, fixes, errors)."""
-    fixed, fixes = repair_scene(scene, mood, text)
+    fixed, fixes = repair_scene(scene, mood, text, kit)
     return fixed, fixes, validate_scene(fixed)

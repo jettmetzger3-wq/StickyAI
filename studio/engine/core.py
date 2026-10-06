@@ -225,14 +225,18 @@ class Scene:
             for _ in range(140):
                 p.circ(r.randint(0, W), r.randint(0, H), r.choice((2, 3, 4)), WHITE, 0)
 
-    def bg_city(self, time="day", gy=820):
+    def bg_city(self, time="day", gy=820, skyline=None):
+        """A city skyline. skyline = a city key from places.SKYLINES (paris, london...) adds its landmarks."""
+        from .places import skyline_landmarks
         with self.background(SKIES.get(time, SKIES["day"])[1]) as p:
             self._sky(p, time, gy)
             r = random.Random(self.idx + 17)
             x = -20
             far = (150, 160, 182) if time != "night" else (40, 46, 74)
             near = (108, 116, 140) if time != "night" else (28, 32, 56)
-            for col, hmin, hmax, wmin in ((far, 160, 380, 70), (near, 120, 300, 90)):
+            rows = ((far, 160, 380, 70), (near, 120, 300, 90)) if not skyline else \
+                ((far, 120, 260, 70), (near, 90, 190, 90))
+            for col, hmin, hmax, wmin in rows:
                 x = -30
                 while x < W + 40:
                     w_, h_ = r.randint(wmin, wmin + 90), r.randint(hmin, hmax)
@@ -244,6 +248,8 @@ class Scene:
                                 if r.random() < (0.55 if time == "night" else 0.9):
                                     p.d.rectangle([wx * SS, wy * SS, (wx + 12) * SS, (wy + 16) * SS], fill=lit)
                     x += w_ + r.randint(-10, 12)
+            if skyline:
+                skyline_landmarks(p, skyline, gy, time)
             self._ground(p, None, gy, (150, 146, 140))
 
     def bg_interior(self, wall=(236, 222, 196), floor=(176, 132, 92), gy=780):

@@ -242,7 +242,13 @@
      "mouth": "o",
      "eyes": "wide",
      "look": -1,
-     "at": 0.15
+     "at": 0.15,
+     "say": [
+      {
+       "text": "Uh... hello?",
+       "at": 0.78
+      }
+     ]
     },
     {
      "type": "text",
@@ -649,7 +655,13 @@
      "scale": 0.8,
      "pose": "point_right",
      "mouth": "smirk",
-     "at": 0.05
+     "at": 0.05,
+     "say": [
+      {
+       "text": "THEY did it!",
+       "at": "word:blame"
+      }
+     ]
     },
     {
      "type": "prop",
@@ -682,16 +694,13 @@
       "q"
      ],
      "flip": true,
-     "at": "word:blame"
-    },
-    {
-     "type": "bubble",
-     "text": "THEY did it!",
-     "x": 520,
-     "y": 380,
-     "size": 52,
-     "tail": "left",
-     "at": "word:blame"
+     "at": "word:blame",
+     "say": [
+      {
+       "text": "Wait, what?",
+       "at": 0.86
+      }
+     ]
     },
     {
      "type": "text",
@@ -710,8 +719,8 @@
   "text": "The League of Nations, the UN's older and weaker cousin, says this is not okay. So Japan walks out and quits.",
   "scene": {
    "bg": {
-    "type": "paper",
-    "color": "#E8E4DA"
+    "type": "palace",
+    "wall": "#E2D6C2"
    },
    "elements": [
     {
@@ -801,7 +810,13 @@
       "dy": 0,
       "from": "word:walks",
       "to": 0.95
-     }
+     },
+     "say": [
+      {
+       "text": "I'm out.",
+       "at": "word:walks"
+      }
+     ]
     },
     {
      "type": "text",
@@ -1273,6 +1288,12 @@
        "act": "cry",
        "at": "word:losing"
       }
+     ],
+     "say": [
+      {
+       "text": "I need MORE gold!",
+       "at": "word:taxes"
+      }
      ]
     },
     {
@@ -1319,6 +1340,12 @@
       {
        "act": "angry",
        "at": "word:taxes"
+      }
+     ],
+     "say": [
+      {
+       "text": "AGAIN?!",
+       "at": 0.82
       }
      ]
     },
@@ -1386,6 +1413,12 @@
        "act": "cheer",
        "at": "word:believe"
       }
+     ],
+     "say": [
+      {
+       "text": "Did he say FOOD?!",
+       "at": "word:believe"
+      }
      ]
     },
     {
@@ -1408,22 +1441,12 @@
      "pose": "point_right",
      "mouth": "grin",
      "at": "word:Napoleon",
-     "do": [
+     "say": [
       {
-       "act": "talk",
-       "at": "word:promises",
-       "dur": 2.5
+       "text": "Glory! Food! Loot!",
+       "at": "word:promises"
       }
      ]
-    },
-    {
-     "type": "bubble",
-     "text": "GLORY! FOOD!\\nLOOT!",
-     "x": 520,
-     "y": 330,
-     "size": 46,
-     "tail": "left",
-     "at": "word:promises"
     }
    ],
    "camera": {
@@ -1448,6 +1471,327 @@
        1180,
        640
       ],
+      "move": "whip"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "pirates_harbor",
+  "mood": "fun",
+  "text": "In 1718, the most feared pirate in the Caribbean was Blackbeard. He tied burning fuses into his beard, so in battle his whole head seemed to smoke.",
+  "scene": {
+   "bg": {
+    "type": "harbor",
+    "time": "dusk"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "Caribbean, 1718",
+     "x": 960,
+     "y": 110,
+     "size": 72,
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "galleon",
+     "x": 1480,
+     "y": 860,
+     "scale": 0.9,
+     "params": {
+      "pirate": true,
+      "flip": true
+     },
+     "enter": "slide_right",
+     "at": 0.04,
+     "idle": "float"
+    },
+    {
+     "type": "prop",
+     "name": "treasure_chest",
+     "x": 930,
+     "y": 905,
+     "scale": 0.7,
+     "at": "word:feared"
+    },
+    {
+     "type": "char",
+     "kind": "pirate",
+     "x": 560,
+     "y": 900,
+     "scale": 1.1,
+     "pose": "hips",
+     "mouth": "grin",
+     "eyes": "angry",
+     "at": "word:Blackbeard",
+     "say": [
+      {
+       "text": "Arrr! Hand over the gold!",
+       "at": "word:Blackbeard"
+      }
+     ],
+     "do": [
+      {
+       "act": "laugh",
+       "at": "word:smoke"
+      }
+     ]
+    },
+    {
+     "type": "char",
+     "kind": "navy",
+     "x": 1180,
+     "y": 900,
+     "scale": 0.8,
+     "pose": "shrug",
+     "mouth": "o",
+     "eyes": "wide",
+     "flip": true,
+     "extras": [
+      "sweat"
+     ],
+     "at": "word:battle",
+     "do": [
+      {
+       "act": "tremble",
+       "at": "word:smoke"
+      }
+     ],
+     "say": [
+      {
+       "text": "Is his head on fire?!",
+       "at": "word:smoke"
+      }
+     ]
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:fuses",
+      "zoom": 1.5,
+      "focus": [
+       560,
+       560
+      ],
+      "move": "cut"
+     },
+     {
+      "at": "word:smoke",
+      "zoom": 1.0,
+      "move": "pan"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "uboats_underwater",
+  "mood": "tense",
+  "text": "By 1941, German U-boats were hunting British supply ships across the Atlantic, sinking them faster than Britain could build new ones.",
+  "scene": {
+   "bg": {
+    "type": "underwater"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "The Atlantic, 1941",
+     "x": 960,
+     "y": 110,
+     "size": 72,
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "submarine",
+     "x": 620,
+     "y": 520,
+     "scale": 1.2,
+     "color": "#4A5260",
+     "params": {
+      "label": "U-47"
+     },
+     "enter": "slide_left",
+     "at": "word:U-boats",
+     "move": {
+      "dx": 520,
+      "dy": 0,
+      "from": "word:U-boats",
+      "to": 0.95
+     }
+    },
+    {
+     "type": "prop",
+     "name": "fish",
+     "x": 1560,
+     "y": 330,
+     "scale": 0.6,
+     "params": {
+      "flip": true
+     },
+     "idle": "drift",
+     "at": 0.05
+    },
+    {
+     "type": "prop",
+     "name": "shark",
+     "x": 1450,
+     "y": 760,
+     "scale": 0.55,
+     "params": {
+      "flip": true
+     },
+     "idle": "drift",
+     "at": "word:hunting"
+    },
+    {
+     "type": "note",
+     "text": "sunk > built",
+     "x": 1500,
+     "y": 560,
+     "size": 46,
+     "at": "word:faster"
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:hunting",
+      "zoom": 1.35,
+      "focus": [
+       900,
+       540
+      ],
+      "move": "pan"
+     },
+     {
+      "at": "word:faster",
+      "zoom": 1.0,
+      "move": "whip"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "paris_bread",
+  "mood": "tense",
+  "text": "Paris, 1789. Bread costs more than most workers earn in a day, the King keeps partying at Versailles, and the crowd has had enough. To the Bastille!",
+  "scene": {
+   "bg": {
+    "type": "street",
+    "style": "europe",
+    "time": "dusk"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "Paris, 1789",
+     "x": 960,
+     "y": 110,
+     "size": 76,
+     "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "baguette",
+     "x": 380,
+     "y": 480,
+     "scale": 0.8,
+     "at": "word:Bread",
+     "idle": "float"
+    },
+    {
+     "type": "text",
+     "text": "a whole day's pay?!",
+     "x": 380,
+     "y": 360,
+     "size": 44,
+     "font": "hand",
+     "color": "red",
+     "at": "word:earn"
+    },
+    {
+     "type": "char",
+     "kind": "beret",
+     "hat_color": "red",
+     "x": 700,
+     "y": 900,
+     "scale": 1.0,
+     "pose": "point_right",
+     "mouth": "open",
+     "eyes": "angry",
+     "at": 0.02,
+     "say": [
+      {
+       "text": "We want bread!",
+       "at": "word:enough"
+      }
+     ],
+     "do": [
+      {
+       "act": "angry",
+       "at": "word:Versailles"
+      }
+     ]
+    },
+    {
+     "type": "crowd",
+     "kind": "civ",
+     "count": 12,
+     "rows": 2,
+     "x": 1330,
+     "y": 930,
+     "width": 820,
+     "scale": 0.6,
+     "mouth": "frown",
+     "eyes": "angry",
+     "flip": true,
+     "at": "word:crowd",
+     "do": [
+      {
+       "act": "cheer",
+       "at": "word:Bastille"
+      }
+     ],
+     "say": [
+      {
+       "text": "TO THE BASTILLE!",
+       "at": "word:Bastille"
+      }
+     ]
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:crowd",
+      "zoom": 1.3,
+      "focus": [
+       1250,
+       620
+      ],
+      "move": "pan"
+     },
+     {
+      "at": "word:Bastille",
+      "zoom": 1.0,
       "move": "whip"
      }
     ]
@@ -1483,7 +1827,13 @@
      "pose": "wave",
      "mouth": "grin",
      "eyes": "happy",
-     "at": 0
+     "at": 0,
+     "say": [
+      {
+       "text": "Which war next?",
+       "at": "word:comments"
+      }
+     ]
     },
     {
      "type": "char",
@@ -1496,16 +1846,6 @@
      "eyes": "happy",
      "flip": true,
      "at": 0.02
-    },
-    {
-     "type": "bubble",
-     "text": "which war next?",
-     "x": 960,
-     "y": 560,
-     "size": 50,
-     "font": "hand",
-     "tail": "down",
-     "at": "word:comments"
     },
     {
      "type": "text",

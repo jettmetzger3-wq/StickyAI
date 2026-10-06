@@ -20,8 +20,10 @@ from ..engine.audio import build_mix, loudnorm, load_audio, SR
 from ..engine.render import ENGINE_VERSION
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
-from . import rules, costs
+from . import rules, costs, themes as TH
 from .project import read_json, write_json
+from ..engine.custom_props import clean_kit, kit_sheet
+from ..engine.registry import PROPS
 from .source import (fetch_meta, transcript_text, download_lowres, extract_frames, thumbnail_frames, contact_sheets,
                      hints_for_beats)
 
@@ -51,10 +53,11 @@ def clean_line(t):
 
 
 # roughly how long each kind of AI call takes, so the progress bar can keep moving while we wait
-EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15}
+EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15, "props": 60}
 SAYING = {"script": "Claude is writing the script", "storyboard": "Claude is drawing up the scenes",
           "watch": "Claude is watching the video", "package": "Claude is writing titles and the description",
-          "short": "Claude is picking the best moment for the Short", "fix": "Claude is fixing a scene"}
+          "short": "Claude is picking the best moment for the Short", "fix": "Claude is fixing a scene",
+          "props": "Claude is designing props for this video"}
 
 
 def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None):
@@ -260,15 +263,20 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         sm = read_json(pr.p("source", "meta.json"), {}) or {}
         hints = hints_for_beats(vn, n, float(sm.get("duration") or 0))
     raw = {}
+    vthemes = TH.detect(script.get("title", ""), script.get("topic", ""), beats)
+    kit_text = TH.kit_block(vthemes)
+    custom = pr.prop_kit()
     if todo and llm.id != "offline":
         ok, why = llm.available()
         if not ok:
             raise P.ProviderError(f"{llm.label} is not available: {why}")
+        custom = design_props(ctx, llm, script, beats, vthemes, kit_text, custom)
         batches = [todo[k:k + 8] for k in range(0, len(todo), 8)]
         done = [0]
 
         def run_batch(idx):
-            prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, cast, script.get("title", ""), hints)
+            prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, cast, script.get("title", ""), hints,
+                                          kit_text=kit_text, custom=custom)
             if instruction:
                 prompt += f"\n\nEXTRA DIRECTION FROM THE USER: {instruction}"
             data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, prompt, label=f"storyboard {idx[0]}-{idx[-1]}")
@@ -298,31 +306,71 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                     ctx.warn(f"storyboard batch {b[0]}-{b[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b)
                 ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"Claude drew {done[0]} of {len(todo)} scenes")
+    finished = {}
     for i in todo:
         ctx.check_cancel()
         beat = beats[i]
         sc = raw.get(i)
-        fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"]) if sc else (None, [], ["missing"])
+        talk = TH.ensure_dialogue(sc, beat["text"], beat["mood"], cast, TH.beat_themes(beat["text"], vthemes), i)
+        fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"], custom) if sc else (None, [], ["missing"])
+        if talk:
+            fixes = ["gave the speaker a line"] + fixes
         if (errs or not (fixed or {}).get("elements")) and llm.id != "offline" and sc is not None:
             try:
                 data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, PR.fix_scene_prompt(sc, errs or ["no elements"], beat),
                                 label=f"fix scene {i}")
-                fixed, fixes2, errs = check_scene(data, beat["mood"], beat["text"])
+                fixed, fixes2, errs = check_scene(data, beat["mood"], beat["text"], custom)
                 fixes = fixes + ["asked the writer to fix it"] + fixes2
             except Exception as e:
                 errs = [str(e)]
         source = llm.id
         if fixed is None or errs or not fixed.get("elements"):
-            fixed, fixes3, _ = check_scene(rules.rule_scene(beat, i, cast), beat["mood"], beat["text"])
+            fixed, fixes3, _ = check_scene(rules.rule_scene(beat, i, cast, vthemes), beat["mood"], beat["text"], custom)
             fixes = fixes + ["used a simple rule-based scene"] + fixes3
             source = "rules"
-        pr.save_scene(i, fixed)
+        finished[i] = fixed
         made[str(i)] = dict(key=h(beat["text"], beat["mood"]), fixes=fixes, source=source, at=time.time())
+    # two scenes in a row shouldn't look the same: nudge colors / time of day of the new ones
+    if finished:
+        everything = {i: finished.get(i) or read_json(pr.scene_path(i)) for i in range(n)}
+        for i, what in TH.vary(everything, list(range(n)), set(finished)):
+            made[str(i)]["fixes"] = made[str(i)]["fixes"] + [f"varied the background ({what})"]
+    for i, fixed in finished.items():
+        pr.save_scene(i, fixed)
     info["scenes"] = made
+    info["themes"] = vthemes
     write_json(pr.p("storyboard.json"), info)
     ctx.progress(0.7, "rendering previews")
     render_previews(ctx, [i for i in range(n) if i in todo or not os.path.exists(pr.preview_path(i))], 0.7, 1.0)
     ctx.progress(1.0, f"{n} scenes")
+
+
+def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
+    """Ask the writer once per script for a few props this story needs that the library doesn't have.
+    Saved in props.json; reused until the script changes. A failure here never stops the storyboard."""
+    pr = ctx.project
+    key = h(script.get("title", ""), script.get("topic", ""), [b["text"] for b in beats])
+    saved = read_json(pr.p("props.json"), {}) or {}
+    if saved.get("key") == key:
+        return saved.get("props") or []
+    if not (load_settings().get("custom_props", True)):
+        return current or []
+    try:
+        data = call_llm(ctx, llm, PR.PROP_DESIGN_SYSTEM,
+                        PR.prop_design_prompt(script.get("title", ""), script.get("topic", ""), beats, kit_text),
+                        label="props", tries=1, until=0.06)
+        kit = clean_kit(data, PROPS)
+    except Exception as e:
+        ctx.warn(f"couldn't design custom props, using the library only: {str(e)[:160]}")
+        return current or []
+    write_json(pr.p("props.json"), dict(key=key, props=kit, themes=vthemes, at=time.time()))
+    if kit:
+        ctx.log("designed props: " + ", ".join(d["name"] for d in kit))
+        try:
+            kit_sheet(kit, pr.p("props.png"))
+        except Exception as e:
+            ctx.log(f"couldn't draw the props sheet: {e}")
+    return kit
 
 
 def scene_job(pr, i, beats, durs):
