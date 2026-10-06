@@ -195,11 +195,13 @@ def main(argv=None):
     mk.add_argument("what", help="a topic in quotes, or a YouTube URL to remake")
     mk.add_argument("--minutes", type=float, default=10)
     mk.add_argument("--tier", choices=["free", "pro"], default="free")
-    mk.add_argument("--llm", choices=["claude_cli", "anthropic", "ollama", "offline"])
-    mk.add_argument("--voice", choices=["kokoro", "elevenlabs", "system"])
-    mk.add_argument("--music", choices=["synth", "upload", "elevenlabs_music"])
-    mk.add_argument("--image", choices=["local", "elevenlabs_image", "higgsfield"])
-    mk.add_argument("--transcript", choices=["youtube_captions", "whisper_local", "elevenlabs_scribe"])
+    from . import providers as _P
+    ids = lambda stage: [p.id for p in _P.REGISTRY[stage]]
+    mk.add_argument("--llm", choices=ids("llm"))
+    mk.add_argument("--voice", choices=ids("voice"))
+    mk.add_argument("--music", choices=ids("music"))
+    mk.add_argument("--image", choices=ids("image"))
+    mk.add_argument("--transcript", choices=ids("transcript"))
     mk.add_argument("--tone", default="funny but respectful")
     mk.add_argument("--faithfulness", choices=["close", "balanced", "loose"], default="balanced")
     mk.add_argument("--topic", default="", help="for a YouTube remake: optional focus/angle")

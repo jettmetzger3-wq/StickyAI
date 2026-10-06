@@ -124,6 +124,17 @@ def rule_scene(beat, idx=0, cast=None, themes=()):
     rnd = random.Random(idx * 7 + len(text))
     low = text.lower()
     ths = beat_themes(text, themes)
+    # countries and borders -> a map; several dates -> a timeline (with a character reacting)
+    m = map_scene(text, mood, rnd)
+    if m is not None:
+        return m
+    all_years = list(dict.fromkeys(re.findall(r"\b(1\d{3}|20\d{2})\b", text)))
+    if len(all_years) >= 3:
+        sc = timeline_scene(text, mood, all_years)
+        kind = THEMES[ths[0]]["kinds"][0] if ths else "civ"
+        sc["elements"].append({"type": "char", "kind": resolve_kind(kind), "x": 960, "y": 470, "scale": 0.55,
+                               "pose": "point_right" if mood != "somber" else "down", "at": 0.02})
+        return sc
     els = []
     bg = _theme_bg(ths, idx, mood, rnd)
     if bg is None:
@@ -152,6 +163,8 @@ def rule_scene(beat, idx=0, cast=None, themes=()):
               "at": f"word:{c['name'].split()[0]}" if c.get("name") else 0.0}
         if c.get("hat_color"):
             el["hat_color"] = c["hat_color"]
+        if c.get("name"):
+            el["who"] = c["name"]
         els.append(el)
         if c.get("name"):
             els.append({"type": "text", "text": c["name"].upper()[:18], "x": x, "y": round(900 - 375 * el["scale"] - 110),
@@ -171,6 +184,14 @@ def rule_scene(beat, idx=0, cast=None, themes=()):
         named = [p for p in tprops if p.replace("_", " ") in low]
         pick = named[0] if named else tprops[idx % len(tprops)]
         prop = (pick, pick.replace("_", " ") if named else None)
+    act = action_prop(text, mood)
+    if act is not None:
+        prop = None                                   # the action moment takes the prop's place
+        act["x"] = 960 if len(chars) == 2 else 1300
+        els.append(act)
+    cnt = number_counter(text)
+    if cnt is not None and not years:
+        els.append(cnt)
     if mood == "somber":
         for i, x in enumerate((760, 960, 1160)):
             els.append({"type": "prop", "name": "candle", "x": x, "y": 860, "scale": 1.1, "enter": "fade", "at": 0.2 + i * 0.1})
@@ -207,3 +228,146 @@ def offline_package(script, minutes):
                 hashtags=["#history", "#animation", "#explained"],
                 thumbnail=dict(line1=title if len(title) <= 18 else " ".join(title.split()[:3]), line2="EXPLAINED", small_kind="civ", big_kind="crown",
                                image_prompt=title))
+
+
+# ------------------------------------------------------------------ richer fallbacks: maps, numbers, dates, actions
+COUNTRY_WORDS = {"britain": "United Kingdom", "england": "United Kingdom", "the uk": "United Kingdom",
+                 "great britain": "United Kingdom", "america": "United States of America",
+                 "the us": "United States of America", "the usa": "United States of America",
+                 "united states": "United States of America", "soviet union": "Russia", "the ussr": "Russia",
+                 "prussia": "Germany", "persia": "Iran", "siam": "Thailand", "ottoman": "Turkey", "holland": "Netherlands",
+                 "korea": "South Korea", "burma": "Myanmar", "ceylon": "Sri Lanka", "rome": "Italy",
+                 "the netherlands": "Netherlands"}
+MAP_WORDS = ("invade", "invaded", "invasion", "conquer", "conquered", "border", "annex", "attack", "attacked",
+             "empire", "territory", "map", "colony", "colonies", "march", "marched", "expanded", "occupied", "seized",
+             "took over", "allied", "alliance")
+MOVE_WORDS = ("invade", "invaded", "invasion", "attack", "attacked", "march", "marched", "sailed", "advanced")
+NUMBER_RE = re.compile(r"(\$)?\b(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(million|billion|thousand)?\s+"
+                       r"(men|soldiers|troops|people|dead|ships|tanks|planes|dollars|pounds|years|days|miles|"
+                       r"kilometers|workers|prisoners|refugees|casualties)\b", re.I)
+
+
+class _Pt:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+
+# huge countries: where the story usually happens (not the middle of Siberia or Nunavut)
+ANCHOR_POINTS = {"Russia": _Pt(38.0, 55.0), "United States of America": _Pt(-90.0, 38.5), "Canada": _Pt(-90.0, 50.0),
+                 "China": _Pt(110.0, 33.0), "Brazil": _Pt(-47.0, -15.0), "Australia": _Pt(140.0, -28.0),
+                 "India": _Pt(78.0, 22.0), "France": _Pt(2.5, 46.8), "Norway": _Pt(9.0, 61.0)}
+
+
+def countries_in(text):
+    """Natural Earth country names mentioned in the text, in order of appearance."""
+    from ..engine import geo
+    low = " " + text.lower() + " "
+    found = []
+    for name in geo.COUNTRIES.keys():
+        n = name.lower()
+        if len(n) > 3 and re.search(r"\b" + re.escape(n) + r"\b", low):
+            found.append((low.index(n), name, name.split()[0]))
+    for word, name in COUNTRY_WORDS.items():
+        m = re.search(r"\b" + re.escape(word) + r"\b", low)
+        if m:
+            found.append((m.start(), name, word.split()[-1]))
+    seen, out = set(), []
+    for pos, name, word in sorted(found):
+        if name not in seen:
+            seen.add(name)
+            out.append((name, word))
+    return out
+
+
+def map_scene(text, mood, rnd):
+    """A map scene when the narration is about countries and borders (invasions, empires, alliances)."""
+    from ..engine import geo
+    low = text.lower()
+    if mood == "somber" or not any(w in low for w in MAP_WORDS):
+        return None
+    hits = countries_in(text)[:3]
+    if not hits:
+        return None
+    geoms = [(n, w, geo.countries_geom([n])) for n, w in hits]
+    geoms = [(n, w, g) for n, w, g in geoms if g is not None]
+    if not geoms:
+        return None
+    pts = [ANCHOR_POINTS.get(n) or g.representative_point() for n, _, g in geoms]
+    lons = [p.x for p in pts]
+    lats = [p.y for p in pts]
+    span = max(max(lons) - min(lons), (max(lats) - min(lats)) * 1.6)
+    width = max(18.0, min(span * 1.9 + 14, 110.0))
+    center = [round(sum(lons) / len(lons), 1), round(max(-55, min(65, sum(lats) / len(lats))), 1)]
+    palette = ["#C8302B", "#2B3F8C", "#3C8C4A"]
+    els = []
+    for k, ((name, word, g), p) in enumerate(zip(geoms, pts)):
+        els.append({"type": "territory", "countries": [name], "color": palette[k % 3], "at": f"word:{word}"})
+        els.append({"type": "text", "text": name.upper()[:16] if len(name) < 17 else word.upper(),
+                    "lon": round(p.x, 1), "lat": round(p.y, 1), "size": 50, "color": "white", "at": f"word:{word}"})
+    if len(geoms) >= 2 and any(w in low for w in MOVE_WORDS):
+        a, b = pts[0], pts[1]
+        mover = next(w for w in MOVE_WORDS if w in low)
+        els.append({"type": "arrow", "from": {"lon": round(a.x, 1), "lat": round(a.y, 1)},
+                    "to": {"lon": round(b.x, 1), "lat": round(b.y, 1)}, "color": "red", "curve": -60,
+                    "units": "army", "count": 4, "at": f"word:{mover.split()[0]}"})
+    if "battle" in low and len(pts) >= 2:
+        els.append({"type": "battle", "lon": round((pts[0].x + pts[1].x) / 2, 1),
+                    "lat": round((pts[0].y + pts[1].y) / 2, 1), "at": "word:battle"})
+    years = re.findall(r"\b(1\d{3}|20\d{2})\b", text)
+    if years:
+        els.append({"type": "text", "text": years[0], "x": 960, "y": 110, "size": 90, "color": "white",
+                    "at": f"word:{years[0]}"})
+    return {"bg": {"type": "map", "center": center, "width": round(width, 1), "style": "dark"}, "elements": els,
+            "camera": {"zoom": [1.0, 1.05]}}
+
+
+def number_counter(text):
+    """A counter for the first big number with a unit ("600,000 men", "$2 billion")."""
+    m = NUMBER_RE.search(text)
+    if not m:
+        return None
+    dollar, num, scale, unit = m.groups()
+    try:
+        v = float(num.replace(",", "")) * {"thousand": 1e3, "million": 1e6, "billion": 1e9}.get((scale or "").lower(), 1)
+    except ValueError:
+        return None
+    if v < 20 or unit.lower() in ("years", "days"):
+        return None
+    big = v >= 1e6
+    shown = v / (1e9 if v >= 1e9 else 1e6) if big else v
+    money = {"dollars": "$", "pounds": "£"}.get(unit.lower(), "$" if dollar else "")
+    suffix = (" billion" if v >= 1e9 else " million" if big else "") + ("" if money else f" {unit.lower()}")
+    return {"type": "counter", "from": 0, "to": round(shown, 1) if big else round(shown), "x": 960, "y": 200,
+            "size": 96, "prefix": money, "suffix": suffix,
+            "format": "number", "decimals": 1 if big and shown != int(shown) else 0, "at": f"word:{num.split(',')[0]}",
+            "dur": 1.6}
+
+
+ACTION_RULES = [  # (words, prop, act)
+    (("sank", "sunk", "sinking", "torpedoed"), "galleon", "sink"),
+    (("exploded", "blew up", "explosion", "bombed"), "explosion", None),
+    (("stormed", "destroyed", "collapsed", "torn down", "tore down", "demolished", "razed"), "castle", "collapse"),
+    (("fired", "cannon", "bombarded", "artillery"), "cannon", "fire"),
+]
+
+
+def action_prop(text, mood):
+    low = text.lower()
+    if mood == "somber":
+        return None
+    for words, prop, act in ACTION_RULES:
+        hit = next((w for w in words if w in low), None)
+        if hit:
+            el = {"type": "prop", "name": prop, "x": 1300, "y": 860 if prop != "explosion" else 480,
+                  "scale": 0.9 if prop != "galleon" else 0.6, "at": 0.05}
+            if act:
+                el["do"] = [{"act": act, "at": f"word:{hit.split()[0]}"}]
+            else:
+                el["at"] = f"word:{hit.split()[0]}"
+            return el
+    return None
+
+
+def timeline_scene(text, mood, years):
+    els = [{"type": "timeline", "y": 700, "events": [{"year": int(y), "label": "", "at": f"word:{y}"} for y in years[:5]]}]
+    return {"bg": {"type": "paper" if mood != "somber" else "dark"}, "elements": els, "camera": {"zoom": [1.0, 1.03]}}

@@ -11,7 +11,8 @@ import jsonschema
 
 from .doodle import W, H
 from .fonts import font
-from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift, hat_top
+from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift, hat_top, \
+    resolve_kind
 from .puppet import resolve_action
 from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
 from .custom_props import clean_parts, kit_lookup, to_element_params, slug
@@ -74,12 +75,12 @@ ELEMENT_SCHEMAS = {
                  prop={"enum": list(HELD)}, prop_color={"type": "string"}, flip={"type": "boolean"},
                  look={"type": "number"}, do={"type": "array", "maxItems": 12}, talk={"type": "array"},
                  auto={"type": "boolean"}, life={"type": "boolean"}, coat={"type": "string"},
-                 ride={"enum": list(MOUNTS)}),
+                 ride={"enum": list(MOUNTS)}, who={"type": "string"}),
     "crowd": _obj(("type",), type={"const": "crowd"}, **_xy, **_anim, kind={"type": "string"}, count=_num, rows=_num,
                   width=_num, scale=_num, flip={"type": "boolean"}, do={"type": "array", "maxItems": 12},
                   mouth={"enum": list(MOUTHS)}, eyes={"enum": list(EYES)}, prop={"enum": list(HELD)},
                   pose={"anyOf": [{"enum": list(ARMS)}, {"type": "array"}]}, hat_color={"type": "string"},
-                  coat={"type": "string"}, ride={"enum": list(MOUNTS)}),
+                  coat={"type": "string"}, ride={"enum": list(MOUNTS)}, who={"type": "string"}),
     "pointer": _obj(("type",), type={"const": "pointer"}, **_xy, **_anim, **{"from": {"enum": list(POINTER_DIRS)}},
                     size=_num, color={"type": "string"}),
     "text": _obj(("type", "text"), type={"const": "text"}, **_xy, **_anim, text={"type": "string"}, size=_num,
@@ -502,10 +503,58 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
     return made
 
 
-def repair_scene(scene, mood="fun", text="", kit=None):
+LOOKS = ("beard", "mustache")
+COSTUMES = ("crown", "laurel", "knight", "astronaut", "wizard", "chef", "graduate", "pirate", "headphones", "glasses",
+            "hardhat", "mitre", "turban", "cowboy", "pilot")
+
+
+def cast_member(cast, who):
+    """The cast entry a character's "who" refers to ("Napoleon" finds "Napoleon Bonaparte")."""
+    w = str(who or "").strip().lower()
+    if not w or not cast:
+        return None
+    for c in cast:
+        n = str(c.get("name") or "").strip().lower()
+        if n and (n == w or w in n.split() or n in w or w in n):
+            return c
+    return None
+
+
+def apply_cast(el, cast, fixes):
+    """Make a character look like its cast entry in every scene: same hat, outfit color and beard."""
+    t = el.get("type")
+    c = cast_member(cast, el.get("who"))
+    if c is None and el.get("who") is None and el.get("kind"):
+        # no name given: a hat worn by exactly one cast member is that member
+        k = resolve_kind(el["kind"])
+        same = [m for m in cast if resolve_kind(m.get("kind")) == k]
+        c = same[0] if len(same) == 1 else None
+    if c is None:
+        return
+    ck = str(c.get("kind") or "").strip().lower()
+    if ck and t == "char" and (not el.get("kind") or el.get("kind") == "civ") and (ck in HATS or ck in KIND_ALIASES):
+        el["kind"] = ck
+    elif ck and t == "char" and el.get("who") and resolve_kind(el.get("kind")) != resolve_kind(ck) and \
+            resolve_kind(el.get("kind")) not in COSTUMES:
+        fixes.append(f"{c.get('name')} keeps the hat from the cast ({ck})")
+        el["kind"] = ck
+    if c.get("coat") and not el.get("coat"):
+        el["coat"] = c["coat"]
+    if c.get("hat_color") and not el.get("hat_color"):
+        el["hat_color"] = c["hat_color"]
+    look = str(c.get("look") or "").strip().lower()
+    if t == "char" and look in LOOKS:
+        ex = list(el.get("extras") or [])
+        if look not in ex and not any(x in ex for x in LOOKS):
+            el["extras"] = ex + [look]
+
+
+def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
     """Fix common LLM mistakes. Returns (scene, list_of_fixes).
-    kit: the props designed for this video (see custom_props); scenes may use them by name."""
+    kit: the props designed for this video (see custom_props); scenes may use them by name.
+    cast: the script's recurring characters; characters in the scene take their look from it."""
     fixes = []
+    cast = [c for c in (cast or []) if isinstance(c, dict)]
     custom = kit_lookup(kit)
     if not isinstance(scene, dict):
         return {"bg": {"type": "paper"}, "elements": []}, ["scene was not an object; replaced with an empty one"]
@@ -657,7 +706,11 @@ def repair_scene(scene, mood="fun", text="", kit=None):
                     a["dur"] = max(0.1, min(_f(a["dur"], 1.5), 20))
                 acts.append(a)
             el["do"] = acts
+        if t in ("char", "crowd") and cast:
+            apply_cast(el, cast, fixes)
         if t in ("char", "crowd"):
+            if el.get("who") is not None:
+                el["who"] = str(el["who"])[:40]
             if el.get("ride") is not None:
                 r = str(el["ride"]).strip().lower().replace(" ", "_")
                 r = MOUNT_ALIASES.get(r, r)
@@ -1199,7 +1252,7 @@ def repair_weather(sc, bg, mood, text, fixes):
         sc.pop("light", None)
 
 
-def check_scene(scene, mood="fun", text="", kit=None):
+def check_scene(scene, mood="fun", text="", kit=None, cast=None):
     """repair + validate. Returns (scene, fixes, errors)."""
-    fixed, fixes = repair_scene(scene, mood, text, kit)
+    fixed, fixes = repair_scene(scene, mood, text, kit, cast)
     return fixed, fixes, validate_scene(fixed)

@@ -309,3 +309,49 @@ class Light:
         if self.solid is None or self.solid.size != fr.size or self.solid.mode != fr.mode:
             self.solid = solid(fr, self.col)
         return Image.blend(fr, self.solid, self.max * q)
+
+
+class Clouds:
+    """The sky's clouds drifting slowly (bigger, nearer ones faster). They only show where the background is
+    sky, so they pass behind buildings, hills and towers."""
+
+    def __init__(self, specs, bg, sky_ref, seed=1):
+        import numpy as np
+        from .pen import Pen
+        arr = np.asarray(bg.convert("RGB"), dtype=np.int16)
+        kind, col, horizon = sky_ref
+        rows = np.arange(arr.shape[0], dtype=np.float32)[:, None]
+        if kind == "grad":
+            top, bot = (np.array(c, dtype=np.float32) for c in col)
+            q = np.clip(rows / max(1.0, float(horizon)), 0, 1)[:, :, None]
+            want = top + (bot - top) * q
+        else:
+            want = np.array(col, dtype=np.float32)[None, None, :]
+        diff = np.abs(arr - want).sum(axis=2)
+        sky = (diff < 30) & (rows < horizon)
+        self.mask = Image.fromarray((sky * 255).astype("uint8"), "L").filter(ImageFilter.MinFilter(3))
+        r = random.Random(seed * 13 + 1)
+        self.items = []
+        for x, y, s, c in specs:
+            w, h = int(260 * s + 40), int(150 * s + 40)
+            p = Pen(3, rgba=True, size=(w, h))
+            p.cloud(w / 2, h / 2 - 10 * s, s, c)
+            spr = p.im.convert("RGBa").resize((w, h), Image.LANCZOS).convert("RGBA")
+            storm = sum(c[:3]) < 600                      # heavy gray storm clouds move faster
+            speed = (5 + 9 * s) * (1.8 if storm else 1.0) * r.choice((1, 1, -1))
+            self.items.append((spr, x - w / 2, y - h / 2, speed))
+
+    def apply(self, fr, t):
+        from PIL import ImageChops
+        span = W + 600
+        for spr, x0, y0, v in self.items:
+            x = int(((x0 + v * t + 300) % span) - 300)
+            y = int(y0)
+            ax0, ay0 = max(0, x), max(0, y)
+            ax1, ay1 = min(W, x + spr.width), min(H, y + spr.height)
+            if ax1 <= ax0 or ay1 <= ay0:
+                continue
+            part = spr.crop((ax0 - x, ay0 - y, ax1 - x, ay1 - y))
+            alpha = ImageChops.multiply(part.getchannel("A"), self.mask.crop((ax0, ay0, ax1, ay1)))
+            fr.paste(part.convert(fr.mode), (ax0, ay0), alpha)
+        return fr

@@ -308,6 +308,8 @@ def build_background(sc, bg):
         sc.bg_interior(C(bg.get("wall"), (236, 222, 196)), C(bg.get("floor"), (176, 132, 92)))
     else:
         sc.bg_paper(C(bg.get("color"), PAPER))
+    if bg.get("clouds", True) is not False:
+        sc.drift_clouds()
     _bg_items(sc, bg)
 
 

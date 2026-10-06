@@ -58,6 +58,11 @@ Paste the key under Settings → API keys (`GEMINI_API_KEY` / `GROQ_API_KEY`) an
 video). When a per-minute limit is hit the studio waits; when the day's limit is used up the video pauses and you
 press **Resume** the next day. "Ollama (local model)" and "Basic (no AI, for testing)" also work.
 
+**Backup writer:** Claude Code stays the default. If your Claude plan hits its usage limit in the middle of a
+video, the free writer you have a key for (Gemini first, else Groq) takes over for the rest of that step instead of
+the video stopping; the video gets a note saying so, and Claude is tried again after its reset time. Settings →
+Writer → "When my Claude plan runs out mid-video" (switch to Gemini / Groq, or stop and wait).
+
 **Free voice:** Kokoro downloads its model (~340 MB) from GitHub the first time you preview or use it.
 
 ### Use it from your phone (free, just for you)
@@ -278,10 +283,22 @@ the Kokoro model in `data/models/`.
 - **Charts and timelines** (`engine/charts.py`): bar charts and rankings that grow with numbers ticking up, line
   charts that draw themselves, timelines where dates drop in as they're said, size comparisons (circles whose area
   matches the numbers) and then-vs-now split screens with an old-photo side.
+- **Same character, same look**: the script's cast lists each person's hat, outfit color and beard or mustache;
+  in every scene a character marked with `"who"` (or wearing a hat only one cast member has) gets that look, so
+  Napoleon is always in French blue. A coronation crown and similar costume changes are kept.
+- **Thumbnails**: big faces cut out like stickers (white outline, soft shadow), a close-up giant against a furious
+  small character, a prop that sums up the story, huge double-outlined words in the cast's colors.
+- **Drifting clouds**: the clouds of every painted sky drift slowly and pass behind buildings, hills and towers.
+- **Fallback scenes** (Basic mode, or when an AI scene can't be repaired) now use maps with territories and
+  invasion arrows when countries are mentioned, timelines for several dates, counters for big numbers ("600,000
+  men", "£2 billion") and action moments (ships sinking, forts collapsing, cannons firing).
+- **Speed**: rendering is about 2.5x faster than before (the camera crops and scales instead of warping the whole
+  frame, and redrawn characters use a cheaper, equally clean downscale).
 - **Music and narration**: the free synth picks the music from the story (epic drums for battles, mystery for
   secrets, a fanfare for victories, sad strings for sad moments), adds a musical hit on big moments (a victory, a
   twist, a war breaking out, a flop), and the narrator slows down with a pause for sad parts and speeds up a little
-  for jokes. Each can be switched off in Settings.
+  for jokes. The narration is polished like a YouTube mic (no low rumble, clearer words, an even level). Each can
+  be switched off in Settings.
 - **Fact-check**: right after writing the script, the writer double-checks the claims it was unsure about (with web
   search when it runs on Claude Code, free on your plan), rewrites any beat that got a fact wrong, and lists what it
   confirmed, fixed and couldn't settle on the Script tab.

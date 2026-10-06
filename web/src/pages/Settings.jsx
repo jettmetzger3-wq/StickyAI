@@ -509,6 +509,7 @@ export default function Settings() {
           <Toggle checked={s.music_styles !== false} onChange={(v) => set({ music_styles: v })} label="Music that fits the moment" hint="Free synth: epic drums for battles, mystery for secrets, a fanfare for victories, sad strings for sad parts." />
           <Toggle checked={s.music_stings !== false} onChange={(v) => set({ music_stings: v })} label="Musical hits on big moments" hint='A fanfare when someone wins, "dun dun DUN" on a twist, a sad trombone when a plan flops.' />
           <Toggle checked={s.mood_narration !== false} onChange={(v) => set({ mood_narration: v })} label="Narrator follows the mood" hint="Slower with a pause for sad parts, a little faster for jokes." />
+          <Toggle checked={s.voice_polish !== false} onChange={(v) => set({ voice_polish: v })} label="Polish the narration" hint="Removes low rumble, makes words a bit clearer and evens out loud and quiet parts, like a YouTube narrator's mic." />
           <Toggle checked={s.fact_check !== false} onChange={(v) => set({ fact_check: v })} label="Fact-check the script" hint="After writing, the writer double-checks uncertain facts (with web search on Claude Code) and fixes mistakes." />
           <Toggle
             checked={s.custom_props !== false}

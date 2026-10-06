@@ -678,15 +678,36 @@ def loop_to(x, n, xf=int(1.5 * SR)):
     return out[:n]
 
 
+def polish_voice(x):
+    """Broadcast-style narration: cut the rumble below 80 Hz, add a little presence around 2.5-5 kHz (clearer
+    words), and even out the level with a gentle compressor (3:1 above -20 dB, smooth attack and release)."""
+    if len(x) < SR // 10 or not np.any(x):
+        return x
+    b, a = butter(2, 80 / (SR / 2), "high")
+    y = lfilter(b, a, x)
+    b, a = butter(2, [2500 / (SR / 2), 5000 / (SR / 2)], "band")
+    y = y + lfilter(b, a, y) * 0.3
+    peak = max(1e-9, np.abs(y).max())
+    y = y / peak
+    env = np.sqrt(movavg(y * y, int(0.02 * SR)) + 1e-12)
+    thr, ratio = 10 ** (-20 / 20), 3.0
+    gain = np.where(env > thr, (thr / env) ** (1 - 1 / ratio), 1.0)
+    gain = movavg(gain, int(0.05 * SR))              # no pumping: the gain moves slowly
+    y = y * gain
+    return y / max(1e-9, np.abs(y).max())
+
+
 def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, out_path, lead=0.15,
               music_beds=None, music_file=None, music_db=-13.0, use_sfx=True, ambiences=None, ambience_db=-25.0,
-              talk_blips=True, action_sounds=True):
+              talk_blips=True, action_sounds=True, voice_polish=True):
     """voice_clips: list of mono arrays @ SR, one per scene; sfx_events: [(abs_time, kind)].
     music_beds: optional {mood: array} (e.g. AI-generated tracks); music_file: one uploaded track for all moods."""
     n = int(total * SR) + SR
     voice = np.zeros(n)
     for clip, st in zip(voice_clips, scene_starts):
         place(voice, clip, st + lead)
+    if voice_polish:
+        voice = polish_voice(voice)
     voice *= 0.85 / max(1e-6, np.abs(voice).max())
     # music beds with ~1.2 s crossfades when the mood changes
     if music_file:

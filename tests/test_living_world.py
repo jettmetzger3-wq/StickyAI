@@ -217,3 +217,54 @@ def test_docs_and_examples_teach_the_new_features():
     small = storyboard_prompt([(0, beats[0])], beats, [], "T", examples=3, compact=True)
     big = storyboard_prompt([(0, beats[0])], beats, [], "T")
     assert len(small) < len(big) / 3 and "army_speech" not in small and "EXAMPLES" in small
+
+
+# ------------------------------------------------------------------ the same character looks the same everywhere
+def test_cast_look_follows_the_character_into_every_scene():
+    cast = [{"name": "Napoleon Bonaparte", "kind": "bicorne", "hat_color": "", "coat": "#2B3F8C", "look": ""},
+            {"name": "Tsar Alexander", "kind": "crown", "hat_color": "", "coat": "#2F5D3A", "look": "beard"}]
+    s, fixes, errs = check_scene({"bg": {"type": "field"}, "elements": [
+        {"type": "char", "who": "Napoleon", "kind": "army", "x": 500, "y": 900},          # writer forgot his hat
+        {"type": "char", "kind": "crown", "x": 1400, "y": 900},                           # no name: the crown is the tsar
+        {"type": "crowd", "who": "Napoleon", "kind": "shako", "x": 960, "y": 930, "count": 6}]},
+        "fun", "x", cast=cast)
+    assert errs == []
+    nap, tsar, army = s["elements"][:3]
+    assert nap["kind"] == "bicorne" and nap["coat"] == "#2B3F8C"
+    assert tsar["coat"] == "#2F5D3A" and "beard" in tsar["extras"]
+    assert army["kind"] == "shako" and army["coat"] == "#2B3F8C"         # soldiers keep their own hats
+    s, _, _ = check_scene({"bg": {"type": "palace"}, "elements": [
+        {"type": "char", "who": "Napoleon", "kind": "crown", "x": 900, "y": 900}]}, "fun", "He crowned himself.", cast=cast)
+    assert s["elements"][0]["kind"] == "crown"                            # a coronation crown is allowed
+
+
+def test_fallback_scenes_use_maps_timelines_numbers_and_actions():
+    from studio.pipeline.rules import rule_scene
+    def kinds(text, mood="tense"):
+        sc = rule_scene({"text": text, "mood": mood}, 1, [], ())
+        fixed, fixes, errs = check_scene(sc, mood, text)
+        assert errs == [], errs
+        return fixed["bg"]["type"], [e["type"] + ":" + str(e.get("name", "")) for e in fixed["elements"]], fixed
+    bg, els, s = kinds("In 1812 France invaded Russia with 600,000 men.")
+    assert bg == "map" and "arrow:" in els and sum(e.startswith("territory") for e in els) == 2
+    bg, els, _ = kinds("He was born in 1769, became general in 1796, emperor in 1804 and died in 1821.", "fun")
+    assert "timeline:" in els
+    bg, els, s = kinds("The British fleet sank the Spanish Armada.")
+    ship = [e for e in s["elements"] if e.get("name") == "galleon"][0]
+    assert ship["do"][0]["act"] == "sink"
+    _, _, s = kinds("The war cost Britain 2 billion pounds.")
+    c = [e for e in s["elements"] if e["type"] == "counter"][0]
+    assert c["prefix"] == "£" and c["suffix"] == " billion" and c["to"] == 2
+    bg, els, _ = kinds("Millions died in the famine.", "somber")
+    assert not any(e.startswith("prop:explosion") for e in els)
+
+
+def test_clouds_drift_and_hide_behind_buildings():
+    sc, _, _ = scene({"bg": {"type": "city", "skyline": "paris"}, "elements": []}, dur=20.0)
+    from studio.engine.weather import Clouds
+    clouds = [L["overlay"].__self__ for L in sc.layers if L.get("overlay") is not None
+              and isinstance(getattr(L["overlay"], "__self__", None), Clouds)]
+    assert clouds and len(clouds[0].items) >= 2
+    assert differ(sc.render_at(0.5), sc.render_at(18.0)) > 0.05          # they moved
+    m = np.asarray(clouds[0].mask)
+    assert m[50, :].mean() > 200 and m[1000, :].mean() < 10               # sky at the top, never on the ground

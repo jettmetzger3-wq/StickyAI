@@ -37,18 +37,28 @@ SCRIPT_SCHEMA = {
                            "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
                            "note": {"type": "string"}}}},
         "cast": {"type": "array", "items": {
-            "type": "object", "additionalProperties": False, "required": ["name", "kind", "hat_color"],
-            "properties": {"name": {"type": "string"}, "kind": {"type": "string"}, "hat_color": {"type": "string"}}}},
+            "type": "object", "additionalProperties": False, "required": ["name", "kind", "hat_color", "coat", "look"],
+            "properties": {"name": {"type": "string"}, "kind": {"type": "string"}, "hat_color": {"type": "string"},
+                           "coat": {"type": "string"}, "look": {"type": "string", "enum": ["", "beard", "mustache"]}}}},
     },
 }
 
 WRITING_RULES = """WRITING RULES
 - Output a list of BEATS. Each beat = one or two spoken sentences, roughly 15 to 30 words, plus a mood:
   "fun" (default, jokes allowed), "tense" (stakes rising, lighter jokes), "somber" (tragedy: no jokes).
-- Hook in the first 20 seconds: open with a surprising fact AND the question the video will answer.
+- Hook in the first 20 seconds: open with a surprising fact AND the question the video will answer. The very
+  first beat is under 15 words and is the most surprising thing in the whole story.
 - Open 2 to 4 story loops ("remember the oil problem?" style) and close every one of them later with a callback.
+- Link beats with cause and effect ("but", "so", "which meant"), not "and then". Every beat either raises a
+  question, answers one, or raises the stakes; cut any beat that does none of those.
+- Every 5 to 8 beats end a section on a specific mini-cliffhanger (what is about to go wrong, not a vague
+  "but that was only the beginning").
 - Change the pattern every 30 to 90 seconds (a map, a "meanwhile", a quick list, a fake quote, a rhetorical question).
-- Anchor beats to concrete dates, people, places and numbers. Every beat should be drawable as one doodle scene.
+- Anchor beats to concrete dates, people, places and numbers, and compare big numbers to things people know
+  ("an army the size of Philadelphia", "a country smaller than California").
+- Write for the eye: every beat should be drawable as one doodle scene. Name the places, objects and events
+  (a map, an invasion, a ship sinking, a storm, a coronation, prices rising) so the animator can show them.
+- Give the main people a personality and a running joke, and let them react in character.
 - Spoken style: contractions, short sentences, plain words. Funny but respectful.
 - Never use these AI-sounding words/phrases: {avoid}. Never use the "It's not X, it's Y" construction.
   Never use em dashes or en dashes; use commas, periods or "and".
@@ -66,7 +76,9 @@ CAST
 - List the recurring characters (nations, people, groups). For each pick a stickman "kind" (hat) from this list:
   {kinds}
   (aliases also work: {aliases}). Optionally give a hat_color (a color name or #hex) to tell similar hats apart,
-  otherwise use "".
+  otherwise use "". Give people and armies a coat (jacket color: "#C8302B" British red, "#2B3F8C" French blue,
+  "#2F5D3A" Russian green, a king's purple, a banker's gray) or "" for plain stickmen, and a look: "beard",
+  "mustache" or "". They keep this look in every scene, so pick what makes them recognizable.
 """
 
 
@@ -123,7 +135,7 @@ def script_prompt(topic, minutes=10, tone="funny but respectful", style_notes=""
         parts.append("EXTRA INSTRUCTIONS FROM THE USER: " + extra)
     parts.append(rules)
     parts.append('Answer with JSON only: {"title": working title, "topic": short topic, "beats": [{"mood", "text"}], '
-                 '"facts": [{"beat", "claim", "confidence", "note"}], "cast": [{"name", "kind", "hat_color"}]}')
+                 '"facts": [{"beat", "claim", "confidence", "note"}], "cast": [{"name", "kind", "hat_color", "coat", "look"}]}')
     return "\n\n".join(parts)
 
 
@@ -252,6 +264,7 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          a king's purple, a businessman's gray suit). Uniform hats (shako, bearskin, tricorn) add white crossbelts,
          officers' hats (bicorne, crown, navy) add gold epaulettes. pose "hand_in_coat" = Napoleon's pose.
          ride: {"|".join(MOUNTS)} (the character sits on it; walk/run then gallops; flip faces left)
+         who: the cast member this is ("Napoleon"): they get their cast hat, coat and beard automatically.
          say: what the character SAYS, as a list of 1-3 short lines (max ~8 words each), shown one after another in
          speech bubbles over their head while they talk: ["Soldiers! Glory awaits!", {{"text": "CHARGE!",
          "at": "word:attacked"}}]. The engine positions the bubbles and points the tails; no need for bubble elements.
@@ -391,7 +404,7 @@ Europe 40, a country 15-25), style: paper|dark, territories: [{{countries: [...]
 lat, size}}]}}. dark {{color}} for sad beats. Region presets: {", ".join(sorted(REGIONS))}.
 
 ELEMENTS (x, y pixels; on maps lon/lat or {{"lon", "lat"}} points):
-  char {{x, y (feet), scale (0.4-1.6), kind (hat), pose, mouth, eyes, prop, coat (jacket color), ride (horse...),
+  char {{x, y (feet), scale (0.4-1.6), who (cast name), kind (hat), pose, mouth, eyes, prop, coat, ride (horse...),
        flip, say: ["short line", {{"text": "...", "at": "word:x"}}], do: [{{act, at, to?}}]}}
        kind: {", ".join(h for h in HATS if h != "none")}
        pose: {", ".join(ARMS)} | mouth: {", ".join(MOUTHS)} | eyes: {", ".join(EYES)} | prop: {", ".join(HELD)}
@@ -454,6 +467,7 @@ def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text
     """batch: list of (index, beat). visual_hints: {index: "what the source video showed around then"}.
     kit_text: the topic's VISUAL KIT block. custom: props designed for this video."""
     cast_lines = "\n".join(f"- {c.get('name')}: kind={c.get('kind')}" + (f", hat_color={c['hat_color']}" if c.get("hat_color") else "")
+                           + (f", coat={c['coat']}" if c.get("coat") else "") + (f", {c['look']}" if c.get("look") else "")
                            for c in cast or [])
     first = batch[0][0]
     ctx = [f"[{i}] ({b['mood']}) {b['text']}" for i, b in enumerate(all_beats) if first - 2 <= i < first]
@@ -469,7 +483,8 @@ def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text
 {ex}
 
 VIDEO: {title}
-CAST (use these kinds consistently):
+CAST (give a char "who": "<name>" and the studio dresses them the same in every scene; you may still change
+their hat for a moment that calls for it, like a crown at a coronation):
 {cast_lines or "- (pick sensible kinds)"}
 
 {kit_text}

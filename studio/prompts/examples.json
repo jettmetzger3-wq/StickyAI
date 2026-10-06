@@ -1229,7 +1229,8 @@
        "text": "I need MORE gold!",
        "at": "word:taxes"
       }
-     ]
+     ],
+     "who": "King John"
     },
     {
      "type": "prop",
@@ -1383,7 +1384,8 @@
        "at": "word:promises"
       }
      ],
-     "coat": "#2B3F8C"
+     "coat": "#2B3F8C",
+     "who": "Napoleon"
     }
    ],
    "camera": {
@@ -2113,7 +2115,8 @@
        "text": "Maybe Moscow wasn't worth it.",
        "at": "word:freezing"
       }
-     ]
+     ],
+     "who": "Napoleon"
     },
     {
      "type": "counter",
@@ -2379,7 +2382,8 @@
        "text": "Too fast? Never.",
        "at": "word:ends"
       }
-     ]
+     ],
+     "who": "Napoleon"
     }
    ]
   }

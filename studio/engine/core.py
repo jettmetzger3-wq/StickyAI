@@ -84,6 +84,8 @@ class Scene:
         self.seed = 1000 + idx * 17
         self.view = None
         self.warnings = []
+        self.clouds = []         # clouds of the painted sky; they drift (see drift_clouds)
+        self.sky_ref = None      # how the sky was painted, so drifting clouds can pass behind buildings
 
     # ---------------- time helpers ----------------
     def w(self, word, nth=0):
@@ -119,8 +121,9 @@ class Scene:
             p.d.rectangle([0, gy * SS, W * SS, H * SS], fill=gnd)
             p.line([(0, gy), (W, gy)], 6, INK, 0.5)
             if clouds:
-                p.cloud(300, 180, 0.9)
-                p.cloud(1550, 140, 0.7)
+                self._cloud(300, 180, 0.9)
+                self._cloud(1550, 140, 0.7)
+            self.sky_ref = ("flat", sky, gy)
         return gy
 
     def bg_sea(self, sky=(200, 228, 246), sea=SEA, horizon=520, clouds=True):
@@ -131,8 +134,9 @@ class Scene:
                 x, y = r.randint(0, W), r.randint(horizon + 20, H)
                 p.line([(x, y), (x + 30, y - 7), (x + 60, y)], 5, darker(sea, 0.8), 0.5)
             if clouds:
-                p.cloud(350, 160, 0.8)
-                p.cloud(1500, 210, 0.6)
+                self._cloud(350, 160, 0.8)
+                self._cloud(1500, 210, 0.6)
+            self.sky_ref = ("flat", sky, horizon)
         return horizon
 
     def bg_night(self, sky=(30, 36, 70), gnd=(40, 44, 60), gy=880):
@@ -150,9 +154,20 @@ class Scene:
             pass
 
     # ---------------- painted backgrounds (sky gradient, layered scenery) ----------------
+    def _cloud(self, x, y, s=1.0, col=WHITE):
+        self.clouds.append((x, y, s, col))
+
+    def drift_clouds(self):
+        """Turn the painted sky's clouds into slowly drifting ones that pass behind buildings and hills."""
+        if self.clouds and self.bg is not None and self.sky_ref is not None:
+            from .weather import Clouds
+            cl = Clouds(self.clouds, self.bg, self.sky_ref, self.seed)
+            self.overlay(cl.apply, z=-1.5)
+
     def _sky(self, p, time, horizon):
         top, bot = SKIES.get(time, SKIES["day"])
         p.im.paste(gradient((W * SS, int(horizon * SS)), top, bot), (0, 0))
+        self.sky_ref = ("grad", (top, bot), horizon)
         r = random.Random(self.idx + 7)
         if time == "night":
             for _ in range(60):
@@ -162,10 +177,10 @@ class Scene:
             p.circ(1500, int(horizon) - 40, 80, (255, 214, 140), 0)
         elif time != "storm":
             for k in range(3):
-                p.cloud(r.randint(150, 1750), r.randint(90, int(max(140, horizon * 0.45))), r.uniform(0.5, 0.9))
+                self._cloud(r.randint(150, 1750), r.randint(90, int(max(140, horizon * 0.45))), r.uniform(0.5, 0.9))
         else:
             for k in range(5):
-                p.cloud(r.randint(100, 1800), r.randint(60, 260), r.uniform(0.8, 1.3), (120, 124, 132))
+                self._cloud(r.randint(100, 1800), r.randint(60, 260), r.uniform(0.8, 1.3), (120, 124, 132))
 
     def _ground(self, p, top, gy, col, tuft=None, n=160):
         p.im.paste(gradient((W * SS, int((H - gy) * SS) + SS), col, darker(col, 0.82)), (0, int(gy * SS)))

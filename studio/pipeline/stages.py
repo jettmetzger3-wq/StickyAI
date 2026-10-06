@@ -392,20 +392,20 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         beat = beats[i]
         sc = raw.get(i)
         talk = TH.ensure_dialogue(sc, beat["text"], beat["mood"], cast, TH.beat_themes(beat["text"], vthemes), i)
-        fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"], custom) if sc else (None, [], ["missing"])
+        fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"], custom, cast) if sc else (None, [], ["missing"])
         if talk:
             fixes = ["gave the speaker a line"] + fixes
         if (errs or not (fixed or {}).get("elements")) and llm.id != "offline" and sc is not None:
             try:
                 data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, PR.fix_scene_prompt(sc, errs or ["no elements"], beat),
                                 label=f"fix scene {i}")
-                fixed, fixes2, errs = check_scene(data, beat["mood"], beat["text"], custom)
+                fixed, fixes2, errs = check_scene(data, beat["mood"], beat["text"], custom, cast)
                 fixes = fixes + ["asked the writer to fix it"] + fixes2
             except Exception as e:
                 errs = [str(e)]
         source = llm.id
         if fixed is None or errs or not fixed.get("elements"):
-            fixed, fixes3, _ = check_scene(rules.rule_scene(beat, i, cast, vthemes), beat["mood"], beat["text"], custom)
+            fixed, fixes3, _ = check_scene(rules.rule_scene(beat, i, cast, vthemes), beat["mood"], beat["text"], custom, cast)
             fixes = fixes + ["used a simple rule-based scene"] + fixes3
             source = "rules"
         finished[i] = fixed
@@ -706,7 +706,8 @@ def stage_mix(ctx):
                   music_file=music_file, music_db=float(settings.get("music_db", -13)),
                   use_sfx=opts.get("sfx", True), ambiences=ambiences,
                   talk_blips=opts.get("talk_blips", settings.get("talk_blips", True)) is not False,
-                  action_sounds=opts.get("action_sounds", settings.get("action_sounds", True)) is not False)
+                  action_sounds=opts.get("action_sounds", settings.get("action_sounds", True)) is not False,
+                  voice_polish=settings.get("voice_polish", True) is not False)
     ctx.progress(0.55, "making the loudness right for YouTube")
     with ctx.working("making the loudness right for YouTube", expect=10 + total / 20, until=0.69):
         loudnorm(raw, pr.p("final", "mix.wav"))

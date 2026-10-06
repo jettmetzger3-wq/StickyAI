@@ -649,7 +649,7 @@ def put_scene(slug: str, i: int, body: dict):
         raise HTTPException(404, "no such beat")
     beat = script["beats"][i]
     scene = body.get("scene", body)
-    fixed, fixes, errs = check_scene(scene, beat["mood"], beat["text"], pr.prop_kit())
+    fixed, fixes, errs = check_scene(scene, beat["mood"], beat["text"], pr.prop_kit(), script.get("cast"))
     if errs:
         return JSONResponse(status_code=422, content=dict(errors=errs, fixes=fixes))
     pr.save_scene(i, fixed)
