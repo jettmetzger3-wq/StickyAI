@@ -1,5 +1,7 @@
 """Runs stages in order with checkpoints (autopilot off), cost approvals and progress events."""
 import collections
+import contextlib
+import math
 import threading
 import time
 import traceback
@@ -22,10 +24,42 @@ class Ctx:
     def __init__(self, project, stage, echo=None):
         self.project, self.stage, self.echo = project, stage, echo
         self._last = 0.0
+        self.frac, self.msg = 0.0, ""
+        self._working = 0
         self.cancel_event = _cancel.setdefault(project.slug, threading.Event())
 
-    def progress(self, frac, msg=""):
+    @contextlib.contextmanager
+    def working(self, msg, expect=60.0, until=None):
+        """Keep the progress bar moving during one long call (an AI writing, a voice being made): it creeps toward
+        `until` and the message counts the seconds, so the page never looks frozen."""
+        if self._working:          # already inside one (e.g. storyboard batches running side by side)
+            yield
+            return
+        self._working += 1
+        start = self.frac
+        until = min(0.97, until if until is not None else start + (0.95 - start) * 0.6)
+        stop = threading.Event()
+        t0 = time.time()
+
+        def beat():
+            while not stop.wait(1.0):
+                el = time.time() - t0
+                f = max(self.frac, start + (until - start) * (1 - math.exp(-el / max(expect, 1.0))))
+                self.progress(f, f"{self.msg or msg} ({int(el // 60)}:{int(el % 60):02d})", _beat=True)
+        th = threading.Thread(target=beat, daemon=True)
+        self.progress(start, msg)
+        th.start()
+        try:
+            yield
+        finally:
+            stop.set()
+            th.join(timeout=2)
+            self._working -= 1
+
+    def progress(self, frac, msg="", _beat=False):
         frac = max(0.0, min(1.0, float(frac)))
+        if not _beat:
+            self.frac, self.msg = frac, msg
         now = time.time()
         if now - self._last > 0.4 or frac >= 1.0 or frac <= 0.02:
             self._last = now
@@ -220,6 +254,33 @@ def _run(project, start, stop_after, approve_cb, echo, stage_kwargs):
     return final
 
 
+def recover(project, why="the app was closed while it was working"):
+    """A run that died with the app (shutdown, crash, closed window) leaves 'running' behind. Put it back to
+    'paused' so it can be resumed (finished work is kept) or deleted."""
+    def f(m):
+        for st, v in (m.get("stages") or {}).items():
+            if v.get("status") == "running":
+                v.update(status="pending", progress=0.0, message=f"stopped: {why}")
+        if m.get("status") in ("running", "queued"):
+            m["status"] = "paused"
+            m["queue_position"] = None
+    project.update(f)
+    bus.publish(project.slug, dict(type="status", status="paused"))
+
+
+def recover_all():
+    """At startup nothing can be running yet, so every 'running' or 'queued' project was interrupted."""
+    from .project import list_projects
+    n = 0
+    for m in list_projects():
+        busy = m.get("status") in ("running", "queued") or any(
+            (v or {}).get("status") == "running" for v in (m.get("stages") or {}).values())
+        if busy and not is_running(m["slug"]):
+            recover(Project(m["slug"]))
+            n += 1
+    return n
+
+
 def mark_reviewed(project, stage):
     project.update(lambda m: m.setdefault("reviewed", []).append(stage) if stage not in (m.get("reviewed") or []) else None)
 
@@ -308,6 +369,9 @@ def _drain_soon():
 
 
 def cancel(slug):
+    if not is_running(slug):
+        recover(Project(slug), "you pressed Stop")   # nothing is really running: just unstick it
+        return
     with _guard:
         for item in list(_queue):
             if item[0] == slug:

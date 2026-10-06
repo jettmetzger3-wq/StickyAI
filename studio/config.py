@@ -33,11 +33,25 @@ def private():
     return hosted() and os.environ.get("STUDIO_PRIVATE") == "1"
 
 
+def js_runtimes():
+    """JavaScript programs on this PC that yt-dlp can use. YouTube now makes downloaders solve a small JavaScript
+    challenge; without a runtime most video formats are hidden ("Requested format is not available")."""
+    import shutil
+    return {name: {} for name in ("deno", "node", "bun") if shutil.which(name)}
+
+
 def ytdlp_opts(**kw):
     """yt-dlp options. YouTube often blocks server IPs; STUDIO_YTDLP_COOKIES can point at a cookies.txt export."""
     cookies = os.environ.get("STUDIO_YTDLP_COOKIES", "")
     if cookies and os.path.exists(cookies):
         kw["cookiefile"] = cookies
+    rt = js_runtimes()
+    if rt:
+        kw.setdefault("js_runtimes", rt)
+        try:
+            import yt_dlp_ejs  # noqa: F401  (the challenge solver, installed with yt-dlp[default])
+        except ImportError:
+            kw.setdefault("remote_components", ["ejs:github"])
     return kw
 
 SECRET_KEYS = {

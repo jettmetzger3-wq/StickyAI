@@ -225,7 +225,8 @@ def make_stickman_short(ctx, pick):
     cmd += ["-filter_complex_script", script_path, "-map", f"[{last}]", "-map", "[aout]", "-r", "30",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "160k", "-t", f"{total:.3f}", "-movflags", "+faststart", out + ".part.mp4"]
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    with ctx.working("building the vertical Short", expect=10 + total, until=0.98):
+        r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
         raise P.ProviderError(f"ffmpeg couldn't build the Short: {r.stderr[-400:]}")
     os.replace(out + ".part.mp4", out)

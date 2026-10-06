@@ -10,7 +10,7 @@ soundfile>=0.12
 jsonschema>=4.20
 httpx>=0.25
 kokoro-onnx>=0.4
-yt-dlp>=2024.1.1
+yt-dlp[default]>=2026.1.29   # [default] adds the YouTube challenge solver (needs Node.js or Deno)
 youtube-transcript-api>=1.0
 pyttsx3>=2.90; sys_platform == "win32"
 

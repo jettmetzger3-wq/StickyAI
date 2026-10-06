@@ -108,11 +108,13 @@ def report(pr, res):
 
 
 def cmd_resume(a):
-    from .pipeline import Project, run, mark_reviewed
+    from .pipeline import Project, run, mark_reviewed, recover
     pr = Project(a.slug)
     if not pr.exists():
         print("no such project")
         return 1
+    if pr.meta().get("status") in ("running", "queued"):
+        recover(pr, "it was resumed from the command line")
     m = pr.meta()
     pend = m.get("pending") or {}
     if pend.get("type") == "review":

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, fmtCost, sumCosts, useEvents } from "../api.js";
-import { Badge, Button, Card, cx, ErrorBox, Progress, Spinner } from "../ui.jsx";
+import { Badge, Button, Card, cx, Elapsed, ErrorBox, Progress, Spinner } from "../ui.jsx";
 import { go, useConfig } from "../App.jsx";
 import ScriptTab from "./ScriptTab.jsx";
 import StoryboardTab from "./StoryboardTab.jsx";
@@ -60,7 +60,7 @@ export default function ProjectPage({ slug }) {
       }
     });
     // safety net in case an event is missed
-    const t = setInterval(() => d?.running && load(), 4000);
+    const t = setInterval(() => d?.running && load(), 2000);
     return () => {
       stop();
       clearInterval(t);
@@ -70,7 +70,8 @@ export default function ProjectPage({ slug }) {
   if (error) return <ErrorBox error={error} />;
   if (!d) return <Spinner />;
   const m = d.meta;
-  const running = d.running || m.status === "running" || m.status === "queued";
+  // the server knows whether a run is really going (a video interrupted by a shutdown is not running)
+  const running = !!d.running;
   const pend = m.pending;
 
   async function action(path, body) {
@@ -145,6 +146,31 @@ export default function ProjectPage({ slug }) {
           }
         />
       )}
+      {running && m.status !== "queued" && (() => {
+        // one clear "it's working" card at the top: which step, what it's doing, how long it's been
+        const st = STAGES.find((k) => m.stages?.[k]?.status === "running");
+        if (!st) return null;
+        const s = m.stages[st];
+        const lv = live[st];
+        const done = STAGES.filter((k) => ["done", "skipped"].includes(m.stages?.[k]?.status)).length;
+        return (
+          <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-500/10">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-semibold">
+                <Spinner /> {d.stage_labels[st]}
+                <span className="text-sm font-normal text-stone-500 dark:text-zinc-400">
+                  step {Math.min(done + 1, STAGES.length)} of {STAGES.filter((k) => m.stages?.[k]?.status !== "skipped").length}
+                </span>
+              </div>
+              <span className="text-sm text-stone-500 dark:text-zinc-400">
+                running for <Elapsed since={s.started} />
+              </span>
+            </div>
+            <Progress value={Math.max(lv?.progress ?? 0, s.progress ?? 0)} active className="mt-2" />
+            <div className="mt-1 text-sm text-stone-600 dark:text-zinc-300">{lv?.message || s.message || "working…"}</div>
+          </div>
+        );
+      })()}
       {m.status === "queued" && (
         <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 text-sm dark:border-sky-800 dark:bg-sky-500/10">
           <b>In line{d.queue_position ? ` (number ${d.queue_position})` : ""}.</b> Other videos are being made right now; yours starts automatically as soon as
@@ -167,14 +193,25 @@ export default function ProjectPage({ slug }) {
               return (
                 <li key={st}>
                   <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className={cx("font-medium", s.status === "pending" && "text-stone-400 dark:text-zinc-500")}>
+                    <span className={cx("flex items-center gap-1.5 font-medium", s.status === "pending" && "text-stone-400 dark:text-zinc-500")}>
+                      {isRun && running && <Spinner />}
                       {d.stage_labels[st]}
                     </span>
-                    <Badge kind={s.status} />
+                    {isRun && running ? (
+                      <span className="text-xs text-sky-700 dark:text-sky-300">
+                        <Elapsed since={s.started} />
+                      </span>
+                    ) : (
+                      <Badge kind={s.status} />
+                    )}
                   </div>
                   {(isRun || s.status === "error") && (
                     <>
-                      <Progress value={isRun ? lv?.progress ?? s.progress : s.progress} className="mt-1" />
+                      <Progress
+                        value={isRun ? Math.max(lv?.progress ?? 0, s.progress ?? 0) : s.progress}
+                        active={isRun && running}
+                        className="mt-1"
+                      />
                       <div className="mt-1 truncate text-xs text-stone-500 dark:text-zinc-400" title={lv?.message || s.message}>
                         {isRun ? lv?.message || s.message : s.message}
                       </div>

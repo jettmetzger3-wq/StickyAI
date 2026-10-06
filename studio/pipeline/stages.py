@@ -12,6 +12,7 @@ import numpy as np
 import soundfile as sf
 
 from .. import providers as P
+from .. import config
 from ..config import load_settings
 from ..engine import (check_scene, plan_timeline, render_segment, render_still, concat_segments, share_copy,
                       prep, word_times_from_alignment, render_thumbnail, LEAD, TAIL)
@@ -20,7 +21,8 @@ from ..engine.pen import resolve_kind
 from .. import prompts as PR
 from . import rules, costs
 from .project import read_json, write_json
-from .source import fetch_meta, transcript_text, download_lowres, extract_frames, contact_sheets, hints_for_beats
+from .source import (fetch_meta, transcript_text, download_lowres, extract_frames, thumbnail_frames, contact_sheets,
+                     hints_for_beats)
 
 
 class Cancelled(Exception):
@@ -47,11 +49,21 @@ def clean_line(t):
     return t
 
 
-def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2):
+# roughly how long each kind of AI call takes, so the progress bar can keep moving while we wait
+EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15}
+SAYING = {"script": "Claude is writing the script", "storyboard": "Claude is drawing up the scenes",
+          "watch": "Claude is watching the video", "package": "Claude is writing titles and the description",
+          "short": "Claude is picking the best moment for the Short", "fix": "Claude is fixing a scene"}
+
+
+def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None):
     last = None
+    kind = label.split()[0] if label else ""
     for attempt in range(tries):
         ctx.check_cancel()
-        text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label)
+        with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working"),
+                         expect=EXPECT.get(kind, 45), until=until):
+            text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label)
         if usage.get("billed_usd"):
             costs.record(ctx.project, ctx.stage, llm.id, usd=usage["billed_usd"],
                          note=f"{label}: {usage.get('input_tokens', 0)} in / {usage.get('output_tokens', 0)} out tokens")
@@ -112,9 +124,20 @@ def stage_source(ctx):
     if opts.get("watch", True) and llm.supports_images and llm.id != "offline" and llm.available()[0]:
         try:
             ctx.progress(0.55, "downloading a low-res copy to watch")
-            video = download_lowres(url, pr.p("source", "tmp"))
-            ctx.progress(0.65, "grabbing frames")
-            frames = extract_frames(video, float(m.get("duration") or 60), pr.p("source", "frames"))
+            try:
+                with ctx.working("downloading a low-res copy to watch", expect=30, until=0.64):
+                    video = download_lowres(url, pr.p("source", "tmp"))
+                ctx.progress(0.65, "grabbing frames")
+                frames = extract_frames(video, float(m.get("duration") or 60), pr.p("source", "frames"))
+            except Exception as e:
+                # YouTube wouldn't give us the video: its own still frames still show the drawing style
+                frames = thumbnail_frames(m.get("video_id") or P.video_id(url), pr.p("source", "frames"))
+                if not frames:
+                    raise
+                hint = "" if config.js_runtimes() else \
+                    " Install Node.js or Deno so the downloader can read YouTube (see Troubleshooting in the README)."
+                ctx.warn(f"Couldn't download the video ({str(e)[:120]}), so the AI looked at YouTube's "
+                         f"{len(frames)} still frames instead.{hint}")
             sheets = contact_sheets(frames, pr.p("source", "sheets"))[:4]
             ctx.progress(0.75, f"watching the video ({len(sheets)} contact sheets)")
             notes = call_llm(ctx, llm, "You analyse video frames and answer with JSON only.",
@@ -262,7 +285,9 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
             return out
 
         ctx.progress(0.02, f"drawing {len(todo)} scenes")
-        with cf.ThreadPoolExecutor(max_workers=3) as ex:
+        rounds = (len(batches) + 2) // 3
+        with ctx.working(f"Claude is drawing up {len(todo)} scenes", expect=75 * rounds, until=0.64), \
+                cf.ThreadPoolExecutor(max_workers=3) as ex:
             futs = {ex.submit(run_batch, b): b for b in batches}
             for fut in cf.as_completed(futs):
                 b = futs[fut]
@@ -271,7 +296,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 except Exception as e:
                     ctx.warn(f"storyboard batch {b[0]}-{b[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b)
-                ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"storyboard {done[0]}/{len(todo)}")
+                ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"Claude drew {done[0]} of {len(todo)} scenes")
     for i in todo:
         ctx.check_cancel()
         beat = beats[i]
@@ -502,18 +527,23 @@ def stage_mix(ctx):
     ctx.progress(0.35, "mixing voice, music and sound effects")
     os.makedirs(pr.p("final"), exist_ok=True)
     raw = pr.p("final", "mix_raw.wav")
-    build_mix(clips, starts, durs, [b["mood"] for b in beats], events, total, raw, lead=LEAD, music_beds=beds,
-              music_file=music_file, music_db=float(settings.get("music_db", -13)),
-              use_sfx=opts.get("sfx", True))
-    ctx.progress(0.55, "normalizing loudness to -15 LUFS")
-    loudnorm(raw, pr.p("final", "mix.wav"))
+    with ctx.working("mixing voice, music and sound effects", expect=10 + total / 30, until=0.54):
+        build_mix(clips, starts, durs, [b["mood"] for b in beats], events, total, raw, lead=LEAD, music_beds=beds,
+                  music_file=music_file, music_db=float(settings.get("music_db", -13)),
+                  use_sfx=opts.get("sfx", True))
+    ctx.progress(0.55, "making the loudness right for YouTube")
+    with ctx.working("making the loudness right for YouTube", expect=10 + total / 20, until=0.69):
+        loudnorm(raw, pr.p("final", "mix.wav"))
     os.remove(raw)
-    ctx.progress(0.7, "assembling the final video")
-    concat_segments([pr.segment_path(i) for i in range(len(beats))], pr.p("final", "video.mp4"), pr.p("final", "mix.wav"))
+    ctx.progress(0.7, "putting the final video together")
+    with ctx.working("putting the final video together", expect=10 + total / 30, until=0.79):
+        concat_segments([pr.segment_path(i) for i in range(len(beats))], pr.p("final", "video.mp4"),
+                        pr.p("final", "mix.wav"))
     if opts.get("share_copy", settings.get("share_copy", True)):
         ctx.progress(0.8, "making the small share copy")
-        _, kbps = share_copy(pr.p("final", "video.mp4"), pr.p("final", "video_share.mp4"),
-                             float(settings.get("share_max_mb") or 30), total)
+        with ctx.working("making the small share copy", expect=15 + total / 4, until=0.98):
+            _, kbps = share_copy(pr.p("final", "video.mp4"), pr.p("final", "video_share.mp4"),
+                                 float(settings.get("share_max_mb") or 30), total)
         ctx.log(f"share copy at {kbps} kbps")
     ctx.progress(1.0, "final video ready")
 
@@ -604,7 +634,9 @@ def stage_package(ctx):
         if ok:
             before = measure_credits(ip)
             try:
-                bg_img = ip.generate(th.get("image_prompt") or script.get("title", ""), pr.p("final", "thumbnail_bg.png"))
+                with ctx.working(f"{ip.label} is painting the thumbnail background", expect=40, until=0.9):
+                    bg_img = ip.generate(th.get("image_prompt") or script.get("title", ""),
+                                         pr.p("final", "thumbnail_bg.png"))
             except Exception as e:
                 ctx.warn(f"AI thumbnail art failed, used the built-in one: {str(e)[:150]}")
             finally:

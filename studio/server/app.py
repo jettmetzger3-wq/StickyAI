@@ -4,6 +4,7 @@ Local mode (default): runs only on your PC (127.0.0.1) for you alone.
 Hosted mode (STUDIO_MODE=hosted): a public website with accounts and plans; see DEPLOY.md.
 """
 import asyncio
+import contextlib
 import json
 import mimetypes
 import os
@@ -20,7 +21,7 @@ from .. import providers as P
 from .. import prompts as PR
 from ..engine import check_scene, render_still
 from ..pipeline import (Project, new_project, list_projects, STAGES, STAGE_LABELS, CHECKPOINTS, start_background,
-                        is_running, queue_position, cancel, mark_reviewed, mark_stale, costs)
+                        is_running, queue_position, cancel, mark_reviewed, mark_stale, costs, recover_all)
 from ..pipeline.events import bus
 from ..pipeline.project import read_json, write_json
 from ..pipeline.stages import beat_durations, scene_job, provider as stage_provider, normalize_script, clean_line
@@ -30,8 +31,19 @@ from .auth import Guard
 from .hosted_api import router as hosted_router
 
 config.ensure_dirs()
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app):
+    # videos that were being made when the app (or the computer) was switched off: make them resumable again
+    n = recover_all()
+    if n:
+        print(f"{n} video(s) were interrupted last time; they're paused now. Open them and press Resume.")
+    yield
+
+
 app = FastAPI(title="Stickman Studio", docs_url=None if config.hosted() else "/api/docs",
-              openapi_url=None if config.hosted() else "/api/openapi.json")
+              openapi_url=None if config.hosted() else "/api/openapi.json", lifespan=lifespan)
 app.add_middleware(Guard)
 app.include_router(hosted_router)
 

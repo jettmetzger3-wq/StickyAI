@@ -182,6 +182,12 @@ the Kokoro model in `data/models/`.
 ## Troubleshooting
 
 - **"ffmpeg not found"**: install it (see Quick start), then open a *new* terminal so PATH updates.
+- **"Couldn't watch the video frames … Requested format is not available"**: YouTube now makes downloaders solve
+  a small JavaScript puzzle. Install Node.js (`winget install --id OpenJS.NodeJS.LTS -e`) or Deno
+  (`winget install --id DenoLand.Deno -e`), restart the app, and update the downloader (below). Until then the app
+  looks at YouTube's own still frames instead, so the remake still works.
+- **A video is stuck after the computer was switched off**: just start the app again. Interrupted videos are
+  paused automatically; open it and press **Resume** (finished steps are kept) or **Delete**.
 - **YouTube link won't load / no captions**: update the downloader with `.venv/bin/python -m pip install -U yt-dlp`
   (Windows: `.venv\Scripts\python -m pip install -U yt-dlp`). If the video has no captions at all, pick
   "Whisper on my PC" (`pip install faster-whisper` first) or "ElevenLabs Scribe" as the transcript tool.

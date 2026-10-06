@@ -18,3 +18,13 @@ input[type="checkbox"], input[type="range"] { @apply p-0; }
 input[type="checkbox"] { @apply h-4 w-4 accent-amber-500; }
 input[type="range"], input[type="radio"] { accent-color: #f59e0b; }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+/* moving stripes on a progress bar while something is working, so it never looks frozen */
+@keyframes studio-stripes { from { background-position: 0 0; } to { background-position: 28px 0; } }
+.progress-active {
+  background-image: linear-gradient(135deg, rgba(255,255,255,.35) 25%, transparent 25%, transparent 50%,
+                    rgba(255,255,255,.35) 50%, rgba(255,255,255,.35) 75%, transparent 75%, transparent);
+  background-size: 28px 28px;
+  animation: studio-stripes 0.8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .progress-active { animation: none; } }

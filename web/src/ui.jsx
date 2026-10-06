@@ -62,11 +62,32 @@ export function Badge({ kind, children, className }) {
   );
 }
 
-export function Progress({ value, className }) {
+export function Progress({ value, className, active }) {
+  // active: something is working right now, so the bar shows moving stripes (and never sits at 0)
+  const pct = Math.round((value || 0) * 100);
   return (
     <div className={cx("h-2 w-full overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-800", className)}>
-      <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${Math.round((value || 0) * 100)}%` }} />
+      <div
+        className={cx("h-full rounded-full bg-amber-500 transition-all duration-700", active && "progress-active")}
+        style={{ width: `${active ? Math.max(pct, 4) : pct}%` }}
+      />
     </div>
+  );
+}
+
+// "1:23" since a unix time (seconds), ticking every second
+export function Elapsed({ since }) {
+  const [now, setNow] = useState(Date.now() / 1000);
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now() / 1000), 1000);
+    return () => clearInterval(t);
+  }, []);
+  if (!since) return null;
+  const s = Math.max(0, Math.floor(now - since));
+  return (
+    <span className="tabular-nums">
+      {Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}
+    </span>
   );
 }
 
