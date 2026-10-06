@@ -498,7 +498,10 @@ export default function Settings() {
           <Toggle checked={s.ambience !== false} onChange={(v) => set({ ambience: v })} label="Background sounds for each place" hint="Waves at sea, crowds in streets, wind in the mountains, battle noise..." />
           <Toggle checked={s.action_sounds !== false} onChange={(v) => set({ action_sounds: v })} label="Footsteps, jumps and cheers" />
           <Toggle checked={s.talk_blips !== false} onChange={(v) => set({ talk_blips: v })} label='Little "blah blah" sounds when characters talk' />
-          <Toggle checked={s.fact_check !== false} onChange={(v) => set({ fact_check: v })} label="Fact-check the script" hint="After writing, Claude double-checks uncertain facts (with web search on Claude Code) and fixes mistakes." />
+          <Toggle checked={s.music_styles !== false} onChange={(v) => set({ music_styles: v })} label="Music that fits the moment" hint="Free synth: epic drums for battles, mystery for secrets, a fanfare for victories, sad strings for sad parts." />
+          <Toggle checked={s.music_stings !== false} onChange={(v) => set({ music_stings: v })} label="Musical hits on big moments" hint='A fanfare when someone wins, "dun dun DUN" on a twist, a sad trombone when a plan flops.' />
+          <Toggle checked={s.mood_narration !== false} onChange={(v) => set({ mood_narration: v })} label="Narrator follows the mood" hint="Slower with a pause for sad parts, a little faster for jokes." />
+          <Toggle checked={s.fact_check !== false} onChange={(v) => set({ fact_check: v })} label="Fact-check the script" hint="After writing, the writer double-checks uncertain facts (with web search on Claude Code) and fixes mistakes." />
           <Toggle
             checked={s.custom_props !== false}
             onChange={(v) => set({ custom_props: v })}

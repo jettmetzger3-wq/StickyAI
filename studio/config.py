@@ -109,6 +109,9 @@ DEFAULT_SETTINGS = {
     "talk_blips": True,                # little "blah blah" sounds while a speech bubble is up
     "action_sounds": True,             # footsteps, jumps, cheers, thuds
     "fact_check": True,                # double-check uncertain facts right after the script is written
+    "music_styles": True,              # epic / mystery / triumph / sad music when the story calls for it (free synth)
+    "music_stings": True,              # short musical hits on big moments (a victory, a twist, a flop)
+    "mood_narration": True,            # the narrator slows down and pauses for sad parts, speeds up for jokes
     "share_copy": True,
     "share_max_mb": 30,
     "render_workers": 0,

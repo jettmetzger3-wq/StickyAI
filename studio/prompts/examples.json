@@ -552,53 +552,46 @@
    },
    "elements": [
     {
-     "type": "prop",
-     "name": "line_chart",
-     "x": 1420,
-     "y": 700,
-     "color": "red",
-     "params": {
-      "w": 640,
-      "h": 420,
-      "points": [
-       [
-        0,
-        0.9
-       ],
-       [
-        0.3,
-        0.8
-       ],
-       [
-        0.55,
-        0.45
-       ],
-       [
-        0.8,
-        0.25
-       ],
-       [
-        1,
-        0.05
-       ]
-      ]
-     },
-     "enter": "wipe_right",
-     "edur": 1.4,
-     "at": 0.05
+     "type": "text",
+     "text": "1929: Great Depression",
+     "x": 640,
+     "y": 110,
+     "size": 60,
+     "at": 0
     },
     {
-     "type": "text",
-     "text": "SILK EXPORTS",
-     "x": 1420,
-     "y": 230,
-     "size": 50,
-     "at": 0.05
+     "type": "chart",
+     "style": "line",
+     "title": "Silk exports ($ millions)",
+     "x": 1310,
+     "y": 520,
+     "w": 980,
+     "h": 600,
+     "data": [
+      {
+       "label": "1925",
+       "value": 390,
+       "color": "red"
+      },
+      {
+       "label": "1929",
+       "value": 360
+      },
+      {
+       "label": "1931",
+       "value": 160
+      },
+      {
+       "label": "1934",
+       "value": 90
+      }
+     ],
+     "at": "word:silk"
     },
     {
      "type": "char",
      "kind": "civ",
-     "x": 480,
+     "x": 380,
      "y": 880,
      "pose": "shrug",
      "mouth": "frown",
@@ -606,24 +599,13 @@
      "extras": [
       "tear"
      ],
-     "at": "word:farmers"
-    },
-    {
-     "type": "text",
-     "text": "$0",
-     "x": 480,
-     "y": 380,
-     "size": 80,
-     "color": "red",
-     "at": "word:broke"
-    },
-    {
-     "type": "text",
-     "text": "1929: Great Depression",
-     "x": 640,
-     "y": 130,
-     "size": 60,
-     "at": 0
+     "at": "word:farmers",
+     "say": [
+      {
+       "text": "My silk is worth NOTHING?",
+       "at": "word:broke"
+      }
+     ]
     }
    ]
   }
@@ -939,6 +921,7 @@
      18
     ],
     "width": 112,
+    "style": "dark",
     "territories": [
      {
       "countries": [
@@ -961,53 +944,9 @@
       "size": 54,
       "color": "#9DB4D8"
      }
-    ],
-    "style": "dark"
+    ]
    },
    "elements": [
-    {
-     "type": "city",
-     "name": "Pearl Harbor",
-     "lon": -158,
-     "lat": 21.3,
-     "size": 42,
-     "color": "white",
-     "at": 0
-    },
-    {
-     "type": "arrow",
-     "from": {
-      "lon": 146,
-      "lat": 39
-     },
-     "to": {
-      "lon": -162,
-      "lat": 24
-     },
-     "color": "white",
-     "width": 6,
-     "head": false,
-     "curve": -120,
-     "edur": 3.0,
-     "at": 0.1,
-     "z": 0
-    },
-    {
-     "type": "icons",
-     "icon": "mini_carrier",
-     "count": 6,
-     "per_row": 3,
-     "lon": 146,
-     "lat": 40,
-     "scale": 1.0,
-     "at": 0.08,
-     "move": {
-      "dx": 880,
-      "dy": 200,
-      "from": 0.1,
-      "to": 0.85
-     }
-    },
     {
      "type": "text",
      "text": "Dec 7, 1941",
@@ -1018,19 +957,36 @@
      "color": "white"
     },
     {
-     "type": "text",
-     "text": "350+ planes",
-     "lon": -168,
-     "lat": 33,
-     "size": 50,
-     "color": "red",
-     "at": "word:three hundred"
-    },
-    {
-     "type": "pointer",
+     "type": "city",
+     "name": "Pearl Harbor",
      "lon": -158,
      "lat": 21.3,
-     "from": "se",
+     "size": 42,
+     "color": "white",
+     "at": 0
+    },
+    {
+     "type": "route",
+     "from": {
+      "lon": 146,
+      "lat": 39
+     },
+     "to": {
+      "lon": -161,
+      "lat": 25
+     },
+     "curve": -120,
+     "color": "white",
+     "style": "dashed",
+     "icon": "carrier",
+     "at": "word:sneak",
+     "dur": 3.0
+    },
+    {
+     "type": "battle",
+     "lon": -158,
+     "lat": 21.3,
+     "label": "350+ planes",
      "size": 0.8,
      "at": "word:Pearl"
     }
@@ -1041,7 +997,7 @@
       "at": "word:Pearl",
       "zoom": 1.5,
       "focus": {
-       "lon": -162,
+       "lon": -160,
        "lat": 24
       },
       "move": "whip"
@@ -1133,7 +1089,7 @@
  {
   "name": "rome_map_region",
   "mood": "fun",
-  "text": "By the year 117, Rome ruled everything around the Mediterranean, from Britain to Egypt. Romans just called it our sea.",
+  "text": "Rome started as one city in Italy. Two centuries later it ruled Spain and Greece, and by the year 117 it ruled everything around the Mediterranean. Romans just called it our sea.",
   "scene": {
    "bg": {
     "type": "map",
@@ -1142,6 +1098,7 @@
      41
     ],
     "width": 80,
+    "style": "dark",
     "labels": [
      {
       "text": "MEDITERRANEAN",
@@ -1150,26 +1107,42 @@
       "size": 38,
       "color": "#9DB4D8"
      }
-    ],
-    "style": "dark"
+    ]
    },
    "elements": [
     {
-     "type": "territory",
-     "region": "roman_empire_117",
+     "type": "empire",
+     "name": "ROME",
      "color": "#D8283C",
-     "enter": "fade",
-     "edur": 1.2,
-     "at": 0.05
-    },
-    {
-     "type": "text",
-     "text": "117 AD",
-     "x": 960,
-     "y": 110,
-     "size": 80,
-     "at": 0,
-     "color": "white"
+     "steps": [
+      {
+       "at": 0.02,
+       "year": -264,
+       "countries": [
+        "Italy"
+       ]
+      },
+      {
+       "at": "word:Spain",
+       "year": -146,
+       "countries": [
+        "Italy",
+        "Spain",
+        "Portugal",
+        "Greece",
+        "Tunisia"
+       ]
+      },
+      {
+       "at": "word:117",
+       "year": 117,
+       "region": "roman_empire_117"
+      }
+     ],
+     "label_at": [
+      21,
+      45
+     ]
     },
     {
      "type": "city",
@@ -1177,7 +1150,9 @@
      "lon": 12.5,
      "lat": 41.9,
      "size": 44,
-     "at": 0.1
+     "capital": true,
+     "at": 0.05,
+     "color": "white"
     },
     {
      "type": "char",
@@ -1188,33 +1163,13 @@
      "pose": "cheer",
      "mouth": "grin",
      "eyes": "happy",
-     "at": 0.1,
+     "at": "word:everything",
      "do": [
       {
        "act": "celebrate",
        "at": "word:ruled"
       }
      ]
-    },
-    {
-     "type": "text",
-     "text": "Britain",
-     "lon": -2,
-     "lat": 52.5,
-     "size": 40,
-     "font": "hand",
-     "at": "word:Britain",
-     "color": "white"
-    },
-    {
-     "type": "text",
-     "text": "Egypt",
-     "lon": 29,
-     "lat": 31,
-     "size": 40,
-     "font": "hand",
-     "at": "word:Egypt",
-     "color": "white"
     },
     {
      "type": "bubble",
@@ -1231,26 +1186,6 @@
     "zoom": [
      1.0,
      1.03
-    ],
-    "shots": [
-     {
-      "at": "word:Britain",
-      "zoom": 1.35,
-      "focus": {
-       "lon": 2,
-       "lat": 48
-      },
-      "move": "pan"
-     },
-     {
-      "at": "word:Egypt",
-      "zoom": 1.35,
-      "focus": {
-       "lon": 24,
-       "lat": 35
-      },
-      "move": "pan"
-     }
     ]
    }
   }
@@ -1944,7 +1879,7 @@
  {
   "name": "cavalry_charge",
   "mood": "tense",
-  "text": "At Waterloo the British redcoats form squares, and the French cavalry charges them again and again.",
+  "text": "After a night of pouring rain, at Waterloo the British redcoats form squares, the cannons open fire, and the French cavalry charges them again and again.",
   "scene": {
    "bg": {
     "type": "battlefield"
@@ -1958,6 +1893,23 @@
      "y": 105,
      "size": 72,
      "at": 0
+    },
+    {
+     "type": "prop",
+     "name": "cannon",
+     "x": 260,
+     "y": 760,
+     "scale": 0.7,
+     "do": [
+      {
+       "act": "fire",
+       "at": "word:cannons",
+       "target": [
+        1450,
+        760
+       ]
+      }
+     ]
     },
     {
      "type": "crowd",
@@ -2032,6 +1984,10 @@
       "move": "pan"
      }
     ]
+   },
+   "weather": {
+    "type": "rain",
+    "amount": 0.7
    }
   }
  },
@@ -2092,6 +2048,338 @@
      "size": 60,
      "font": "hand",
      "at": "word:See you"
+    }
+   ]
+  }
+ },
+ {
+  "name": "russian_winter",
+  "mood": "somber",
+  "text": "Then came the Russian winter. The Grande Armée marched home through the snow, starving and freezing. Of six hundred thousand men, fewer than a hundred thousand made it out.",
+  "scene": {
+   "bg": {
+    "type": "snow",
+    "time": "dusk"
+   },
+   "weather": {
+    "type": "blizzard",
+    "amount": 0.8
+   },
+   "light": {
+    "to": "dark",
+    "at": "word:freezing",
+    "dur": 4
+   },
+   "elements": [
+    {
+     "type": "crowd",
+     "kind": "shako",
+     "coat": "#2B3F8C",
+     "count": 9,
+     "rows": 2,
+     "x": 1250,
+     "y": 930,
+     "width": 700,
+     "scale": 0.55,
+     "flip": true,
+     "mouth": "wavy",
+     "eyes": "sad",
+     "enter": "fade",
+     "at": 0.02,
+     "do": [
+      {
+       "act": "walk",
+       "dx": -260,
+       "at": "word:marched",
+       "dur": 5
+      }
+     ]
+    },
+    {
+     "type": "char",
+     "kind": "bicorne",
+     "coat": "#2B3F8C",
+     "ride": "horse",
+     "x": 560,
+     "y": 920,
+     "scale": 0.8,
+     "flip": true,
+     "mouth": "frown",
+     "eyes": "sad",
+     "enter": "fade",
+     "at": 0.05,
+     "say": [
+      {
+       "text": "Maybe Moscow wasn't worth it.",
+       "at": "word:freezing"
+      }
+     ]
+    },
+    {
+     "type": "counter",
+     "from": 600000,
+     "to": 100000,
+     "x": 960,
+     "y": 120,
+     "size": 90,
+     "suffix": " men",
+     "format": "number",
+     "at": "word:six",
+     "until": "word:out",
+     "color": "white"
+    }
+   ]
+  }
+ },
+ {
+  "name": "knights_duel",
+  "mood": "fun",
+  "text": "In 1066 Harold's Saxons and William's Normans fought at Hastings for a whole day, and nobody wanted to give up first.",
+  "scene": {
+   "bg": {
+    "type": "hills",
+    "time": "day"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "Hastings, 1066",
+     "x": 960,
+     "y": 105,
+     "size": 72,
+     "at": 0
+    },
+    {
+     "type": "char",
+     "kind": "viking",
+     "x": 790,
+     "y": 900,
+     "scale": 1.0,
+     "prop": "sword",
+     "eyes": "angry",
+     "at": 0.03,
+     "do": [
+      {
+       "act": "slash",
+       "at": "word:fought",
+       "dur": 3
+      }
+     ],
+     "say": [
+      {
+       "text": "Go home, Normans!",
+       "at": "word:Saxons"
+      }
+     ]
+    },
+    {
+     "type": "char",
+     "kind": "knight",
+     "x": 1130,
+     "y": 900,
+     "scale": 1.0,
+     "prop": "sword",
+     "flip": true,
+     "at": 0.06,
+     "do": [
+      {
+       "act": "slash",
+       "at": "word:fought",
+       "dur": 3
+      }
+     ],
+     "say": [
+      {
+       "text": "This IS home now!",
+       "at": "word:nobody"
+      }
+     ]
+    },
+    {
+     "type": "crowd",
+     "kind": "viking",
+     "count": 6,
+     "rows": 1,
+     "x": 330,
+     "y": 930,
+     "width": 420,
+     "scale": 0.45,
+     "at": "word:Saxons",
+     "do": [
+      {
+       "act": "cheer",
+       "at": "word:fought"
+      }
+     ]
+    },
+    {
+     "type": "crowd",
+     "kind": "knight",
+     "count": 6,
+     "rows": 1,
+     "x": 1590,
+     "y": 930,
+     "width": 420,
+     "scale": 0.45,
+     "flip": true,
+     "at": "word:Normans",
+     "do": [
+      {
+       "act": "cheer",
+       "at": "word:fought"
+      }
+     ]
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": "word:fought",
+      "zoom": 1.35,
+      "focus": [
+       960,
+       640
+      ],
+      "move": "pan"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "then_now_london",
+  "mood": "fun",
+  "text": "In 1850 London was the biggest city on Earth, full of smoke and horse carts. Today it has cars, glass towers, and slightly cleaner air.",
+  "scene": {
+   "bg": {
+    "type": "street",
+    "style": "europe"
+   },
+   "elements": [
+    {
+     "type": "split",
+     "left": "1850",
+     "right": "TODAY",
+     "tint": "left",
+     "at": 0
+    },
+    {
+     "type": "char",
+     "kind": "tophat",
+     "coat": "#55555C",
+     "x": 330,
+     "y": 900,
+     "scale": 0.85,
+     "at": 0.02,
+     "say": [
+      {
+       "text": "*cough* lovely air!",
+       "at": "word:smoke"
+      }
+     ]
+    },
+    {
+     "type": "prop",
+     "name": "smoke",
+     "x": 700,
+     "y": 560,
+     "scale": 1.2,
+     "at": "word:smoke"
+    },
+    {
+     "type": "prop",
+     "name": "carriage",
+     "x": 640,
+     "y": 900,
+     "scale": 0.6,
+     "at": "word:horse"
+    },
+    {
+     "type": "char",
+     "kind": "cap",
+     "x": 1600,
+     "y": 900,
+     "scale": 0.85,
+     "prop": "can",
+     "mouth": "grin",
+     "at": "word:Today",
+     "say": [
+      {
+       "text": "Still raining though.",
+       "at": "word:cleaner"
+      }
+     ]
+    },
+    {
+     "type": "prop",
+     "name": "car",
+     "x": 1250,
+     "y": 900,
+     "scale": 0.8,
+     "at": "word:cars"
+    }
+   ]
+  }
+ },
+ {
+  "name": "napoleon_timeline",
+  "mood": "fun",
+  "text": "Napoleon's rise was ridiculously fast: a revolution in 1789, he grabs power in 1799, crowns himself emperor in 1804, and it all ends at Waterloo in 1815.",
+  "scene": {
+   "bg": {
+    "type": "paper"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "Napoleon speedrun",
+     "x": 960,
+     "y": 110,
+     "size": 80,
+     "at": 0
+    },
+    {
+     "type": "timeline",
+     "y": 760,
+     "events": [
+      {
+       "year": 1789,
+       "label": "Revolution",
+       "at": "word:revolution"
+      },
+      {
+       "year": 1799,
+       "label": "Takes power",
+       "at": "word:1799"
+      },
+      {
+       "year": 1804,
+       "label": "Emperor",
+       "at": "word:emperor"
+      },
+      {
+       "year": 1815,
+       "label": "Waterloo",
+       "at": "word:Waterloo",
+       "color": "darkred"
+      }
+     ]
+    },
+    {
+     "type": "char",
+     "kind": "bicorne",
+     "x": 1300,
+     "y": 470,
+     "scale": 0.5,
+     "pose": "hand_in_coat",
+     "mouth": "smirk",
+     "at": "word:emperor",
+     "say": [
+      {
+       "text": "Too fast? Never.",
+       "at": "word:ends"
+      }
+     ]
     }
    ]
   }

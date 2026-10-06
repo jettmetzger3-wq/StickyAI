@@ -15,6 +15,8 @@ from .places import PAINTERS
 from . import warmap as WM
 from . import weather as WX
 from . import action_fx as FX
+from . import livemap as LM
+from . import charts as CH
 import random
 
 NO_NORMALIZE = {"wall", "bar_chart", "line_chart", "railway", "skyline", "table", "crowd"}
@@ -288,8 +290,10 @@ def build_background(sc, bg):
                   bg.get("clouds", True) is not False)
     elif t == "night":
         sc.bg_night()
+        sc.bg_dark_flag = True
     elif t == "dark":
         sc.bg_dark(C(bg.get("color"), DARK))
+        sc.bg_dark_flag = True
     elif t == "city":
         from .places import skyline_key
         time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else "day"
@@ -531,7 +535,12 @@ def build_element(sc, el, mood, k=0, talk=()):
         a = anim(el, sc, "pop")
         sc.city(str(el.get("name", "")), num(el.get("lon")), num(el.get("lat")), at=a["at"], size=num(el.get("size"), 40),
                 dx=num(el.get("dx"), 0), dy=num(el.get("dy"), -44), dot=el.get("dot", True) is not False,
-                col=C(el.get("color"), INK), enter=a["enter"] or "pop", exit_at=a["exit_at"])
+                col=C(el.get("color"), INK), enter=a["enter"] or "pop", exit_at=a["exit_at"],
+                capital=bool(el.get("capital")))
+        if el.get("capital"):
+            x, y = sc.view.xy(num(el.get("lon")), num(el.get("lat")))
+            ring = LM.Ring(x, y, sc.T(a["at"]) + 0.15)
+            sc.fx(ring.frame, ring.box, None, 0.0, edur=0, z=2)
         return
     if t == "arrow":
         a = anim(el, sc, "wipe_r")
@@ -550,6 +559,24 @@ def build_element(sc, el, mood, k=0, talk=()):
         return
     if t == "battle":
         build_battle(sc, el)
+        return
+    if t == "empire":
+        build_empire(sc, el)
+        return
+    if t == "chart":
+        build_chart(sc, el)
+        return
+    if t == "timeline":
+        build_timeline(sc, el, mood)
+        return
+    if t == "compare":
+        build_compare(sc, el, mood)
+        return
+    if t == "split":
+        build_split(sc, el, mood)
+        return
+    if t == "route":
+        build_route(sc, el)
         return
     if t == "front":
         build_front(sc, el)
@@ -738,6 +765,234 @@ def sword_clashes(sc):
             sc.sfx.append((t, "clang"))
 
 
+# ------------------------------------------------------------------ living maps (see livemap.py)
+def build_empire(sc, el):
+    """An empire (or any country) whose borders change over the years, with the year ticking in a corner."""
+    if sc.view is None:
+        sc.warn("empire outside a map scene skipped")
+        return
+    raw = [st for st in (el.get("steps") or []) if isinstance(st, dict)][:6]
+    steps = []
+    for k, st in enumerate(raw):
+        g = region_geom(st)
+        if g is None:
+            sc.warn(f"empire step not found: {st.get('region') or st.get('countries')}")
+            continue
+        default = 0.08 + 0.72 * k / max(1, len(raw) - 1)
+        t0 = sc.T(sc.timer.resolve(st.get("at"), default)) if st.get("at") is not None else sc.T(default)
+        year = num(st.get("year"), None) if st.get("year") is not None else None
+        steps.append((t0, g, year))
+    if not steps:
+        return
+    steps.sort(key=lambda s_: s_[0])
+    dark = getattr(sc, "map_style", "paper") == "dark"
+    col = C(el.get("color"), RED)
+    emp = LM.Empire(sc, steps, col, (245, 245, 250) if dark else darker(col, 0.55))
+    a = anim(el, sc, "fade")
+    t_first = steps[0][0]
+    sc.fx(emp.frame, emp.box, a["enter"] or "fade", t_first / sc.dur, edur=0.6, exit_at=a["exit_at"],
+          z=int(num(el.get("z"), 0)))
+    for t0, _, _ in steps[1:]:
+        sc.sfx.append((t0, "swish"))
+    if any(y is not None for _, _, y in steps) and el.get("show_year", True) is not False:
+        xy = point(el.get("year_at"), sc) if el.get("year_at") is not None else (290, 120)
+        yl = LM.YearLabel(emp.year_at, xy[0], xy[1], num(el.get("year_size"), LM.YEAR_SIZE), dark, emp.bc)
+        sc.fx(yl.frame, yl.box, "pop", t_first / sc.dur, z=4)
+        for t0, _, _ in steps[1:]:
+            for i in range(6):
+                sc.sfx.append((t0 + LM.STEP_FADE * i / 6, "tick1"))
+    if el.get("name"):
+        g = steps[0][1]                     # name the empire where it started
+        c = g.representative_point()
+        lon, lat = (num(el["label_at"][0]), num(el["label_at"][1])) if isinstance(el.get("label_at"), list) and \
+            len(el["label_at"]) == 2 else (c.x, c.y)
+        with sc.layer("pop", min(0.95, (steps[-1][0] + LM.STEP_FADE) / sc.dur), z=3, sfx=None,
+                      exit_at=a["exit_at"]) as p:
+            sc._map_label(p, str(el["name"])[:30], lon, lat, num(el.get("size"), 54))
+
+
+def build_route(sc, el):
+    """A route that draws itself (trade routes, voyages, migrations), a ship / caravan / walker riding the tip."""
+    if el.get("points"):
+        pts = [point(q, sc) for q in el["points"]]
+    else:
+        pts = [point(el.get("from"), sc), point(el.get("to"), sc)]
+    if len(pts) < 2:
+        return
+    if len(pts) == 2 and num(el.get("curve"), 0):
+        (x1, y1), (x2, y2) = pts
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        nx, ny = -(y2 - y1), (x2 - x1)
+        nn = math.hypot(nx, ny) or 1
+        cx, cy = mx + nx / nn * num(el.get("curve")), my + ny / nn * num(el.get("curve"))
+        pts = [((1 - u) ** 2 * x1 + 2 * (1 - u) * u * cx + u * u * x2, (1 - u) ** 2 * y1 + 2 * (1 - u) * u * cy + u * u * y2)
+               for u in [i / 30 for i in range(31)]]
+    a = anim(el, sc, None)
+    length = sum(math.hypot(b[0] - a_[0], b[1] - a_[1]) for a_, b in zip(pts, pts[1:]))
+    dur = max(0.6, min(num(el.get("dur"), length / 650), 8.0))
+    style = el.get("style") if el.get("style") in ("dashed", "dotted", "solid") else "dashed"
+    route = LM.Route(pts, C(el.get("color"), RED), max(4.0, min(num(el.get("width"), 10), 24)), style,
+                     sc.T(a["at"]), dur, el.get("icon") or el.get("units"), max(0.5, min(num(el.get("icon_scale"), 1.0), 2.5)),
+                     sc.seed + len(sc.layers))
+    sc.fx(route.frame, route.box, None, a["at"], edur=0, exit_at=a["exit_at"], z=int(num(el.get("z"), 2)))
+    sc.sfx.append((sc.T(a["at"]), "swish"))
+
+
+# ------------------------------------------------------------------ charts and timelines (see charts.py)
+def dark_bg(sc):
+    return getattr(sc, "bg_dark_flag", False) or getattr(sc, "map_style", "paper") == "dark"
+
+
+def build_chart(sc, el):
+    rows = []
+    for k, d in enumerate((el.get("data") or [])[:10]):
+        if isinstance(d, dict):
+            rows.append((str(d.get("label", ""))[:18], num(d.get("value"), 0.0), C(d.get("color"), CH.SERIES[k % 8])))
+    if not rows:
+        sc.warn("chart without data skipped")
+        return
+    a = anim(el, sc, "pop")
+    x, y = pos(el, sc, (960, 470))
+    w = max(400.0, min(num(el.get("w"), 1100), W - 40))
+    h = max(300.0, min(num(el.get("h"), 620), 860))
+    style = el.get("style") if el.get("style") in ("bar", "hbar", "line") else "bar"
+    ch = CH.Chart(style, rows, x, y, w, h, str(el.get("title") or "")[:40], sc.T(a["at"]) + 0.35,
+                  num(el.get("dur"), 1.6), str(el.get("prefix") or ""), str(el.get("suffix") or ""),
+                  int(num(el.get("decimals"), 0)), el.get("max"), dark_bg(sc))
+    sc.fx(ch.frame, ch.box, a["enter"], a["at"], edur=0.38, idle=a["idle"], exit_at=a["exit_at"], sfx=a["sfx"],
+          move=a["move"], z=int(num(el.get("z"), 2)))
+    t0 = sc.T(a["at"]) + 0.35
+    for i in range(8):
+        sc.sfx.append((t0 + num(el.get("dur"), 1.6) * i / 8, "tick1"))
+
+
+def build_timeline(sc, el, mood):
+    evs = []
+    raw = [e for e in (el.get("events") or []) if isinstance(e, dict) and e.get("year") is not None][:8]
+    for k, e in enumerate(raw):
+        default = 0.12 + 0.7 * k / max(1, len(raw) - 1)
+        evs.append((sc.T(sc.timer.resolve(e.get("at"), default)) if e.get("at") is not None else sc.T(default),
+                    num(e.get("year")), str(e.get("label", ""))[:24], C(e.get("color"), None)))
+    if not evs:
+        sc.warn("timeline without events skipped")
+        return
+    years = [e[1] for e in evs]
+    span = max(1.0, max(years) - min(years))
+    y_from = num(el.get("from"), min(years) - span * 0.08)
+    y_to = num(el.get("to"), max(years) + span * 0.08)
+    a = anim(el, sc, "wipe_right")
+    yy = max(300.0, min(num(el.get("y"), 640), 800))
+    x0, x1 = num(el.get("x0"), 150), num(el.get("x1"), 1740)
+    dark = dark_bg(sc)
+    col = C(el.get("color"), RED)
+    tl = CH.Timeline(x0, x1, yy, y_from, y_to, evs, col, dark)
+    with sc.layer(a["enter"] or "wipe_right", a["at"], edur=0.7, exit_at=a["exit_at"], sfx=a["sfx"], z=1) as p:
+        tl.draw_axis(p, CH.nice_ticks(y_from, y_to, 6))
+    ink, halo = tl.ink, tl.halo
+    for k, (t0, year, label, ecol) in enumerate(sorted(evs, key=lambda e: e[1])):
+        xx = tl.xof(year)
+        lift = 0 if k % 2 == 0 else 110
+        with sc.layer("drop" if mood != "somber" else "fade", t0 / sc.dur, edur=0.4, exit_at=a["exit_at"], z=3) as p:
+            CH.marker(p, xx, yy - 6, ecol or col)
+            p.line([(xx, yy - 64), (xx, yy - 84 - lift)], 4, ink, 0.2)
+            p.text(WM.fmt_count(year, "year"), xx, yy - 108 - lift, 42, ecol or col, stroke=7, scol=halo)
+            if label:
+                p.text(label, xx, yy - 156 - lift, 46, ink, stroke=7, scol=halo)
+    if el.get("travel", True) is not False and len(evs) > 1:
+        order = sorted(evs, key=lambda e: e[0])
+        stops = [(t0, tl.xof(year)) for t0, year, _, _ in order]
+        box = (x0 - 60, yy + 70, x1 - x0 + 120, 60)
+        cache = {}
+
+        def frame(t):
+            if t < stops[0][0]:
+                return CH.blank()
+            x = stops[0][1]
+            for (ta, xa), (tb, xb) in zip(stops, stops[1:]):
+                if t >= tb:
+                    x = xb
+                elif t >= tb - 0.5:
+                    q = CH.ease_out((t - (tb - 0.5)) / 0.5)
+                    x = xa + (xb - xa) * q
+                    break
+                else:
+                    x = xa
+                    break
+            key = int(x)
+            im = cache.get("cv")
+            if im is None:
+                from .pen import Pen
+                p = Pen(4, rgba=True, size=(60, 60))
+                p.poly([(30, 6), (8, 50), (52, 50)], col, 5, INK)
+                im = cache["cv"] = CH._finish(p, 60, 60)
+            cv = CH.blank(box[2], box[3])
+            cv.alpha_composite(im, (int(min(max(0, key - box[0] - 30), box[2] - 60)), 0))
+            return cv
+
+        sc.fx(frame, box, None, 0.0, edur=0, z=3)
+    for t0, *_ in evs:
+        sc.sfx.append((t0, "pop"))
+
+
+def build_compare(sc, el, mood):
+    """Two to four things side by side as circles whose AREA matches their numbers (army sizes, populations)."""
+    items = [it for it in (el.get("items") or []) if isinstance(it, dict)][:4]
+    if not items:
+        sc.warn("compare without items skipped")
+        return
+    vals = [max(0.0, num(it.get("value"), 0.0)) for it in items]
+    vmax = max(vals) or 1.0
+    max_r = max(80.0, min(num(el.get("size"), 230), 300))
+    rs = [max(18.0, max_r * math.sqrt(v / vmax)) for v in vals]
+    gap = 70
+    total = sum(2 * r for r in rs) + gap * (len(rs) - 1)
+    if total > W - 120:
+        k = (W - 120) / total
+        rs = [r * k for r in rs]
+        total = W - 120
+    a = anim(el, sc, "grow")
+    base_y = max(2 * max(rs) + 160, min(num(el.get("y"), 800), 860))
+    cx = num(el.get("x"), 960) - total / 2
+    at0 = a["at"]
+    dark = dark_bg(sc)
+    ink = (238, 240, 246) if dark else INK
+    for k, (it, v, r) in enumerate(zip(items, vals, rs)):
+        x = cx + r
+        cx += 2 * r + gap
+        col = C(it.get("color"), CH.SERIES[k % 8])
+        at = min(0.9, at0 + 0.12 * k)
+        with sc.layer("grow" if mood != "somber" else "fade", at, edur=0.6, exit_at=a["exit_at"], z=1) as p:
+            light = tuple(int(c + (255 - c) * 0.55) for c in col)
+            p.circ(x, base_y - r, r, light, 7, col)
+            icon = resolve_prop(it.get("icon")) if it.get("icon") else None
+            if icon and r > 40:
+                x0_, y0_, x1_, y1_ = prop_bounds(icon, {})
+                s_ = min(1.3 * r / max(1.0, x1_ - x0_), 1.3 * r / max(1.0, y1_ - y0_))
+                yy = base_y - r + ((y1_ - y0_) * s_ / 2 if prop_anchor(icon, {}) == "bottom" else 0)
+                PROPS[icon][1](p, x, yy, s_, None, {})
+        if it.get("label"):
+            build_element(sc, {"type": "text", "text": str(it["label"])[:20], "x": round(x), "y": round(base_y + 46),
+                               "size": 44, "color": "#EBEBF5" if dark else None, "at": at, "z": 3}, mood)
+        build_element(sc, {"type": "counter", "from": 0, "to": v, "x": round(x), "y": round(base_y - 2 * r - 44),
+                           "size": max(44, min(80, r * 0.5)), "prefix": it.get("prefix", el.get("prefix", "")),
+                           "suffix": it.get("suffix", el.get("suffix", "")), "format": "number", "at": at,
+                           "dur": 1.2, "color": "#EBEBF5" if dark else None}, mood)
+
+
+def build_split(sc, el, mood):
+    """Then vs now: a divider down the middle, a heading on each side, the "then" side in old-photo sepia."""
+    a = anim(el, sc, "pop")
+    with sc.layer("wipe_down", a["at"], edur=0.5, sfx=None, z=1) as p:
+        p.line([(W / 2, -10), (W / 2, H - 170)], 12, INK, 0.3)
+    left, right = str(el.get("left") or "THEN")[:16], str(el.get("right") or "NOW")[:16]
+    for txt, x in ((left, W / 4), (right, 3 * W / 4)):
+        build_element(sc, {"type": "text", "text": txt, "x": round(x), "y": 92, "size": 84, "at": a["at"],
+                           "z": 4}, mood)
+    tint = el.get("tint", "left")
+    if tint in ("left", "right"):
+        sc.overlay(CH.SplitTint(tint).apply, z=2.4)
+
+
 # ------------------------------------------------------------------ war maps (see warmap.py)
 def build_marchers(sc, el, pts, a, edur):
     """Soldiers (or a tank, a ship...) marching along an arrow, a little behind its tip."""
@@ -899,8 +1154,13 @@ def build_shots(sc, cam, elements, talk):
                 continue
             t = sc.T(sc.timer.resolve(sh.get("at"), 0.0))
             focus = sh.get("focus") or sh.get("center") or sh.get("on")
-            sc.shot(t, max(1.0, min(num(sh.get("zoom"), 1.4), 2.2)), point(focus, sc) if focus else None,
-                    sh.get("move", "cut"))
+            zoom = num(sh.get("zoom"), 1.4)
+            if sh.get("region") and sc.view is not None:
+                fz = region_focus(sc, sh["region"])
+                if fz:
+                    focus, zoom = fz[0], (zoom if sh.get("zoom") is not None else fz[1])
+            sc.shot(t, max(1.0, min(zoom, 2.2)), point(focus, sc) if focus else None, sh.get("move", "pan"
+                    if sh.get("region") else "cut"))
         return
     z = cam.get("zoom")
     z_end = num(z[-1] if isinstance(z, (list, tuple)) and z else z, 1.0)
@@ -931,6 +1191,20 @@ def build_shots(sc, cam, elements, talk):
                     z = safe_zoom(sc, elements, target)
                     if z:
                         sc.shot(t, z, target, "pan")
+
+
+def region_focus(sc, spec):
+    """([x, y] screen point, zoom) that frames a country or region on the current map."""
+    g = region_geom(spec)
+    if g is None:
+        return None
+    gg = sc.view.in_view(g)
+    if gg is None:
+        return None
+    x0, y0, x1, y1 = gg.bounds
+    (sx0, sy1), (sx1, sy0) = sc.view.xy(x0, y0), sc.view.xy(x1, y1)
+    w, h = max(40.0, abs(sx1 - sx0)), max(40.0, abs(sy1 - sy0))
+    return [(sx0 + sx1) / 2, (sy0 + sy1) / 2], max(1.0, min(W / (w * 1.5), H / (h * 1.5), 2.2))
 
 
 def safe_zoom(sc, elements, center, zooms=(1.22, 1.18, 1.14, 1.1)):

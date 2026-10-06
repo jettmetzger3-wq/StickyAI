@@ -36,7 +36,8 @@ ENTERS = ("pop", "drop", "grow", "fade", "slide_left", "slide_right", "slide_up"
 IDLES = ("bob", "float", "pulse", "shake", "drift", "none")
 SFX = ("auto", "none", "pop", "whoosh", "swish", "boom", "tick")
 EL_TYPES = ("char", "crowd", "text", "prop", "bubble", "note", "sign", "board", "icons", "shape", "group",
-            "territory", "city", "arrow", "pointer", "battle", "front", "counter")
+            "territory", "city", "arrow", "pointer", "battle", "front", "counter", "empire", "route", "chart",
+            "timeline", "compare", "split")
 MOVES = ("cut", "pan", "whip")
 POINTER_DIRS = ("n", "s", "e", "w", "ne", "nw", "se", "sw")
 MOODS = ("fun", "tense", "somber")
@@ -109,7 +110,38 @@ ELEMENT_SCHEMAS = {
                       clip={"type": "array", "items": {"type": "array"}}, box={"type": "array"},
                       color={"type": "string"}),
     "city": _obj(("type", "name", "lon", "lat"), type={"const": "city"}, **_anim, name={"type": "string"},
-                 lon=_num, lat=_num, size=_num, color={"type": "string"}, dot={"type": "boolean"}),
+                 lon=_num, lat=_num, size=_num, color={"type": "string"}, dot={"type": "boolean"},
+                 capital={"type": "boolean"}),
+    "empire": _obj(("type", "steps"), type={"const": "empire"}, **_anim, name={"type": "string"},
+                   color={"type": "string"}, size=_num, label_at=_pt, year_at=_pt, year_size=_num,
+                   show_year={"type": "boolean"},
+                   steps={"type": "array", "minItems": 1, "maxItems": 6, "items": {
+                       "type": "object", "properties": {"at": _at, "year": _num, "region": {"type": "string"},
+                                                        "countries": {"type": "array", "items": {"type": "string"}},
+                                                        "clip": {"type": "array"}, "box": {"type": "array"}}}}),
+    "chart": _obj(("type", "data"), type={"const": "chart"}, **_xy, **_anim, style={"enum": ["bar", "hbar", "line"]},
+                  title={"type": "string"}, w=_num, h=_num, dur=_num, max=_num, decimals=_num,
+                  prefix={"type": "string"}, suffix={"type": "string"},
+                  data={"type": "array", "minItems": 1, "maxItems": 10, "items": {
+                      "type": "object", "required": ["label", "value"],
+                      "properties": {"label": {"type": "string"}, "value": _num, "color": {"type": "string"}}}}),
+    "timeline": _obj(("type", "events"), type={"const": "timeline"}, **_anim, y=_num, x0=_num, x1=_num,
+                     color={"type": "string"}, travel={"type": "boolean"}, **{"from": _num}, to=_num,
+                     events={"type": "array", "minItems": 1, "maxItems": 8, "items": {
+                         "type": "object", "required": ["year"],
+                         "properties": {"year": _num, "label": {"type": "string"}, "at": _at,
+                                        "color": {"type": "string"}}}}),
+    "compare": _obj(("type", "items"), type={"const": "compare"}, **_xy, **_anim, size=_num,
+                    prefix={"type": "string"}, suffix={"type": "string"},
+                    items={"type": "array", "minItems": 1, "maxItems": 4, "items": {
+                        "type": "object", "required": ["value"],
+                        "properties": {"label": {"type": "string"}, "value": _num, "color": {"type": "string"},
+                                       "icon": {"type": "string"}}}}),
+    "split": _obj(("type",), type={"const": "split"}, **_anim, left={"type": "string"}, right={"type": "string"},
+                  tint={"enum": ["left", "right", "none"]}),
+    "route": _obj(("type",), type={"const": "route"}, **_anim, **{"from": _pt}, to=_pt,
+                  points={"type": "array", "items": _pt}, curve=_num, color={"type": "string"}, width=_num,
+                  style={"enum": ["dashed", "dotted", "solid"]}, icon={"type": "string"}, icon_scale=_num, dur=_num),
     "arrow": _obj(("type",), type={"const": "arrow"}, **_anim, **{"from": _pt}, to=_pt,
                   points={"type": "array", "items": _pt}, curve=_num, color={"type": "string"}, width=_num,
                   head={"type": "boolean"}, units={"type": "string"}, count=_num, march=_num,
@@ -155,6 +187,7 @@ SCENE_SCHEMA = {
                                                     "shots": {"type": "array", "maxItems": 6, "items": {
                                                         "type": "object", "properties": {
                                                             "at": _at, "zoom": _num, "focus": _pt,
+                                                            "region": {"type": "string"},
                                                             "move": {"enum": list(MOVES)}}}}}},
         "note": {"type": "string"},
         "transition": {"enum": ["auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade"]},
@@ -191,7 +224,13 @@ TYPE_ALIASES = {"label": "text", "title": "text", "caption": "text", "character"
                 "region": "territory", "country": "territory", "marker": "city", "town": "city", "rect": "shape",
                 "line": "shape", "circle": "shape", "army": "crowd", "soldiers": "crowd", "people": "crowd",
                 "troops": "crowd", "mob": "crowd", "audience": "crowd", "pointer_arrow": "pointer",
-                "indicator": "pointer", "big_arrow": "pointer"}
+                "indicator": "pointer", "big_arrow": "pointer", "empire_growth": "empire", "expansion": "empire",
+                "borders": "empire", "kingdom": "empire", "trade_route": "route", "voyage": "route",
+                "journey": "route", "path": "route", "trail": "route", "capital": "city", "bar_chart": "chart",
+                "graph": "chart", "line_chart": "chart", "line_graph": "chart", "bars": "chart", "ranking": "chart",
+                "chart_bar": "chart", "stats": "chart", "time_line": "timeline", "dates": "timeline",
+                "comparison": "compare", "versus": "compare", "vs": "compare", "size_comparison": "compare",
+                "then_now": "split", "then_vs_now": "split", "before_after": "split", "split_screen": "split"}
 SOMBER_NO = ("cheer", "celebrate", "dance", "laugh", "hop", "jump")
 ENTER_ALIASES = {"slide_l": "slide_left", "slide_r": "slide_right", "slide_u": "slide_up", "slide_d": "slide_down",
                  "wipe_r": "wipe_right", "wipe_l": "wipe_left", "wipe_u": "wipe_up", "wipe_d": "wipe_down",
@@ -561,11 +600,15 @@ def repair_scene(scene, mood="fun", text="", kit=None):
         if t2 != t:
             fixes.append(f"element type {t!r} -> {t2!r}")
             el["type"] = t2
+            if t2 == "chart" and not el.get("style"):
+                el["style"] = "line" if "line" in str(t) else "hbar" if str(t) == "ranking" else "bar"
         t = t2
         says = el.pop("say", None) if t in ("char", "crowd") else None
         if says:
             pending_says.append((el, says))
-        if t in ("territory", "city") and not is_map:
+        if is_map and t in ("arrow", "route", "front"):
+            _lonlat_points(el, fixes)
+        if t in ("territory", "city", "empire") and not is_map:
             fixes.append(f"dropped {t} in a non-map scene")
             continue
         if t == "shape" and el.get("shape") is None:
@@ -736,6 +779,151 @@ def repair_scene(scene, mood="fun", text="", kit=None):
             el["label"] = str(el.get("label") or el.get("text") or "")[:24]
             el.pop("text", None)
             el["size"] = max(0.4, min(_f(el.get("size"), 1.0), 2.5))
+        elif t == "empire":
+            steps = []
+            for st in el.get("steps") or []:
+                if isinstance(st, str):
+                    st = {"region": st} if st.lower() in REGIONS else {"countries": [st]}
+                if not isinstance(st, dict):
+                    continue
+                st = {k: v for k, v in st.items() if k in ("at", "year", "region", "countries", "clip", "box")}
+                if isinstance(st.get("countries"), str):
+                    st["countries"] = [st["countries"]]
+                if st.get("countries"):
+                    bad = unknown_names(st["countries"])
+                    if bad:
+                        fixes.append(f"empire: unknown countries {bad}")
+                        st["countries"] = [c for c in st["countries"] if c not in bad]
+                        if not st["countries"]:
+                            st.pop("countries")
+                if st.get("region") is not None and str(st["region"]).lower() not in REGIONS:
+                    fixes.append(f"empire: unknown region {st['region']!r}")
+                    st.pop("region")
+                if not st.get("countries") and not st.get("region"):
+                    continue
+                if st.get("year") is not None:
+                    try:
+                        st["year"] = int(round(float(st["year"])))
+                    except (TypeError, ValueError):
+                        st.pop("year")
+                steps.append(st)
+            if not steps:
+                fixes.append("dropped an empire without usable steps")
+                continue
+            el["steps"] = steps[:6]
+            if el.get("name") is not None:
+                el["name"] = str(el["name"])[:30]
+        elif t == "chart":
+            rows = []
+            data = el.get("data") if isinstance(el.get("data"), list) else el.get("bars") or el.get("items") or []
+            for d in data if isinstance(data, list) else []:
+                if isinstance(d, (list, tuple)) and len(d) >= 2:
+                    d = {"label": d[0], "value": d[1]}
+                if not isinstance(d, dict) or d.get("value") is None:
+                    continue
+                try:
+                    v = float(str(d["value"]).replace(",", "").replace("%", "").replace("$", ""))
+                except ValueError:
+                    continue
+                row = {"label": str(d.get("label", d.get("name", "")))[:18], "value": v}
+                if d.get("color") is not None:
+                    row["color"] = str(d["color"])
+                rows.append(row)
+            el.pop("bars", None)
+            el.pop("items", None)
+            if not rows:
+                fixes.append("dropped a chart without numbers")
+                continue
+            el["data"] = rows[:10]
+            st = str(el.get("style") or "bar").lower()
+            el["style"] = "hbar" if st in ("hbar", "horizontal", "ranking", "race") else "line" if "line" in st else "bar"
+            if el.get("title") is not None:
+                el["title"] = str(el["title"])[:40]
+            for k in ("prefix", "suffix"):
+                if el.get(k) is not None:
+                    el[k] = str(el[k])[:10]
+            w_, h_ = max(400, min(_f(el.get("w"), 1100), W - 40)), max(300, min(_f(el.get("h"), 620), 860))
+            el["w"], el["h"] = w_, h_
+            cx_, cy_ = _f(el.get("x"), 960), _f(el.get("y"), 470)
+            el["x"] = max(w_ / 2 + 20, min(cx_, W - w_ / 2 - 20))
+            el["y"] = max(h_ / 2 + 10, min(cy_, H - CAPTION_ZONE - h_ / 2))
+        elif t == "timeline":
+            evs = []
+            for e in el.get("events") or []:
+                if isinstance(e, (list, tuple)) and len(e) >= 1:
+                    e = {"year": e[0], "label": e[1] if len(e) > 1 else ""}
+                if not isinstance(e, dict):
+                    continue
+                try:
+                    yr = int(round(float(str(e.get("year", e.get("date"))).replace("BC", "").strip()) *
+                                   (-1 if "BC" in str(e.get("year", "")) else 1)))
+                except (TypeError, ValueError):
+                    continue
+                ev = {k: v for k, v in e.items() if k in ("at", "color")}
+                ev["year"] = yr
+                ev["label"] = str(e.get("label") or e.get("text") or "")[:24]
+                evs.append(ev)
+            if not evs:
+                fixes.append("dropped a timeline without years")
+                continue
+            el["events"] = evs[:8]
+            el["y"] = max(300, min(_f(el.get("y"), 640), 800))
+        elif t == "compare":
+            items = []
+            for it in el.get("items") or []:
+                if not isinstance(it, dict) or it.get("value") is None:
+                    continue
+                try:
+                    v = float(str(it["value"]).replace(",", ""))
+                except ValueError:
+                    continue
+                c = {k: v_ for k, v_ in it.items() if k in ("label", "color", "prefix", "suffix")}
+                c["value"] = v
+                if it.get("icon") is not None:
+                    ic = resolve_prop(it["icon"]) or guess_prop(it["icon"])
+                    if ic:
+                        c["icon"] = ic
+                if c.get("label") is not None:
+                    c["label"] = str(c["label"])[:20]
+                items.append(c)
+            if not items:
+                fixes.append("dropped a comparison without numbers")
+                continue
+            el["items"] = items[:4]
+        elif t == "split":
+            for k in ("left", "right"):
+                if el.get(k) is not None:
+                    el[k] = str(el[k])[:16]
+            if el.get("tint") not in (None, "left", "right", "none"):
+                el["tint"] = "none" if el["tint"] in (False, "no", "off") else "left"
+        elif t == "route":
+            pts = el.get("points") if isinstance(el.get("points"), list) else \
+                [el.get("from"), el.get("to")] if el.get("from") is not None and el.get("to") is not None else []
+            pts = [q for q in pts if (isinstance(q, (list, tuple)) and len(q) >= 2) or
+                   (isinstance(q, dict) and (("lon" in q and "lat" in q and is_map) or ("x" in q and "y" in q)))]
+            if len(pts) < 2:
+                fixes.append("dropped a route without usable points")
+                continue
+            el["points"] = pts[:40]
+            el.pop("from", None)
+            el.pop("to", None)
+            if el.get("style") not in (None, "dashed", "dotted", "solid"):
+                el["style"] = "dotted" if "dot" in str(el["style"]) else "solid" if "solid" in str(el["style"]) else "dashed"
+            ic = el.pop("units", None) if el.get("icon") is None else el.get("icon")
+            if ic is not None:
+                from .warmap import is_kind
+                u = str(ic).strip().lower().replace(" ", "_")
+                if resolve_prop(u):
+                    el["icon"] = resolve_prop(u)
+                elif is_kind(u):
+                    el["icon"] = u
+                else:
+                    g = guess_prop(u)
+                    if g:
+                        el["icon"] = g
+                    else:
+                        el.pop("icon", None)
+                        fixes.append(f"route icon {u!r} not found")
         elif t == "front":
             def _pts(ps):
                 if not isinstance(ps, list):
@@ -907,6 +1095,34 @@ def repair_scene(scene, mood="fun", text="", kit=None):
     if cam is not None and not isinstance(cam, dict):
         sc["camera"] = {}
     return sc, fixes
+
+
+def _lonlat_points(el, fixes):
+    """On a map, [lon, lat] lists written where {lon, lat} was meant: points that would all sit inside a
+    180 x 90 pixel corner (or are negative) are coordinates, not pixels."""
+    groups = []
+    for k in ("points", "from", "to"):
+        v = el.get(k)
+        if k == "points" and isinstance(v, list):
+            groups.append((k, v, True))
+        elif isinstance(v, (list, tuple)) and len(v) == 2 and all(isinstance(c, (int, float)) for c in v):
+            groups.append((k, [v], False))
+    for kk in el.get("keys") or []:
+        if isinstance(kk, dict) and isinstance(kk.get("points"), list):
+            groups.append((kk, kk["points"], True))
+    pts = [q for _, v, _ in groups for q in v if isinstance(q, (list, tuple)) and len(q) >= 2]
+    if not pts or not all(isinstance(q[0], (int, float)) and isinstance(q[1], (int, float)) and
+                          abs(q[0]) <= 180 and abs(q[1]) <= 90 for q in pts):
+        return
+    conv = lambda q: {"lon": q[0], "lat": q[1]} if isinstance(q, (list, tuple)) and len(q) >= 2 else q
+    for k, v, many in groups:
+        if isinstance(k, dict):
+            k["points"] = [conv(q) for q in v]
+        elif many:
+            el[k] = [conv(q) for q in v]
+        else:
+            el[k] = conv(v[0])
+    fixes.append(f"{el.get('type')}: read [lon, lat] lists as map coordinates")
 
 
 INDOORS = ("interior", "palace", "underwater", "space", "paper", "sunburst", "dark")

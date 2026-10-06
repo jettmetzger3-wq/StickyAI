@@ -9,7 +9,7 @@ from .captions import make_captions, paste_caption
 from .timing import WordTimer, LEAD, TAIL
 
 # bump when drawing or animation changes, so finished videos get re-rendered with the new look
-ENGINE_VERSION = 5
+ENGINE_VERSION = 6
 
 
 def plan_timeline(voice_durs, lead=LEAD, tail=TAIL):
@@ -61,7 +61,9 @@ def watermark_image(text, size=26):
 # ------------------------------------------------------------------ transitions between scenes
 TRANSITIONS = ("auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade")
 TRANSITION_TIME = 0.45
-TRANSITION_SFX = {"slide": "swish", "wipe": "swish", "zoom": "whoosh", "paper": "swish", "iris": "swish"}
+TRANSITION_TIMES = {"mapzoom": 0.9}      # zooming from one map into a closer one takes a little longer
+TRANSITION_SFX = {"slide": "swish", "wipe": "swish", "zoom": "whoosh", "paper": "swish", "iris": "swish",
+                  "mapzoom": "whoosh"}
 
 
 def bg_sig(scene):
@@ -75,12 +77,20 @@ def pick_transition(prev, scene, idx, mood="fun", prev_mood="fun"):
     want = str((scene or {}).get("transition") or "auto").lower()
     if prev is None:
         return "cut"
-    if want in TRANSITIONS and want != "auto":
+    if want in TRANSITIONS and want not in ("auto", "zoom"):
         return want
+    if want == "zoom" and not ((prev.get("bg") or {}).get("type") == (scene.get("bg") or {}).get("type") == "map"):
+        return "zoom"
     if mood == "somber" or prev_mood == "somber":
         return "fade"
     a, b = ((prev.get("bg") or {}).get("type"), (scene.get("bg") or {}).get("type"))
-    if a == b == "map" or bg_sig(prev) == bg_sig(scene):
+    if a == b == "map":
+        # a closer (or wider) view of a place on the previous map: zoom into it (or out of it)
+        from .livemap import view_zoom
+        if want in ("auto", "zoom") and view_zoom(prev.get("bg") or {}, scene.get("bg") or {}):
+            return "mapzoom"
+        return "cut"
+    if bg_sig(prev) == bg_sig(scene):
         return "cut"
     return ("slide", "wipe", "zoom", "paper", "slide", "iris", "wipe")[idx % 7]
 
@@ -152,7 +162,13 @@ def render_segment(job):
         except Exception as e:  # a transition is a nicety; never fail the scene over it
             sc.warn(f"transition skipped: {e}")
             before = None
-    n_tr = int(TRANSITION_TIME * FPS) if before is not None else 0
+    zoom_info = None
+    if kind == "mapzoom" and before is not None:
+        from .livemap import view_zoom
+        zoom_info = view_zoom((job["prev"].get("scene") or {}).get("bg") or {}, (job.get("scene") or {}).get("bg") or {})
+        if zoom_info is None:
+            kind = "fade"
+    n_tr = int(TRANSITION_TIMES.get(kind, TRANSITION_TIME) * FPS) if before is not None else 0
     if n_tr and TRANSITION_SFX.get(kind):
         sc.sfx.append((0.02, TRANSITION_SFX[kind]))
     tmp = job["out"] + ".part.mp4"
@@ -166,7 +182,11 @@ def render_segment(job):
             tt = fi / FPS
             fr = sc.render_at(tt)
             if fi < n_tr:
-                fr = compose_transition(before, fr, kind, (fi + 1) / (n_tr + 1))
+                if zoom_info is not None:
+                    from .livemap import compose_mapzoom
+                    fr = compose_mapzoom(before, fr, zoom_info, (fi + 1) / (n_tr + 1))
+                else:
+                    fr = compose_transition(before, fr, kind, (fi + 1) / (n_tr + 1))
             paste_caption(fr, caps, tt)
             if wm is not None:
                 fr.paste(wm, (W - wm.width - 24, 22), wm)

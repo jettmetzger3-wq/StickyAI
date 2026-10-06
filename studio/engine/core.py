@@ -12,7 +12,7 @@ import numpy as np
 from PIL import Image, ImageOps
 
 from .doodle import W, H, SS
-from .palette import INK, PAPER, SEA, SEA2, LAND, RED, NAVY, WHITE, SUN, DARK, color as to_color, darker
+from .palette import INK, PAPER, SEA, SEA2, LAND, RED, NAVY, WHITE, SUN, DARK, YELLOW, color as to_color, darker
 from .pen import Pen
 from .geo import View, geom_polys
 from .timing import WordTimer, LEAD, TAIL
@@ -489,14 +489,18 @@ class Scene:
         with self.layer(enter, at, edur=edur, sfx=sfx, z=0, exit_at=exit_at) as p:
             self._draw_terr(p, self.view.in_view(g), col, outline)
 
-    def city(self, name, lon, lat, at=0.1, size=40, dx=0, dy=-44, dot=True, col=INK, enter="pop", exit_at=None):
+    def city(self, name, lon, lat, at=0.1, size=40, dx=0, dy=-44, dot=True, col=INK, enter="pop", exit_at=None,
+             capital=False):
         x, y = self.view.xy(lon, lat)
         if not (-50 <= x <= W + 50 and -50 <= y <= H + 50):
             self.warn(f"city '{name}' is outside the map view")
         dark = getattr(self, "map_style", "paper") == "dark"
         light = sum(to_color(col, INK)[:3]) > 600 if not isinstance(col, tuple) else sum(col[:3]) > 600
         with self.layer(enter, at, z=2, exit_at=exit_at) as p:
-            if dot:
+            if capital:
+                from .livemap import capital_star
+                capital_star(p, x, y, 24, YELLOW, (20, 24, 40) if dark else INK)
+            elif dot:
                 p.circ(x, y, 11, WHITE, 5, (20, 24, 40) if dark else INK)
                 p.circ(x, y, 5, (20, 24, 40) if dark and light else col, 0)
             if name:

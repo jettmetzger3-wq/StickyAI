@@ -10,6 +10,8 @@ from ..engine.places import SKYLINES, STREET_STYLES
 from ..engine.geo import REGIONS
 from ..engine.schema import ENTERS, IDLES, BG_TYPES
 from ..engine.puppet import ACTIONS
+from ..engine.weather import WEATHERS, LIGHTS
+from ..engine.action_fx import PROP_ACTS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -293,6 +295,22 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          format: "year"|"number"}} (years ticking by 1939 -> 1945, armies growing, money, deaths in somber beats)
   pointer: a big bobbing arrow pointing AT a spot {{x, y or lon, lat (the tip), from: n|ne|e|se|s|sw|w|nw
          (where the arrow comes from), size, color}} (a front line, a city, a tiny detail)
+  empire (maps): borders that change over the years {{name, color, steps: [{{at, year, countries: [...] | region}},
+         ...] (2-5 steps)}}: each step spreads out from the old heartland and the year ticks in a corner
+         (negative years = BC). Use it whenever a state grows or shrinks over time (Rome, the Mongols, Napoleon).
+  city: add "capital": true for a star marker with a ripple (a nation's capital, an emperor's seat).
+  route: a path that draws itself {{points: [...] or from/to, curve, color, style: dashed|dotted|solid, icon: a prop
+         ("ship", "galleon", "camel", "horse", "train", "carrier"...) or a hat kind for a walker, dur (seconds)}}
+         (trade routes like the Silk Road, voyages, migrations, a leader's journey, an escape).
+  chart: an animated chart {{style: bar | hbar (ranking) | line, title, data: [{{label, value, color?}}] (2-8 rows),
+         prefix ("$"), suffix (" km²"), decimals, x, y (center), w, h}}: bars grow and numbers tick up, a line draws
+         itself. Use real numbers from the narration (armies, money, population, prices).
+  timeline: years on a line {{events: [{{year, label, at}}] (2-6), y (default 640)}}: markers drop in as the
+         narrator says them and a marker travels along.
+  compare: 2-4 things as circles whose AREA matches their numbers {{items: [{{label, value, color, icon (a prop)}}],
+         prefix, suffix}} (army sizes, populations, before/after).
+  split: then vs now, a divider down the middle {{left: "1850", right: "TODAY", tint: left|right|none (that side
+         turns old-photo sepia)}}; put the "then" things on the left half and the "now" things on the right.
 
   Natural Earth country names (common ones): "United States of America", "United Kingdom", "Russia", "China",
   "Japan", "France", "Germany", "Italy", "Spain", "Egypt", "India", "Korea" (both Koreas), "Turkey", "Iran", ...
@@ -305,8 +323,23 @@ ANIMATION (any element): enter: {", ".join(ENTERS)} (default pop); at: when it a
 TRANSITION (optional, top level): "transition": auto (default) | cut | slide | wipe | zoom | iris | paper | fade,
   how this scene replaces the one before. Leave it out; auto cuts between map shots and same-place scenes and fades
   around sad beats. Use "cut" for rapid-fire jokes, "zoom" to dive into a detail, "iris" for a reveal.
+WEATHER AND LIGHT (optional, top level, outdoor places and maps):
+  "weather": {", ".join(WEATHERS)} or {{type, amount (0.3-2), wind (-2..2), at, until}}: falling snow (Russia 1812),
+  a blizzard, rain, a storm with lightning and thunder, drifting fog, ash and embers over a burning city.
+  Night places get twinkling stars by themselves.
+  "light": {{to: {"|".join(LIGHTS)}, at, dur (seconds)}}: the light changes during the scene (night falls, a dusk,
+  the room goes dark when the bad news lands).
+ACTION MOMENTS: props can DO something at a moment: "do": [{{act: {"|".join(PROP_ACTS)}, at, dur, target}}].
+  fire = a cannon / tank recoils with a flash and smoke, a ship fires a broadside; with "target": [x, y] or
+  {{lon, lat}} a cannonball flies there and explodes. explode = it blows apart in a fireball. collapse = a wall,
+  tower, castle or building crumbles into dust and rubble. sink = a ship tilts and goes under. shake = it trembles.
+  The "explosion" prop bursts in by itself. Sword fights: two characters with prop "sword", facing each other
+  ~300 px apart, both with "do": [{{"act": "slash", "at": ..., "dur": 2}}] (sparks fly when the blades meet).
 CAMERA: {{zoom: [start, end] (1.0-1.12, a slow push-in like [1.0, 1.05]), center: [x, y], to: [x, y],
-  shots: [{{at, zoom (1.0-2.2), focus: [x, y] or {{lon, lat}}, move: cut|pan|whip}}]}}
+  shots: [{{at, zoom (1.0-2.2), focus: [x, y] or {{lon, lat}}, region: a country or region preset (the camera
+  frames it), move: cut|pan|whip}}]}}
+  Two map scenes in a row where the second is a closer view of a place on the first (smaller width, center inside
+  the first) zoom into it automatically, like Google Earth; a wider one zooms out.
   shots make a scene feel edited: start wide, then cut to a close-up of a face (zoom 1.6-2) when the joke lands,
   pan across a map to the next place, whip (fast blurred pan) to something surprising. Every shot slowly pushes in.
   Without shots the camera adds a close-up on whoever talks and zooms toward where a map arrow lands.
@@ -334,10 +367,58 @@ STYLE RULES
 - Make people recognizable: armies and officials wear coat colors that match their side, leaders ride horses on
   battlefields, a king has his crown and a purple or red coat; the same person keeps the same look all video.
 - War maps should feel alive: troops march along invasion arrows (units), battles get a battle marker, fronts and
-  borders move with keys, and a counter ticks the year or the size of an army.
+  borders move with keys, and a counter ticks the year or the size of an army. Empires that grow or shrink get an
+  "empire" with dated steps; journeys and trade get a "route" with a ship or caravan.
+- Show the big moments happening: cannons fire, ships sink, walls collapse, things explode, swords clash. Put the
+  weather in when the narration mentions it (snow, rain, a storm, fog, a city burning) and let night fall.
+- Numbers deserve a picture: a chart for money/armies/prices, compare for "X was ten times bigger than Y", a
+  timeline when the narration lists several dates, split for then vs now.
 - Somber beats: bg "dark", "paper" or a dusk/storm place, fade entrances, no jokes, no grins, no explosions as gags,
-  candles are fine; slow actions only (bow, cry, look, walk); any "say" lines are quiet and respectful.
+  candles are fine; slow actions only (bow, cry, look, walk); any "say" lines are quiet and respectful; gentle snow,
+  rain or "light": "dusk" suit them.
 - Keep every element fully inside the frame; text never below y=880.
+"""
+
+
+def scene_language_compact():
+    """The same language in about a third of the words, for free writers with small per-minute limits."""
+    return f"""SCENE LANGUAGE (1920x1080, x right, y down; y > 900 is for captions: no text there; feet at y 860-930)
+A scene: {{"bg": {{...}}, "elements": [...], "camera": {{...}}, "weather"?, "light"?, "transition"?}}
+
+BG types: {", ".join(BG_TYPES)}. Painted places take "time": day|dawn|dusk|night|storm. city {{skyline: one of
+{", ".join(sorted(SKYLINES))}}}. street {{style: {"|".join(STREET_STYLES)}}}. map {{center: [lon, lat], width (degrees across:
+Europe 40, a country 15-25), style: paper|dark, territories: [{{countries: [...] | region, color}}], labels: [{{text, lon,
+lat, size}}]}}. dark {{color}} for sad beats. Region presets: {", ".join(sorted(REGIONS))}.
+
+ELEMENTS (x, y pixels; on maps lon/lat or {{"lon", "lat"}} points):
+  char {{x, y (feet), scale (0.4-1.6), kind (hat), pose, mouth, eyes, prop, coat (jacket color), ride (horse...),
+       flip, say: ["short line", {{"text": "...", "at": "word:x"}}], do: [{{act, at, to?}}]}}
+       kind: {", ".join(h for h in HATS if h != "none")}
+       pose: {", ".join(ARMS)} | mouth: {", ".join(MOUTHS)} | eyes: {", ".join(EYES)} | prop: {", ".join(HELD)}
+       act: {", ".join(sorted(ACTIONS))} (walk/run take "to": [x, y]; "slash" = sword fight)
+  crowd {{kind, count (2-40), rows, x, y, width, scale, coat, ride, do, say}}
+  text {{text, x, y, size (40-120), color, font: bold|hand}} | bubble {{text, x, y, tail}} | note | sign | board {{title, lines}}
+  prop {{name, x, y (bottom-center), scale, color, params, do: [{{act: {"|".join(PROP_ACTS)}, at, target}}]}}
+  icons {{icon, count, per_row, x, y}} | shape {{shape: rect|circle|ellipse|line|poly, ...}} | group {{items}}
+  maps: territory {{countries | region, color}}, city {{name, lon, lat, capital}}, arrow {{from, to | points, curve,
+       color, units (hat kind or prop: little soldiers / tanks march along), count}}, battle {{lon, lat, label}},
+       front {{keys: [{{at, points}}], color, side}}, empire {{name, color, steps: [{{at, year, countries | region}}]}},
+       route {{points | from, to, icon (ship, camel, horse...), style: dashed|dotted|solid}}, pointer {{lon, lat, from}}
+  counter {{from, to, x, y, size, format: year|number, prefix, suffix}}
+  chart {{style: bar|hbar|line, title, data: [{{label, value}}], prefix, suffix}} | timeline {{events: [{{year, label, at}}]}}
+  compare {{items: [{{label, value, icon}}]}} | split {{left: "1850", right: "TODAY", tint: left}}
+Props: names below (pick the most specific):
+{props_doc(True)}
+ANIMATION (any element): enter: {", ".join(ENTERS)}; at: 0-1 or "word:X" (pops in when the narrator says X: best);
+  exit; idle: {", ".join(IDLES)}; move {{dx, dy, from, to}}; z.
+WEATHER: "weather": {"|".join(WEATHERS)}. LIGHT: "light": {{to: {"|".join(LIGHTS)}, at}}.
+CAMERA: {{zoom: [1.0, 1.05], shots: [{{at, zoom (1-2.2), focus: [x, y] | {{lon, lat}}, region, move: cut|pan|whip}}]}}
+COLORS: red, darkred, navy, blue, green, darkgreen, olive, gray, orange, yellow, gold, brown, white, purple, black,
+  "#rrggbb".
+RULES: one idea per scene, 3-8 elements, big labels. Put the story in its world (places, specific props, coats).
+Characters talk (say) whenever someone speaks or reacts. Time things to words with "word:...". Vary backgrounds.
+Show big moments (fire, explode, collapse, sink, slash), weather the narration mentions, charts/timelines for numbers
+and dates. Somber beats: dark or dusk, fades, no jokes. Everything inside the frame.
 """
 
 
@@ -383,7 +464,7 @@ def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text
             line += f"\n     (source video showed: {visual_hints[i]})"
         beats.append(line)
     ex = f"EXAMPLES (beat -> scene):\n{examples_block(examples)}\n" if examples else ""
-    return f"""{scene_language(compact)}
+    return f"""{scene_language_compact() if compact else scene_language()}
 
 {ex}
 

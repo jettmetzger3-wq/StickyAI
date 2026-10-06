@@ -150,7 +150,242 @@ def make_somber(total):
     return tr[: int(total * SR)]
 
 
-MAKERS = {"fun": make_fun, "tense": make_tense, "somber": make_somber}
+# ---------------- more music styles: epic battle, mystery, triumph, sad
+def brass(notes, dur, bright=2600, attack=0.04):
+    """A brassy chord: detuned saws with a quick swell, low-passed."""
+    t = np.arange(int(dur * SR)) / SR
+    s = np.zeros_like(t)
+    for n in notes:
+        f = midi(n)
+        for det in (-0.12, 0.12):
+            ph = f * (2 ** (det / 12)) * t
+            s += (2 * (ph % 1) - 1) * 0.3
+    b, a = butter(2, bright / (SR / 2))
+    s = lfilter(b, a, s)
+    env = np.minimum(1, t / attack) * (0.75 + 0.25 * np.exp(-t * 3)) * np.minimum(1, (dur - t) / 0.08)
+    return s * env / max(len(notes), 1)
+
+
+_drum_cache = {}
+
+
+def drum(kind):
+    """big low drum ("taiko"), timpani, snare."""
+    if kind in _drum_cache:
+        return _drum_cache[kind]
+    if kind == "taiko":
+        n = int(0.7 * SR)
+        t = np.arange(n) / SR
+        s = np.sin(2 * np.pi * (48 + 40 * np.exp(-t * 18)) * t) * np.exp(-t * 6)
+        x = rng.normal(0, 1, n)
+        b, a = butter(2, 500 / (SR / 2))
+        s += lfilter(b, a, x) * np.exp(-t * 30) * 0.5
+    elif kind == "timpani":
+        n = int(1.4 * SR)
+        t = np.arange(n) / SR
+        s = (np.sin(2 * np.pi * 98 * t) + 0.5 * np.sin(2 * np.pi * 147 * t)) * np.exp(-t * 3.2)
+    else:  # snare
+        n = int(0.18 * SR)
+        t = np.arange(n) / SR
+        x = rng.normal(0, 1, n)
+        b, a = butter(2, [1500 / (SR / 2), 8000 / (SR / 2)], "band")
+        s = lfilter(b, a, x) * np.exp(-t * 28) + np.sin(2 * np.pi * 190 * t) * np.exp(-t * 40) * 0.5
+    s = s / max(1e-9, np.abs(s).max())
+    _drum_cache[kind] = s
+    return s
+
+
+CHORDS_EPIC = [[50, 53, 57], [46, 50, 53], [53, 57, 60], [48, 52, 55]]          # Dm Bb F C
+CHORDS_MYSTERY = [[57, 60, 64], [56, 60, 64], [53, 57, 60], [52, 55, 59]]       # Am Aaug F Em
+CHORDS_TRIUMPH = [[60, 64, 67], [65, 69, 72], [67, 71, 74], [60, 64, 67]]       # C F G C
+CHORDS_SAD = [[57, 60, 64], [52, 55, 59], [53, 57, 60], [48, 52, 55]]           # Am Em F C
+
+
+def make_epic(total):
+    bpm = 128
+    beat = 60 / bpm
+    tr = np.zeros(int(total * SR) + SR * 3)
+    bar, t = 0, 0.0
+    while t < total:
+        ch = CHORDS_EPIC[bar % 4]
+        place(tr, brass([n - 12 for n in ch] + [ch[0]], 4 * beat + 0.1, 1800, 0.25), t, 0.22)
+        root, fifth = ch[0] - 12, ch[2] - 12
+        for k, n in enumerate((root, root, fifth, root, root, fifth, ch[0], fifth)):     # staccato strings
+            place(tr, sine_note(n + 12, 0.16, (1, 0.5, 0.33, 0.25), 16), t + k * beat / 2, 0.11)
+        for k, g in ((0, 0.6), (1.5, 0.35), (2, 0.5), (3, 0.3), (3.5, 0.3)):            # war drums
+            place(tr, drum("taiko"), t + k * beat, g)
+        if bar % 4 == 3:
+            sw = _noise(int(4 * beat * SR), 3000, 9000) * np.linspace(0, 1, int(4 * beat * SR)) ** 2
+            place(tr, sw, t, 0.07)
+        t += 4 * beat
+        bar += 1
+    return tr[: int(total * SR)]
+
+
+def make_mystery(total):
+    bpm = 70
+    beat = 60 / bpm
+    tr = np.zeros(int(total * SR) + SR * 6)
+    bar, t = 0, 0.0
+    r = np.random.default_rng(11)
+    while t < total:
+        ch = CHORDS_MYSTERY[bar % 4]
+        place(tr, pad_note([45, 52], 4 * beat + 1.0, 450), t, 0.2)                     # low drone
+        place(tr, ks(ch[0] - 12, 0.6, 0.98, 0.3), t, 0.1)                               # pizzicato
+        place(tr, ks(ch[2] - 12, 0.6, 0.98, 0.3), t + 2 * beat, 0.08)
+        for k in range(3):                                                              # music-box bells
+            if r.random() < 0.7:
+                n = ch[int(r.integers(3))] + 24
+                place(tr, sine_note(n, 2.2, (1, 0, 0.45, 0, 0.2), 2.4), t + (k * 1.25 + 0.5) * beat, 0.05)
+        t += 4 * beat
+        bar += 1
+    return tr[: int(total * SR)]
+
+
+def make_triumph(total):
+    bpm = 112
+    beat = 60 / bpm
+    tr = np.zeros(int(total * SR) + SR * 3)
+    bar, t = 0, 0.0
+    melody = [[72, 76, 79, 76], [77, 81, 84, 81], [79, 83, 86, 83], [84, 79, 76, 72]]
+    while t < total:
+        ch = CHORDS_TRIUMPH[bar % 4]
+        for k, d in ((0, 0.75), (0.75, 0.25), (1, 1.0), (2.5, 0.5), (3, 1.0)):          # da-da-DAA fanfare rhythm
+            place(tr, brass([n - 12 for n in ch], d * beat + 0.05, 3000), t + k * beat, 0.2)
+        for k, n in enumerate(melody[bar % 4]):
+            place(tr, sine_note(n, beat * 0.95, (1, 0.6, 0.4, 0.2), 2.0, 0.01), t + k * beat, 0.07)
+        place(tr, drum("timpani"), t, 0.4)
+        place(tr, drum("timpani"), t + 2 * beat, 0.25)
+        if bar % 2 == 1:
+            for k in range(8):
+                place(tr, drum("snare"), t + 3 * beat + k * beat / 8, 0.05 + 0.02 * k)
+        t += 4 * beat
+        bar += 1
+    return tr[: int(total * SR)]
+
+
+def make_sad(total):
+    bpm = 66
+    beat = 60 / bpm
+    tr = np.zeros(int(total * SR) + SR * 6)
+    bar, t = 0, 0.0
+    melody = [[76, 74, 72, None], [71, 72, 74, 71], [72, 69, None, 72], [71, 67, None, None]]
+    while t < total:
+        ch = CHORDS_SAD[bar % 4]
+        place(tr, pad_note([ch[0] - 24, ch[0] - 12], 4 * beat + 1.0, 800), t, 0.22)    # cello
+        place(tr, pad_note([n for n in ch], 4 * beat + 1.0, 1100), t, 0.09)
+        for k, n in enumerate(melody[bar % 4]):                                         # piano
+            if n:
+                place(tr, sine_note(n, 2.5, (1, 0.5, 0.25, 0.12), 1.6), t + k * beat, 0.08)
+        t += 4 * beat
+        bar += 1
+    return tr[: int(total * SR)]
+
+
+MAKERS = {"fun": make_fun, "tense": make_tense, "somber": make_somber, "epic": make_epic, "mystery": make_mystery,
+          "triumph": make_triumph, "sad": make_sad}
+MUSIC_STYLES = tuple(MAKERS)
+BASE_MOOD = {"epic": "tense", "mystery": "tense", "triumph": "fun", "sad": "somber"}
+
+STYLE_WORDS = {
+    "epic": ("battle", "war ", "attack", "charge", "invade", "invaded", "invasion", "siege", "army", "armies",
+             "troops", "cannon", "marched", "fought", "fight", "clash", "bombard", "soldiers", "cavalry"),
+    "mystery": ("secret", "mystery", "mysterious", "spy", "spies", "disappeared", "vanished", "unknown", "hidden",
+                "conspiracy", "plot", "legend", "curse", "nobody knows", "no one knows", "strange", "rumor"),
+    "triumph": ("won", "victory", "victorious", "triumph", "conquered", "crowned", "glory", "celebrated",
+                "succeeded", "independence", "liberated", "freedom", "champion", "greatest"),
+    "sad": ("lonely", "alone", "exile", "exiled", "heartbroken", "abandoned", "forgotten", "starved", "orphan",
+            "never saw", "goodbye"),
+}
+
+
+def _has(text, words):
+    low = " " + str(text or "").lower() + " "
+    return any((" " + w) in low for w in words)
+
+
+def music_style(text, mood, scene=None):
+    """Which music plays under a beat: the mood, made more specific by what's happening."""
+    els = [e.get("type") for e in ((scene or {}).get("elements") or []) if isinstance(e, dict)]
+    battle_scene = any(t in ("battle", "front") for t in els) or \
+        any(isinstance(e, dict) and e.get("type") == "prop" and e.get("do") for e in (scene or {}).get("elements") or [])
+    if mood == "somber":
+        return "sad" if _has(text, STYLE_WORDS["sad"]) else "somber"
+    if _has(text, STYLE_WORDS["triumph"]) and not _has(text, ("lost", "defeat")):
+        return "triumph"
+    if mood == "tense" and (battle_scene or _has(text, STYLE_WORDS["epic"])):
+        return "epic"
+    if mood == "tense" and _has(text, STYLE_WORDS["mystery"]):
+        return "mystery"
+    return mood if mood in MAKERS else "fun"
+
+
+def smooth_styles(styles, durs, min_len=6.0):
+    """Don't switch music for one short beat: a style lasting under min_len seconds between two beats of the
+    same style takes theirs."""
+    out = list(styles)
+    i = 0
+    while i < len(out):
+        j = i
+        while j + 1 < len(out) and out[j + 1] == out[i]:
+            j += 1
+        run = sum(durs[i:j + 1])
+        if run < min_len and 0 < i and j + 1 < len(out) and out[i - 1] == out[j + 1]:
+            for k in range(i, j + 1):
+                out[k] = out[i - 1]
+        i = j + 1
+    return out
+
+
+# ---------------- stings: short musical hits on big moments
+STINGS = {
+    "triumph": ("won", "victory", "victorious", "triumph", "conquered", "crowned", "independence", "liberated"),
+    "reveal": ("but then", "suddenly", "betrayed", "turns out", "turned out", "secretly", "little did", "plot twist",
+               "until one day", "however"),
+    "fail": ("failed", "disaster", "catastrophe", "oops", "flopped", "went wrong", "embarrassing", "bankrupt",
+             "humiliat", "fiasco"),
+    "war": ("declared war", "war broke out", "invaded", "invasion began", "the battle began", "attacked"),
+}
+
+
+def find_sting(text, mood):
+    """(kind, trigger word) for the beat, or None. No stings in sad moments."""
+    if mood == "somber":
+        return None
+    low = " " + str(text or "").lower() + " "
+    for kind in ("reveal", "war", "triumph", "fail"):
+        if kind == "fail" and mood != "fun":
+            continue
+        for w in STINGS[kind]:
+            if (" " + w) in low:
+                return kind, w.split()[0]
+    return None
+
+
+def sting(kind):
+    """A 1-2 second musical hit."""
+    out = np.zeros(int(2.4 * SR))
+    if kind == "triumph":
+        place(out, brass([55, 59, 62], 0.22, 3200), 0.0, 0.8)
+        place(out, brass([60, 64, 67, 72], 1.5, 3400), 0.24, 1.0)
+        place(out, drum("timpani"), 0.24, 0.6)
+    elif kind == "reveal":                     # dun dun DUNNN
+        for k, (notes, d) in enumerate((([45, 52], 0.22), ([46, 53], 0.22), ([44, 51], 1.6))):
+            place(out, brass(notes, d, 1500, 0.02), k * 0.3, 1.0)
+        place(out, drum("timpani"), 0.6, 0.8)
+    elif kind == "fail":                       # sad trombone: wah wah wah wahhh
+        for k, (n, d) in enumerate(((58, 0.3), (57, 0.3), (56, 0.3), (55, 1.1))):
+            tt = np.arange(int(d * SR)) / SR
+            f = midi(n) * (1 + (0.02 * np.sin(2 * np.pi * 6 * tt) if k == 3 else 0))
+            ph = np.cumsum(f) / SR
+            s = (2 * (ph % 1) - 1)
+            b, a = butter(2, 900 / (SR / 2))
+            s = lfilter(b, a, s) * np.minimum(1, tt / 0.03) * np.minimum(1, (d - tt) / 0.06)
+            place(out, s, k * 0.34, 0.9)
+    elif kind == "war":
+        place(out, drum("taiko"), 0.0, 1.0)
+        place(out, brass([38, 45, 50, 53], 1.4, 1600, 0.01), 0.0, 1.0)
+    return out / max(1e-9, np.abs(out).max())
 
 
 # ---------------- sfx
@@ -222,6 +457,8 @@ def sfx(kind):
             out += lfilter(b, a, x) * am
         env = np.minimum(1, t / 0.15) * np.exp(-np.maximum(0, t - 0.5) * 2.2)
         return out / max(1e-9, np.abs(out).max()) * env * 0.9
+    if kind.startswith("sting:"):
+        return sting(kind.split(":", 1)[1])
     if kind == "rumble":
         n = int(2.4 * SR)
         t = np.arange(n) / SR
@@ -270,7 +507,7 @@ def sfx(kind):
 
 SFX_GAIN = {"pop": 0.10, "whoosh": 0.10, "swish": 0.07, "boom": 0.22, "tick": 0.25, "tick1": 0.12, "step": 0.05,
             "step_soft": 0.035, "jump": 0.05, "thud": 0.16, "cheer": 0.10, "blip": 0.028, "thunder": 0.2, "rumble": 0.2,
-            "splash": 0.14, "clang": 0.09}
+            "splash": 0.14, "clang": 0.09, "sting": 0.16}
 
 
 # ---------------- ambience (a quiet bed of sound for each kind of place)
@@ -469,7 +706,8 @@ def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, o
             gains[m if m in gains else used[0]][a:b] = 1.0
         xf = int(1.2 * SR)
         music = np.zeros(n)
-        level = {"fun": 0.55, "tense": 0.55, "somber": 0.45}
+        level = {"fun": 0.55, "tense": 0.55, "somber": 0.45, "epic": 0.6, "mystery": 0.5, "triumph": 0.6,
+                 "sad": 0.45}
         for k, bed in beds.items():
             g = movavg(gains[k], xf)
             L = min(n, len(bed))
@@ -492,7 +730,7 @@ def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, o
                 continue
             if t - last < 0.12 and kind in ("pop", "swish"):
                 continue
-            place(fx, sfx(kind), t, SFX_GAIN.get(kind, 0.1))
+            place(fx, sfx(kind), t, SFX_GAIN.get(kind.split(":")[0], 0.1))
             last = t
     # ambience: a quiet bed of sound for each place, crossfaded between scenes and ducked under the voice
     amb = np.zeros(n)

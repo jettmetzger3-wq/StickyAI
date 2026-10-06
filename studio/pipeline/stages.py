@@ -16,7 +16,8 @@ from .. import config
 from ..config import load_settings
 from ..engine import (check_scene, plan_timeline, render_segment, render_still, concat_segments, share_copy,
                       prep, word_times_from_alignment, render_thumbnail, LEAD, TAIL)
-from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind
+from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind, music_style, smooth_styles, \
+    find_sting, BASE_MOOD
 from ..engine.render import ENGINE_VERSION, pick_transition
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
@@ -489,10 +490,13 @@ def stage_voice(ctx, only=None, force=False):
     old = (prev.get("beats") or []) if same else []
     entries = [None] * len(beats)
     todo = []
+    by_mood = opts.get("mood_narration", settings.get("mood_narration", True)) is not False
     for i, b in enumerate(beats):
         spoken = prep(b["text"], pron)
+        bs, pad = narration(b["mood"], speed, vp.id) if by_mood else (speed, 0.0)
         reuse = (not force and i < len(old) and old[i] and old[i].get("text") == b["text"]
                  and old[i].get("spoken") == spoken and os.path.exists(pr.audio_path(i))
+                 and old[i].get("speed", speed) == bs and old[i].get("pad", 0.0) == pad
                  and (only is None or i not in only))
         if reuse:
             entries[i] = old[i]
@@ -504,12 +508,17 @@ def stage_voice(ctx, only=None, force=False):
 
     def synth(item):
         i, b, spoken = item
-        s, sr, al = vp.synthesize(spoken, voice, speed)
-        sf.write(pr.audio_path(i), np.asarray(s, dtype=np.float32), sr)
+        bs, pad = narration(b["mood"], speed, vp.id) if by_mood else (speed, 0.0)
+        s, sr, al = vp.synthesize(spoken, voice, bs)
+        s = np.asarray(s, dtype=np.float32)
+        if pad:
+            s = np.concatenate([s, np.zeros(int(pad * sr), dtype=np.float32)])   # a breath before moving on
+        sf.write(pr.audio_path(i), s, sr)
         wt = None
         if al:
             wt = word_times_from_alignment(b["text"], pron, al["chars"], al["starts"], al["ends"])
-        return i, dict(text=b["text"], spoken=spoken, dur=round(len(s) / sr, 3), sr=sr, word_times=wt)
+        return i, dict(text=b["text"], spoken=spoken, dur=round(len(s) / sr, 3), sr=sr, word_times=wt, speed=bs,
+                       pad=pad)
 
     if todo:
         ctx.log(f"voice: generating {len(todo)} of {len(beats)} lines with {vp.label}")
@@ -529,6 +538,18 @@ def stage_voice(ctx, only=None, force=False):
     write_json(pr.p("audio", "voice.json"), dict(provider=vp.id, voice=voice, speed=speed, beats=entries,
                                                  total=round(total, 2)))
     ctx.progress(1.0, f"{total / 60:.1f} min of narration")
+
+
+# how the narrator reads each mood: (speed factor, seconds of pause after the line)
+MOOD_READING = {"fun": (1.05, 0.0), "tense": (0.98, 0.15), "somber": (0.86, 0.55)}
+SPEED_RANGE = {"elevenlabs": (0.7, 1.2), "kokoro": (0.5, 2.0)}
+
+
+def narration(mood, speed, provider_id):
+    """(speed, pause) for a line: slower with a pause for sad moments, a little punchier for jokes."""
+    k, pad = MOOD_READING.get(mood, (1.0, 0.0))
+    lo, hi = SPEED_RANGE.get(provider_id, (0.5, 2.0))
+    return round(max(lo, min(speed * k, hi)), 3), pad
 
 
 # ================================================================== render
@@ -655,7 +676,17 @@ def stage_mix(ctx):
         ambiences = None
         if opts.get("ambience", settings.get("ambience", True)) is not False:
             ambiences = [ambience_kind(read_json(pr.scene_path(i))) for i in range(len(beats))]
-        build_mix(clips, starts, durs, [b["mood"] for b in beats], events, total, raw, lead=LEAD, music_beds=beds,
+        moods = [b["mood"] for b in beats]
+        if not beds and not music_file and opts.get("music_styles", settings.get("music_styles", True)) is not False:
+            # the free synth has more styles: epic battles, mysteries, victories, sad moments
+            moods = smooth_styles([music_style(b["text"], b["mood"], read_json(pr.scene_path(i)))
+                                   for i, b in enumerate(beats)], durs)
+            ctx.log("music: " + ", ".join(sorted(set(moods))))
+        elif beds:
+            moods = [BASE_MOOD.get(m, m) for m in moods]
+        if opts.get("music_stings", settings.get("music_stings", True)) is not False and opts.get("sfx", True):
+            events += sting_events(beats, starts, durs, pr.voice() or {})
+        build_mix(clips, starts, durs, moods, events, total, raw, lead=LEAD, music_beds=beds,
                   music_file=music_file, music_db=float(settings.get("music_db", -13)),
                   use_sfx=opts.get("sfx", True), ambiences=ambiences,
                   talk_blips=opts.get("talk_blips", settings.get("talk_blips", True)) is not False,
@@ -675,6 +706,25 @@ def stage_mix(ctx):
                                  float(settings.get("share_max_mb") or 30), total)
         ctx.log(f"share copy at {kbps} kbps")
     ctx.progress(1.0, "final video ready")
+
+
+def sting_events(beats, starts, durs, voice, gap=15.0):
+    """Short musical hits on big moments (a victory, a twist, a war breaking out, a flop), at the word that
+    triggers them, at most one every `gap` seconds."""
+    from ..engine.timing import WordTimer
+    vb = voice.get("beats") or []
+    out, last = [], -1e9
+    for i, b in enumerate(beats):
+        hit = find_sting(b["text"], b["mood"])
+        if not hit or starts[i] - last < gap:
+            continue
+        kind, word = hit
+        wt = vb[i].get("word_times") if i < len(vb) and vb[i] else None
+        timer = WordTimer(b["text"], durs[i], LEAD, TAIL, wt)
+        t = starts[i] + timer.frac(word, 0, default=0.1) * durs[i]
+        out.append((t, f"sting:{kind}"))
+        last = t
+    return out
 
 
 # ================================================================== package

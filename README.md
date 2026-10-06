@@ -43,7 +43,20 @@ browser opens **http://localhost:8765**.
 
 **Free writer:** the default writer is **Claude Code on your own subscription** (no API bill). Install it
 once with `npm install -g @anthropic-ai/claude-code` and run `claude` to log in. The app calls
-`claude -p` in the background. No Claude Code? Pick "Ollama (local model)" or "Basic (no AI, for testing)".
+`claude -p` in the background.
+
+**No Claude plan? Use a free API key instead:**
+- **Google Gemini**: free key at https://aistudio.google.com/apikey (no card). Make it in a Google project
+  **without billing**, then it can never cost anything. Good scripts and titles; scenes are a bit plainer than
+  Claude's. The free tier has a daily request limit (AI Studio shows yours); the studio sends 16 scenes per request
+  so a 10-minute video needs only about 12-20 requests. Google may use free-tier prompts to improve its products.
+- **Groq**: free key at https://console.groq.com/keys (no card, free plan). Very fast, but the free limits are small
+  (about 8,000 tokens a minute, 1,000 requests a day), so scenes are drawn two at a time with shorter
+  instructions. Settings shows how many free requests are left today.
+
+Paste the key under Settings → API keys (`GEMINI_API_KEY` / `GROQ_API_KEY`) and pick the writer as default (or per
+video). When a per-minute limit is hit the studio waits; when the day's limit is used up the video pauses and you
+press **Resume** the next day. "Ollama (local model)" and "Basic (no AI, for testing)" also work.
 
 **Free voice:** Kokoro downloads its model (~340 MB) from GitHub the first time you preview or use it.
 
@@ -74,9 +87,9 @@ https://github.com/cloudflare/cloudflared/releases (Debian/Ubuntu).
 |---|---|---|
 | Transcript (YouTube remakes) | the video's own captions, or Whisper on your PC | ElevenLabs Scribe (reads the YouTube link directly) |
 | Watching the frames | Claude Code looks at the contact sheets | Anthropic API |
-| Script, storyboard, titles | Claude Code (your plan) | Anthropic API: Claude Opus 5.5 by default ($4 / $20 per million tokens), Sonnet 5.5 or Haiku 4.5 cheaper |
+| Script, storyboard, titles | Claude Code (your plan), or a free Gemini / Groq key | Anthropic API: Claude Opus 5.5 by default ($4 / $20 per million tokens), Sonnet 5.5 or Haiku 4.5 cheaper |
 | Voice | Kokoro (offline, `am_michael` at 1.2x) | ElevenLabs `eleven_flash_v2_5`, voice "George", ~0.5 credits per character, 1 take per line, **exact word timing** |
-| Music | built-in synth (ukulele / tense / somber, crossfaded), or your own upload | ElevenLabs Music (one instrumental bed per mood) |
+| Music | built-in synth (fun, tense, sad, epic battle, mystery, triumph; musical hits on big moments), or your own upload | ElevenLabs Music (one instrumental bed per mood) |
 | Thumbnail | built-in doodle thumbnail | ElevenLabs image or Higgsfield (AI background, our title text on top) |
 | Short | stickman Short cut from your video (1080x1920, big captions) | also a Calliope AI-illustrated Short (your Calliope credits, see below) |
 
@@ -250,7 +263,26 @@ the Kokoro model in `data/models/`.
   riders on horses, camels, elephants and chariots (they gallop when they move; whole cavalry crowds too).
 - **War maps**: troops (or tanks, ships) march along invasion arrows, battles get a crossed-swords marker with a
   boom, front lines move smoothly between positions, and counters tick years, army sizes or money.
-- **Fact-check**: right after writing the script, Claude double-checks the claims it was unsure about (with web
+- **Living maps** (`engine/livemap.py`): empires grow and shrink over the years (each change spreads out from the
+  heartland while the year ticks, BC and AD), capitals get a star with a ripple, routes draw themselves with a ship,
+  camel or walker riding the tip (the Silk Road, Columbus, a retreat), the camera can frame a country, and a closer
+  map right after a wider one zooms into it like Google Earth.
+- **Weather and light** (`engine/weather.py`): falling snow, blizzards, rain, storms with lightning and thunder,
+  drifting fog, ash and embers over burning cities, twinkling stars and shooting stars at night, and the light
+  changing during a scene (night falling, a dusk, a room going dark). Weather the narration mentions is added
+  automatically, with its own background sound.
+- **Action moments** (`engine/action_fx.py`): props do things on cue: cannons and tanks fire (recoil, flash,
+  smoke, a cannonball that explodes on its target), ships fire broadsides or sink, castles and walls collapse into
+  dust and rubble, things blow apart, forts shake, and characters fight with swords (the blade follows the arm,
+  sparks and clangs when blades meet).
+- **Charts and timelines** (`engine/charts.py`): bar charts and rankings that grow with numbers ticking up, line
+  charts that draw themselves, timelines where dates drop in as they're said, size comparisons (circles whose area
+  matches the numbers) and then-vs-now split screens with an old-photo side.
+- **Music and narration**: the free synth picks the music from the story (epic drums for battles, mystery for
+  secrets, a fanfare for victories, sad strings for sad moments), adds a musical hit on big moments (a victory, a
+  twist, a war breaking out, a flop), and the narrator slows down with a pause for sad parts and speeds up a little
+  for jokes. Each can be switched off in Settings.
+- **Fact-check**: right after writing the script, the writer double-checks the claims it was unsure about (with web
   search when it runs on Claude Code, free on your plan), rewrites any beat that got a fact wrong, and lists what it
   confirmed, fixed and couldn't settle on the Script tab.
 - **Dialogue**: characters talk. A character's `"say"` lines appear one after another in speech bubbles over their
@@ -268,8 +300,9 @@ the Kokoro model in `data/models/`.
   Every scene is auto-repaired (wrong names, off-screen positions, text in the caption area, labels on faces,
   somber-scene rules) and validated against a JSON Schema before rendering. If a scene is broken the AI is asked
   to fix it, and as a last resort a simple rule-based scene (that still follows the video's topic) is used.
-  20 hand-made example scenes
-  (`studio/prompts/examples.json`) teach the AI the style.
+  24 hand-made example scenes
+  (`studio/prompts/examples.json`) teach the AI the style (writers with small free limits get a compact version of
+  the instructions and the 3 most useful examples).
 - **Rendering**: each scene is composited frame by frame and piped raw into ffmpeg (x264), one MP4 per scene in
   a process pool (CPU cores minus one), then concatenated with the final mix.
 - **Providers** (`studio/providers/`): one interface per step, implementations registered in

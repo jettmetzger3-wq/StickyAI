@@ -16,7 +16,7 @@ def test_schema_is_valid_json_schema():
 
 def test_all_examples_validate_and_compile_without_fixes():
     ex = json.load(open(EXAMPLES))
-    assert 10 <= len(ex) <= 20
+    assert 10 <= len(ex) <= 24
     for i, e in enumerate(ex):
         fixed, fixes, errs = check_scene(e["scene"], e["mood"], e["text"])
         assert errs == [], (e["name"], errs)
