@@ -11,7 +11,7 @@ import jsonschema
 
 from .doodle import W, H
 from .fonts import font
-from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift
+from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift, hat_top
 from .puppet import resolve_action
 from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
 from .custom_props import clean_parts, kit_lookup, to_element_params, slug
@@ -342,8 +342,6 @@ def overlaps(a, b, pad=4):
     return not (a[2] + pad <= b[0] or b[2] + pad <= a[0] or a[3] + pad <= b[1] or b[3] + pad <= a[1])
 
 
-TALL_HATS = ("bearskin", "shako", "tophat", "tophat_gray", "mitre", "wizard", "chef", "pharaoh", "crown", "bicorne",
-             "turban")
 
 
 def wrap_line(text, n=18, max_lines=3):
@@ -399,7 +397,7 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
         head_top = fy - 400 * s - 70 * (int(_f(el.get("rows"), 2)) - 1)
     else:
         kind = str(el.get("kind") or "")
-        head_top = fy - (375 + (75 if kind in TALL_HATS else 30)) * s - mount_lift(el.get("ride"), s)[0]
+        head_top = fy - max(405, 300 + hat_top(kind) + 26) * s - mount_lift(el.get("ride"), s)[0]
     first = -1 if el.get("flip") else 1
     base = _at_num(el.get("at"), 0.0) if not isinstance(el.get("at"), str) else 0.0
     n = len(lines)
