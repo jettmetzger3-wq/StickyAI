@@ -31,8 +31,21 @@ def _colors(v):
     return [C(x) for x in v]
 
 
+def _crate(p, x, y, s, c, k):
+    """A wooden crate standing on (x, y)."""
+    col = _c(c, (196, 150, 98))
+    w, h = 210 * s, 170 * s
+    p.rect(x - w / 2, y - h, w, h, col, 7 * s, INK)
+    for yy in (y - h * 0.66, y - h * 0.33):
+        p.line([(x - w / 2, yy), (x + w / 2, yy)], 4 * s, INK, 0.4)
+    p.line([(x - w / 2 + 8 * s, y - 8 * s), (x + w / 2 - 8 * s, y - h + 8 * s)], 5 * s, INK, 0.4)
+    if k.get("label"):
+        p.text(str(k["label"])[:10].upper(), x, y - h / 2, 44 * s, (40, 30, 20), stroke=5 * s, scol=(236, 214, 170))
+
+
 # name: (anchor, draw(p, x, y, s, color, params), short description for the LLM)
 PROPS = {
+    "crate": ("bottom", _crate, "wooden crate / box. params: label (short text like FOOD, GOLD)"),
     # transport & military
     "ship": ("bottom", lambda p, x, y, s, c, k: p.ship(x, y - 45 * s, s, _c(c, GRAY), flag=C(k["flag"]) if k.get("flag") else None), "steel warship. params: flag (color)"),
     "carrier": ("bottom", lambda p, x, y, s, c, k: p.carrier(x, y - 38 * s, s, hit=bool(k.get("hit"))), "aircraft carrier. params: hit (bool, burning)"),

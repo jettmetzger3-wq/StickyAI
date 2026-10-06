@@ -8,6 +8,9 @@ from .compiler import build_scene
 from .captions import make_captions
 from .timing import WordTimer, LEAD, TAIL
 
+# bump when drawing or animation changes, so finished videos get re-rendered with the new look
+ENGINE_VERSION = 2
+
 
 def plan_timeline(voice_durs, lead=LEAD, tail=TAIL):
     """Scene duration = voice length + lead + tail, rounded to whole frames.

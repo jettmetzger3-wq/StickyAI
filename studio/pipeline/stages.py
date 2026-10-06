@@ -17,6 +17,7 @@ from ..config import load_settings
 from ..engine import (check_scene, plan_timeline, render_segment, render_still, concat_segments, share_copy,
                       prep, word_times_from_alignment, render_thumbnail, LEAD, TAIL)
 from ..engine.audio import build_mix, loudnorm, load_audio, SR
+from ..engine.render import ENGINE_VERSION
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
 from . import rules, costs
@@ -440,7 +441,7 @@ def stage_render(ctx, only=None, force=False):
         scene = read_json(pr.scene_path(i))
         if scene is None:
             raise P.ProviderError(f"scene {i} is missing; run the Storyboard stage first")
-        key = h(scene, b, frames[i], vb[i].get("word_times"), wm) if wm else h(scene, b, frames[i], vb[i].get("word_times"))
+        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, ENGINE_VERSION)
         up_to_date = manifest.get(str(i)) == key and os.path.exists(pr.segment_path(i))
         if not (force or not up_to_date or (only is not None and i in only)):
             continue

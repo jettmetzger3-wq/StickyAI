@@ -12,17 +12,22 @@ import jsonschema
 from .doodle import W, H
 from .fonts import font
 from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES
+from .puppet import resolve_action
 from .registry import PROPS, PROP_ALIASES, resolve_prop, prop_bounds
 from .geo import REGIONS, View, unknown_names
 from .captions import CAPTION_ZONE
 
-BG_TYPES = ("paper", "sunburst", "ground", "sea", "night", "dark", "map")
+BG_TYPES = ("paper", "sunburst", "ground", "field", "hills", "desert", "snow", "city", "interior", "battlefield",
+            "sea", "night", "dark", "map")
+TIMES = ("day", "dawn", "dusk", "night", "storm")
 ENTERS = ("pop", "drop", "grow", "fade", "slide_left", "slide_right", "slide_up", "slide_down",
           "wipe_right", "wipe_left", "wipe_up", "wipe_down", "none")
 IDLES = ("bob", "float", "pulse", "shake", "drift", "none")
 SFX = ("auto", "none", "pop", "whoosh", "swish", "boom", "tick")
-EL_TYPES = ("char", "text", "prop", "bubble", "note", "sign", "board", "icons", "shape", "group",
-            "territory", "city", "arrow")
+EL_TYPES = ("char", "crowd", "text", "prop", "bubble", "note", "sign", "board", "icons", "shape", "group",
+            "territory", "city", "arrow", "pointer")
+MOVES = ("cut", "pan", "whip")
+POINTER_DIRS = ("n", "s", "e", "w", "ne", "nw", "se", "sw")
 MOODS = ("fun", "tense", "somber")
 
 _num = {"type": "number"}
@@ -55,7 +60,14 @@ ELEMENT_SCHEMAS = {
                  mouth={"enum": list(MOUTHS)}, eyes={"enum": list(EYES)},
                  extras={"type": "array", "items": {"enum": list(EXTRAS) + ["?"]}},
                  prop={"enum": list(HELD)}, prop_color={"type": "string"}, flip={"type": "boolean"},
-                 look={"type": "number"}),
+                 look={"type": "number"}, do={"type": "array", "maxItems": 12}, talk={"type": "array"},
+                 auto={"type": "boolean"}, life={"type": "boolean"}),
+    "crowd": _obj(("type",), type={"const": "crowd"}, **_xy, **_anim, kind={"type": "string"}, count=_num, rows=_num,
+                  width=_num, scale=_num, flip={"type": "boolean"}, do={"type": "array", "maxItems": 12},
+                  mouth={"enum": list(MOUTHS)}, eyes={"enum": list(EYES)}, prop={"enum": list(HELD)},
+                  pose={"anyOf": [{"enum": list(ARMS)}, {"type": "array"}]}, hat_color={"type": "string"}),
+    "pointer": _obj(("type",), type={"const": "pointer"}, **_xy, **_anim, **{"from": {"enum": list(POINTER_DIRS)}},
+                    size=_num, color={"type": "string"}),
     "text": _obj(("type", "text"), type={"const": "text"}, **_xy, **_anim, text={"type": "string"}, size=_num,
                  color={"type": "string"}, font={"enum": ["bold", "hand"]}, stroke=_num,
                  align={"enum": ["center", "left", "right"]}),
@@ -95,7 +107,8 @@ SCENE_SCHEMA = {
         "bg": {
             "type": "object", "required": ["type"],
             "properties": {
-                "type": {"enum": list(BG_TYPES)},
+                "type": {"enum": list(BG_TYPES)}, "time": {"enum": list(TIMES)},
+                "style": {"enum": ["paper", "dark"]}, "wall": {"type": "string"}, "floor": {"type": "string"},
                 "color": {"type": "string"}, "ray": {"type": "string"}, "sky": {"type": "string"},
                 "ground": {"type": "string"}, "sea": {"type": "string"}, "land": {"type": "string"},
                 "y": _num, "horizon": _num, "clouds": {"type": "boolean"},
@@ -110,7 +123,11 @@ SCENE_SCHEMA = {
                      "items": {"type": "object", "required": ["type"],
                                "properties": {"type": {"enum": list(EL_TYPES)}}}},
         "camera": {"type": "object", "properties": {"zoom": {"anyOf": [_num, {"type": "array"}]},
-                                                    "center": _pt, "to": _pt}},
+                                                    "center": _pt, "to": _pt, "auto_shots": {"type": "boolean"},
+                                                    "shots": {"type": "array", "maxItems": 6, "items": {
+                                                        "type": "object", "properties": {
+                                                            "at": _at, "zoom": _num, "focus": _pt,
+                                                            "move": {"enum": list(MOVES)}}}}}},
         "note": {"type": "string"},
     },
 }
@@ -138,7 +155,10 @@ TYPE_ALIASES = {"label": "text", "title": "text", "caption": "text", "character"
                 "sticky_note": "note", "postit": "note", "list": "board", "whiteboard": "board", "plan": "board",
                 "object": "prop", "item": "prop", "image": "prop", "icon_grid": "icons", "count": "icons",
                 "region": "territory", "country": "territory", "marker": "city", "town": "city", "rect": "shape",
-                "line": "shape", "circle": "shape"}
+                "line": "shape", "circle": "shape", "army": "crowd", "soldiers": "crowd", "people": "crowd",
+                "troops": "crowd", "mob": "crowd", "audience": "crowd", "pointer_arrow": "pointer",
+                "indicator": "pointer", "big_arrow": "pointer"}
+SOMBER_NO = ("cheer", "celebrate", "dance", "laugh", "hop", "jump")
 ENTER_ALIASES = {"slide_l": "slide_left", "slide_r": "slide_right", "slide_u": "slide_up", "slide_d": "slide_down",
                  "wipe_r": "wipe_right", "wipe_l": "wipe_left", "wipe_u": "wipe_up", "wipe_d": "wipe_down",
                  "appear": "pop", "zoom": "grow", "fade_in": "fade", "slide": "slide_left", "wipe": "wipe_right",
@@ -300,6 +320,10 @@ def repair_scene(scene, mood="fun", text=""):
     if bt != bg.get("type"):
         fixes.append(f"bg type {bg.get('type')!r} -> {bt!r}")
     bg["type"] = bt
+    if bg.get("time") is not None and bg["time"] not in TIMES:
+        bg["time"] = nearest(bg["time"], TIMES, "day")
+    if bg.get("style") is not None and bg["style"] not in ("paper", "dark"):
+        bg["style"] = "dark" if "dark" in str(bg["style"]).lower() else "paper"
     if mood == "somber" and bt in ("sunburst",):
         bg["type"] = "dark"
         fixes.append("somber scene: sunburst background -> dark")
@@ -323,6 +347,27 @@ def repair_scene(scene, mood="fun", text=""):
         z = z if isinstance(z, (list, tuple)) else [1.0, z]
         sc["camera"]["zoom"] = [max(1.0, min(_f(v, 1.0), 1.15)) for v in z][:2]
     safe = camera_safe_rect(sc.get("camera"))
+    cam = sc.get("camera")
+    if isinstance(cam, dict) and cam.get("shots") is not None:
+        shots = []
+        for sh in (cam["shots"] if isinstance(cam["shots"], list) else [])[:6]:
+            if not isinstance(sh, dict):
+                continue
+            sh = dict(sh)
+            if "focus" not in sh:
+                for k in ("center", "on", "target"):
+                    if k in sh:
+                        sh["focus"] = sh.pop(k)
+                        break
+            sh["zoom"] = max(1.0, min(_f(sh.get("zoom"), 1.4), 2.2))
+            sh["move"] = nearest(sh.get("move", "cut"), MOVES, "cut")
+            if isinstance(sh.get("at"), str) and not sh["at"].lower().startswith("word:"):
+                try:
+                    sh["at"] = float(sh["at"])
+                except ValueError:
+                    sh["at"] = "word:" + sh["at"]
+            shots.append(sh)
+        cam["shots"] = shots
 
     els = sc.get("elements")
     if not isinstance(els, list):
@@ -367,6 +412,48 @@ def repair_scene(scene, mood="fun", text=""):
                 el["at"] = float(el["at"])
             except ValueError:
                 el["at"] = "word:" + el["at"]
+        if t in ("char", "crowd") and el.get("do") is not None:
+            acts = []
+            for a in (el["do"] if isinstance(el["do"], list) else [el["do"]])[:12]:
+                a = {"act": a} if isinstance(a, str) else (dict(a) if isinstance(a, dict) else None)
+                if a is None:
+                    continue
+                name = resolve_action(a.get("act") or a.get("action"))
+                if name is None:
+                    fixes.append(f"dropped unknown action {a.get('act')!r}")
+                    continue
+                if mood == "somber" and name in SOMBER_NO:
+                    fixes.append(f"somber scene: dropped action {name!r}")
+                    continue
+                a["act"] = name
+                a.pop("action", None)
+                if isinstance(a.get("at"), str) and not a["at"].lower().startswith("word:"):
+                    try:
+                        a["at"] = float(a["at"])
+                    except ValueError:
+                        a["at"] = "word:" + a["at"]
+                if a.get("dur") is not None:
+                    a["dur"] = max(0.1, min(_f(a["dur"], 1.5), 20))
+                acts.append(a)
+            el["do"] = acts
+        if t == "crowd":
+            k = str(el.get("kind") or "civ").lower().replace(" ", "_")
+            el["kind"] = k if (k in HATS or k in KIND_ALIASES) else nearest(k, HATS, "civ")
+            el["count"] = int(max(2, min(_f(el.get("count"), 10), 40)))
+            el["rows"] = int(max(1, min(_f(el.get("rows"), 2), 4)))
+            el["scale"] = max(0.25, min(_f(el.get("scale"), 0.6), 1.4))
+            el["width"] = max(200, min(_f(el.get("width"), 900), W - 80))
+            if el.get("lon") is None:
+                x = _f(el.get("x"), 960)
+                half = el["width"] / 2 + 130 * el["scale"]
+                el["x"] = max(half, min(x, W - half)) if half * 2 < W else W / 2
+                el["y"] = max(440 * el["scale"] + 80 * el["rows"], min(_f(el.get("y"), 920), H - 15))
+            if isinstance(el.get("pose"), str):
+                el["pose"] = nearest(POSE_ALIASES.get(el["pose"], el["pose"]), ARMS, "down")
+        if t == "pointer":
+            if el.get("from") not in POINTER_DIRS:
+                el["from"] = nearest(str(el.get("from", "ne")).lower(), POINTER_DIRS, "ne")
+            el["size"] = max(0.4, min(_f(el.get("size"), 1.0), 2.5))
         if t == "char":
             el["kind"] = el.get("kind") or "civ"
             k = str(el["kind"]).lower().replace(" ", "_")
@@ -415,7 +502,8 @@ def repair_scene(scene, mood="fun", text=""):
         elif t == "text":
             el["text"] = str(el.get("text", ""))[:120]
             el["size"] = max(30, min(_f(el.get("size"), 64), 200))
-            if bg["type"] in ("dark", "night"):
+            if bg["type"] in ("dark", "night") or (bg["type"] == "map" and bg.get("style") == "dark") or \
+                    (bg.get("time") == "night" and bg["type"] in ("field", "hills", "city", "snow")):
                 from .palette import color as _col
                 from .compiler import luminance
                 if el.get("color") is None or luminance(_col(el.get("color"))) < 0.45:

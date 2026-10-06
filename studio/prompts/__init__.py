@@ -7,6 +7,7 @@ from ..engine.pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIA
 from ..engine.registry import PROPS, ICONABLE
 from ..engine.geo import REGIONS
 from ..engine.schema import ENTERS, IDLES, BG_TYPES
+from ..engine.puppet import ACTIONS
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -154,10 +155,15 @@ A scene is: {{"bg": {{...}}, "elements": [...], "camera": {{...}}}}
 
 BACKGROUNDS ("bg"): type is one of {", ".join(BG_TYPES)}.
   paper {{color}} | sunburst {{color, ray}} | ground {{sky, ground, y: horizon y (default 860)}} |
+  painted places (sky gradient, scenery; add "time": day|dawn|dusk|night|storm):
+    field (grass, a tree line: armies, farms, speeches) | hills | desert | snow | city (skyline) |
+    battlefield (smoke, mud; default stormy) | interior {{wall, floor}} (rooms, palaces, offices) |
   sea {{sky, sea, horizon (default 520)}} | night | dark {{color}} (use for somber beats) |
   map {{center: [lon, lat], width: degrees of longitude across the frame (Europe ~40, a country ~15-25, Pacific ~110),
        territories: [{{countries: [...] | region: preset, color, clip?: [[lon,lat],...], box?: [lon0,lat0,lon1,lat1]}}],
-       labels: [{{text, lon, lat, size}}]}}  (Mercator; keep everything you mention inside the view)
+       labels: [{{text, lon, lat, size}}], style: "paper" (light doodle map) | "dark" (navy sea, dark land, white
+       borders: dramatic, like big history channels; use bright territory colors on it)}}
+       (Mercator; keep everything you mention inside the view)
   Any bg can have "items": static props/shapes drawn into the background (no animation).
 
 ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat instead):
@@ -168,6 +174,14 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          legs: {", ".join(LEGS)}
          mouth: {", ".join(MOUTHS)}    eyes: {", ".join(EYES)}
          extras: {", ".join(EXTRAS)} ("q" = question mark)   prop: {", ".join(HELD)}
+         Characters are ALIVE on their own (breathing, blinking, glancing around) and talk automatically while a
+         speech bubble next to them is up. Make them ACT with "do": a list of actions, each
+         {{act, at ("word:..." or 0-1), dur (seconds, optional)}}:
+           {", ".join(sorted(ACTIONS))}
+           walk/run/sneak also take "to": [x, y] (or dx); "offscreen": true lets them leave the frame.
+           e.g. "do": [{{"act": "walk", "to": [1200, 900], "at": "word:marched"}}, {{"act": "cheer", "at": "word:won"}}]
+  crowd: rows of the same character with depth, all alive {{kind, count (2-40), rows (1-4), x, y (front row feet),
+         width (px), scale (0.4-0.9), pose, mouth, eyes, flip, do: [...]}} (armies, mobs, voters, workers)
   text:  {{text, x, y (center), size (40-120), color, font: "bold" (Fredoka) | "hand" (handwritten), align}}
   prop:  {{name, x, y, scale, color?, params?}}. Anchor "bottom" = x,y is the bottom-center (things standing on the
          ground); anchor "center" = x,y is the middle. Available props:
@@ -183,6 +197,9 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
   territory (maps): {{countries: [...] | region, clip?, box?, color}} default enter "wipe_right"
   city (maps): {{name, lon, lat, size, color}}
   arrow: {{from: [x,y] or {{lon,lat}}, to: ..., or points: [...], curve (px bend, + or -), color, width, head}}
+         (it draws itself from start to end)
+  pointer: a big bobbing arrow pointing AT a spot {{x, y or lon, lat (the tip), from: n|ne|e|se|s|sw|w|nw
+         (where the arrow comes from), size, color}} (a front line, a city, a tiny detail)
 
   Natural Earth country names (common ones): "United States of America", "United Kingdom", "Russia", "China",
   "Japan", "France", "Germany", "Italy", "Spain", "Egypt", "India", "Korea" (both Koreas), "Turkey", "Iran", ...
@@ -192,7 +209,11 @@ ANIMATION (any element): enter: {", ".join(ENTERS)} (default pop); at: when it a
   scene or "word:Britain" to pop in exactly when the narrator says that word (best!); delay (seconds after "at");
   idle: {", ".join(IDLES)} (chars default to bob); exit: fraction or "word:xxx" to fade out;
   move: {{dx, dy, from, to}} (from/to like "at"); z: layer order (higher = in front).
-CAMERA: {{zoom: [start, end] (1.0-1.12, a slow push-in like [1.0, 1.05]), center: [x, y], to: [x, y]}}
+CAMERA: {{zoom: [start, end] (1.0-1.12, a slow push-in like [1.0, 1.05]), center: [x, y], to: [x, y],
+  shots: [{{at, zoom (1.0-2.2), focus: [x, y] or {{lon, lat}}, move: cut|pan|whip}}]}}
+  shots make a scene feel edited: start wide, then cut to a close-up of a face (zoom 1.6-2) when the joke lands,
+  pan across a map to the next place, whip (fast blurred pan) to something surprising. Every shot slowly pushes in.
+  Without shots the camera adds a close-up on whoever talks and zooms toward where a map arrow lands.
 
 COLORS: ink, red, darkred, navy, blue, lightblue, green, darkgreen, olive, gray, dgray, orange, yellow, gold, brown,
   white, purple, pink, teal, cream, maroon, khaki, silver, black, paper, sea, land, or "#rrggbb".
@@ -202,8 +223,12 @@ STYLE RULES
 - Characters ARE the nations/people (use the cast). Size shows power (big = strong, small = weak).
 - Make the joke visual: exaggerated faces, a bubble with a funny one-liner, a sticky note callback, a sign.
 - Time the reveals to the narration with "word:..." so things pop in as they are said.
-- Vary backgrounds and layouts from scene to scene; use maps whenever geography matters.
-- Somber beats: bg "dark" or "paper", fade entrances, no jokes, no grins, no explosions as gags, candles are fine.
+- Vary backgrounds and layouts from scene to scene; use maps whenever geography matters. Don't use the same
+  background twice in a row: switch between maps, painted places (field, city, interior...) and plain ones.
+- Keep things moving: give the main character at least one action ("do"), use 1-3 camera shots in scenes longer
+  than ~5 seconds, and on maps let arrows draw, pointers bob and the camera travel.
+- Somber beats: bg "dark", "paper" or a dusk/storm place, fade entrances, no jokes, no grins, no explosions as gags,
+  candles are fine; slow actions only (bow, cry, look, walk).
 - Keep every element fully inside the frame; text never below y=880.
 """
 
@@ -213,7 +238,7 @@ def load_examples():
         return json.load(f)
 
 
-def examples_block(limit=14):
+def examples_block(limit=15):
     ex = load_examples()[:limit]
     out = []
     for e in ex:

@@ -106,9 +106,13 @@ def rule_scene(beat, idx=0, cast=None):
     low = text.lower()
     els = []
     if mood == "somber":
-        bg = {"type": "dark"}
+        bg = rnd.choice([{"type": "dark"}, {"type": "field", "time": "dusk"}, {"type": "snow", "time": "storm"}])
+    elif mood == "tense":
+        bg = rnd.choice([{"type": "battlefield"}, {"type": "field", "time": "storm"}, {"type": "city", "time": "night"},
+                         {"type": "dark"}])
     else:
-        bg = rnd.choice([{"type": "paper"}, {"type": "sunburst"}, {"type": "ground"}, {"type": "paper", "color": "#F6F0E2"}])
+        bg = rnd.choice([{"type": "paper"}, {"type": "sunburst"}, {"type": "field"}, {"type": "hills"},
+                         {"type": "interior"}, {"type": "city"}, {"type": "desert"}, {"type": "paper", "color": "#F6F0E2"}])
     years = re.findall(r"\b(1\d{3}|20\d{2}|\d{3,4} ?(?:BC|AD))\b", text)
     if years:
         els.append({"type": "text", "text": years[0], "x": 960, "y": 130, "size": 100, "at": f"word:{years[0].split()[0]}"})

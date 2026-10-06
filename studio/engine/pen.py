@@ -49,7 +49,7 @@ HATS = ("japan", "headband", "army", "navy", "america", "tophat", "britain", "bo
         "germany", "helmet", "italy", "dutch", "france", "beret", "marine", "student", "pilot", "glasses",
         "headphones", "tophat_gray", "civ", "cap", "crown", "roman", "laurel", "viking", "pirate", "tricorn",
         "bicorne", "cowboy", "knight", "wizard", "pharaoh", "turban", "chef", "graduate", "samurai", "hardhat",
-        "astronaut", "mitre", "none")
+        "astronaut", "mitre", "shako", "bearskin", "none")
 
 KIND_ALIASES = {
     "usa": "america", "us": "america", "united_states": "america", "uncle_sam": "america",
@@ -64,6 +64,8 @@ KIND_ALIASES = {
     "civilians": "civ", "students": "student", "scientist": "glasses", "nerd": "glasses",
     "worker": "hardhat", "businessman": "tophat_gray", "politician": "tophat_gray", "rich": "tophat",
     "plain": "civ", "": "civ", "aussie": "marine", "australia": "marine",
+    "napoleonic": "shako", "grenadier": "bearskin", "guard": "bearskin", "redcoat": "shako", "musketeer": "shako",
+    "infantry": "shako", "napoleon_soldier": "shako", "french_soldier": "shako",
 }
 
 
@@ -76,12 +78,14 @@ def resolve_kind(kind):
 class Pen(doodle.Canvas):
     """Doodle pen drawing at 2x on RGBA (layer) or RGB (background)."""
 
-    def __init__(self, seed=1, rgba=True, bg=PAPER):
+    def __init__(self, seed=1, rgba=True, bg=PAPER, size=None):
+        """size: (w, h) in screen pixels for a small canvas (animated characters); default = the full frame."""
         self.rnd = random.Random(seed)
+        w, h = size or (W, H)
         if rgba:
-            self.im = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+            self.im = Image.new("RGBA", (int(w * SS), int(h * SS)), (0, 0, 0, 0))
         else:
-            self.im = Image.new("RGB", (W * SS, H * SS), bg)
+            self.im = Image.new("RGB", (int(w * SS), int(h * SS)), bg)
         self.d = ImageDraw.Draw(self.im)
 
     def shadow(self, x, y, rx, ry=None):
@@ -91,8 +95,9 @@ class Pen(doodle.Canvas):
     # ---------------- stickman ----------------
     def stick(self, x, y, s=1.0, kind="japan", arms=((20, 15), (20, 15)), legs=((12, 0), (12, 0)),
               mouth="smile", eyes="dot", look=0, flip=False, extra=(), prop=None, blink=False, shadow=True,
-              col=INK, hat_color=None):
-        """Draw a stickman. (x, y) = point between the feet. Head top is about 375*s above y."""
+              col=INK, hat_color=None, head=(0, 0), lean=0):
+        """Draw a stickman. (x, y) = point between the feet. Head top is about 375*s above y.
+        head = (dx, dy) nudges the head (nods, head shakes); lean moves the shoulders sideways (bending, leaning)."""
         if isinstance(arms, str):
             arms = ARMS.get(arms, ARMS["down"])
         if isinstance(legs, str):
@@ -105,11 +110,12 @@ class Pen(doodle.Canvas):
         lw = 11 * s
         if shadow:
             self.shadow(x, y + L(4), L(62))
-        hy = y - L(300)
+        hx = x + L(lean) * 1.15 + L(head[0])
+        hy = y - L(300) + L(head[1]) + abs(L(lean)) * 0.12
         hr = L(64)
-        neck = (x, y - L(234))
+        neck = (x + L(lean), y - L(234) + abs(L(lean)) * 0.1)
         hip = (x, y - L(118))
-        sh = (x, y - L(205))
+        sh = (x + L(lean) * 0.9, y - L(205) + abs(L(lean)) * 0.1)
         feet = []
         for side, (a, b) in zip((-1, 1), legs):
             ar = math.radians(a)
@@ -132,12 +138,12 @@ class Pen(doodle.Canvas):
             hands.append(hand)
         if prop:
             self._prop(prop, hands, s, flip)
-        self.circ(x, hy, hr, (255, 253, 247), 7 * s)
+        self.circ(hx, hy, hr, (255, 253, 247), 7 * s)
         f = -1 if flip else 1
-        self._hat(kind, x, hy, hr, s, f, to_color(hat_color, None) if hat_color else None)
-        self._face(x, hy, s, mouth, "closed" if blink else eyes, look * f if look else 0, f, kind)
+        self._hat(kind, hx, hy, hr, s, f, to_color(hat_color, None) if hat_color else None)
+        self._face(hx, hy, s, mouth, "closed" if blink else eyes, look * f if look else 0, f, kind)
         for e in extra or ():
-            self._extra(e, x, hy, s, f)
+            self._extra(e, hx, hy, s, f)
         return hands
 
     def _face(self, x, hy, s, mouth, eyes, look, f, kind):
@@ -232,6 +238,22 @@ class Pen(doodle.Canvas):
                 self.rect(x - L(50), hy - L(96), L(100), L(17), RED if kind == "america" else darker(c, 0.6), 5 * s)
             if kind == "america":
                 self.poly([(x - L(16), hy + L(64)), (x, hy + L(72)), (x + L(16), hy + L(64)), (x + L(16), hy + L(82)), (x, hy + L(74)), (x - L(16), hy + L(82))], RED, 4 * s)
+        elif kind == "shako":
+            # Napoleonic infantry: a tall cylinder (a bit wider on top), visor, plate and a red plume
+            c = hc or (34, 36, 48)
+            self.poly([(x - L(48), hy - L(52)), (x - L(56), hy - L(150)), (x + L(56), hy - L(150)), (x + L(48), hy - L(52))],
+                      c, 6 * s, INK, 0.3)
+            self.ell(x + f * L(18), hy - L(52), L(54), L(12), INK, 0)
+            self.circ(x, hy - L(100), L(14), YELLOW, 4 * s)
+            self.ell(x - f * L(30), hy - L(172), L(12), L(28), RED, 4 * s)
+        elif kind == "bearskin":
+            c = hc or (26, 26, 30)
+            self.ell(x, hy - L(120), L(70), L(92), c, 6 * s, INK)
+            for k in range(7):
+                ang = math.pi * (0.15 + 0.7 * k / 6)
+                px, py = x - math.cos(ang) * L(68), hy - L(120) - math.sin(ang) * L(88)
+                self.line([(px, py), (px - math.cos(ang) * L(9), py - math.sin(ang) * L(9))], 4 * s, (70, 70, 76), 0.6)
+            self.ell(x - f * L(48), hy - L(150), L(10), L(26), RED, 3 * s)
         elif kind in ("britain", "bowler"):
             c = hc or (40, 40, 46)
             self._dome(x, hy, s, -58, -120, 58, -10, c)

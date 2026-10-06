@@ -26,7 +26,13 @@
      "pose": "cross",
      "mouth": "smirk",
      "flip": true,
-     "at": 0.05
+     "at": 0.05,
+     "do": [
+      {
+       "act": "laugh",
+       "at": "word:outbuild"
+      }
+     ]
     },
     {
      "type": "char",
@@ -40,7 +46,13 @@
      "extras": [
       "vein"
      ],
-     "at": 0
+     "at": 0,
+     "do": [
+      {
+       "act": "angry",
+       "at": "word:declares"
+      }
+     ]
     },
     {
      "type": "text",
@@ -73,11 +85,23 @@
    "camera": {
     "zoom": [
      1.0,
-     1.06
+     1.04
     ],
-    "center": [
-     900,
-     560
+    "shots": [
+     {
+      "at": "word:declares",
+      "zoom": 1.7,
+      "focus": [
+       560,
+       560
+      ],
+      "move": "cut"
+     },
+     {
+      "at": "word:industrial",
+      "zoom": 1.0,
+      "move": "whip"
+     }
     ]
    }
   }
@@ -919,9 +943,11 @@
       "text": "PACIFIC OCEAN",
       "lon": 172,
       "lat": 8,
-      "size": 54
+      "size": 54,
+      "color": "#9DB4D8"
      }
-    ]
+    ],
+    "style": "dark"
    },
    "elements": [
     {
@@ -930,7 +956,7 @@
      "lon": -158,
      "lat": 21.3,
      "size": 42,
-     "color": "navy",
+     "color": "white",
      "at": 0
     },
     {
@@ -973,7 +999,8 @@
      "x": 960,
      "y": 120,
      "size": 80,
-     "at": 0
+     "at": 0,
+     "color": "white"
     },
     {
      "type": "text",
@@ -983,8 +1010,29 @@
      "size": 50,
      "color": "red",
      "at": "word:three hundred"
+    },
+    {
+     "type": "pointer",
+     "lon": -158,
+     "lat": 21.3,
+     "from": "se",
+     "size": 0.8,
+     "at": "word:Pearl"
     }
-   ]
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": "word:Pearl",
+      "zoom": 1.5,
+      "focus": {
+       "lon": -162,
+       "lat": 24
+      },
+      "move": "whip"
+     }
+    ]
+   }
   }
  },
  {
@@ -1085,15 +1133,16 @@
       "lon": 18,
       "lat": 35,
       "size": 38,
-      "color": "#3C6E96"
+      "color": "#9DB4D8"
      }
-    ]
+    ],
+    "style": "dark"
    },
    "elements": [
     {
      "type": "territory",
      "region": "roman_empire_117",
-     "color": "#A01E32",
+     "color": "#D8283C",
      "enter": "fade",
      "edur": 1.2,
      "at": 0.05
@@ -1104,7 +1153,8 @@
      "x": 960,
      "y": 110,
      "size": 80,
-     "at": 0
+     "at": 0,
+     "color": "white"
     },
     {
      "type": "city",
@@ -1123,7 +1173,13 @@
      "pose": "cheer",
      "mouth": "grin",
      "eyes": "happy",
-     "at": 0.1
+     "at": 0.1,
+     "do": [
+      {
+       "act": "celebrate",
+       "at": "word:ruled"
+      }
+     ]
     },
     {
      "type": "text",
@@ -1132,7 +1188,8 @@
      "lat": 52.5,
      "size": 40,
      "font": "hand",
-     "at": "word:Britain"
+     "at": "word:Britain",
+     "color": "white"
     },
     {
      "type": "text",
@@ -1141,7 +1198,8 @@
      "lat": 31,
      "size": 40,
      "font": "hand",
-     "at": "word:Egypt"
+     "at": "word:Egypt",
+     "color": "white"
     },
     {
      "type": "bubble",
@@ -1157,7 +1215,27 @@
    "camera": {
     "zoom": [
      1.0,
-     1.04
+     1.03
+    ],
+    "shots": [
+     {
+      "at": "word:Britain",
+      "zoom": 1.35,
+      "focus": {
+       "lon": 2,
+       "lat": 48
+      },
+      "move": "pan"
+     },
+     {
+      "at": "word:Egypt",
+      "zoom": 1.35,
+      "focus": {
+       "lon": 24,
+       "lat": 35
+      },
+      "move": "pan"
+     }
     ]
    }
   }
@@ -1168,20 +1246,11 @@
   "text": "Meanwhile, back in England, King John is broke. He keeps raising taxes on his own barons to pay for wars he keeps losing.",
   "scene": {
    "bg": {
-    "type": "ground",
-    "sky": "#C6E4F5",
-    "ground": "#B4C88C"
+    "type": "interior",
+    "wall": "#E9D7B4",
+    "floor": "#A0703F"
    },
    "elements": [
-    {
-     "type": "prop",
-     "name": "castle",
-     "x": 1450,
-     "y": 860,
-     "scale": 1.1,
-     "enter": "none",
-     "z": 0
-    },
     {
      "type": "char",
      "kind": "crown",
@@ -1194,16 +1263,29 @@
      "extras": [
       "sweat"
      ],
-     "at": 0
+     "at": 0,
+     "do": [
+      {
+       "act": "shrug",
+       "at": "word:broke"
+      },
+      {
+       "act": "cry",
+       "at": "word:losing"
+      }
+     ]
     },
     {
      "type": "prop",
-     "name": "moneybag",
+     "name": "crate",
      "x": 610,
      "y": 880,
-     "scale": 0.6,
+     "scale": 0.7,
      "at": "word:broke",
-     "exit": "word:taxes"
+     "exit": "word:taxes",
+     "params": {
+      "label": "GOLD"
+     }
     },
     {
      "type": "prop",
@@ -1224,7 +1306,21 @@
      "pose": "angry_fists",
      "mouth": "frown",
      "eyes": "angry",
-     "at": "word:barons"
+     "at": "word:barons",
+     "do": [
+      {
+       "act": "walk",
+       "to": [
+        420,
+        900
+       ],
+       "at": "word:barons"
+      },
+      {
+       "act": "angry",
+       "at": "word:taxes"
+      }
+     ]
     },
     {
      "type": "sign",
@@ -1253,6 +1349,109 @@
      "at": "word:losing"
     }
    ]
+  }
+ },
+ {
+  "name": "army_speech",
+  "mood": "fun",
+  "text": "In 1796 Napoleon takes over a starving, unpaid army in Italy. He promises them glory, food and loot, and somehow they believe him.",
+  "scene": {
+   "bg": {
+    "type": "field",
+    "time": "day"
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "Italy, 1796",
+     "x": 960,
+     "y": 110,
+     "size": 76,
+     "at": 0
+    },
+    {
+     "type": "crowd",
+     "kind": "shako",
+     "count": 16,
+     "rows": 2,
+     "x": 1180,
+     "y": 920,
+     "width": 980,
+     "scale": 0.62,
+     "mouth": "frown",
+     "eyes": "sad",
+     "at": 0.02,
+     "do": [
+      {
+       "act": "cheer",
+       "at": "word:believe"
+      }
+     ]
+    },
+    {
+     "type": "prop",
+     "name": "crate",
+     "x": 420,
+     "y": 905,
+     "scale": 0.8,
+     "params": {
+      "label": "FOOD"
+     },
+     "at": "word:food"
+    },
+    {
+     "type": "char",
+     "kind": "bicorne",
+     "x": 330,
+     "y": 900,
+     "scale": 0.95,
+     "pose": "point_right",
+     "mouth": "grin",
+     "at": "word:Napoleon",
+     "do": [
+      {
+       "act": "talk",
+       "at": "word:promises",
+       "dur": 2.5
+      }
+     ]
+    },
+    {
+     "type": "bubble",
+     "text": "GLORY! FOOD!\\nLOOT!",
+     "x": 520,
+     "y": 330,
+     "size": 46,
+     "tail": "left",
+     "at": "word:promises"
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:promises",
+      "zoom": 1.7,
+      "focus": [
+       380,
+       560
+      ],
+      "move": "cut"
+     },
+     {
+      "at": "word:believe",
+      "zoom": 1.3,
+      "focus": [
+       1180,
+       640
+      ],
+      "move": "whip"
+     }
+    ]
+   }
   }
  },
  {

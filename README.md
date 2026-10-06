@@ -204,8 +204,14 @@ the Kokoro model in `data/models/`.
 
 ## How it works (for the curious)
 
+- **Animation** (`studio/engine/puppet.py`): stickmen are re-posed every frame. They breathe, blink, glance around,
+  talk while their speech bubble is up, and act on cue (walk, run, jump, wave, point, cheer, nod, shake head, shrug,
+  think, facepalm, tremble, lean, bow, faint, laugh, cry, dance, fight...). Crowds have depth. Scenes can have
+  several camera shots (cuts to close-ups, pans, whip pans with motion blur), maps can be light or dark with bobbing
+  pointer arrows, and backgrounds include painted places (field, hills, desert, snow, city, battlefield, rooms) at
+  any time of day. Old storyboards get automatic motion too.
 - **`studio/engine/`**: the video engine from the first video, cleaned up into a package: doodle drawing at 2x
-  with LANCZOS downsampling, stickmen with ~40 hats (nations, crown, Roman, Viking, pharaoh, knight, ...),
+  with LANCZOS downsampling, stickmen with ~45 hats (nations, crown, Roman, Viking, pharaoh, knight, shako, ...),
   ~75 props, Natural Earth maps (Mercator, any region; Pacific islands wrap correctly), easing, blinking,
   bobbing, a smooth float camera clamped so it never shows black edges, captions (7 words max, double spaces,
   out of everyone's way), procedural music and sound effects, and the mix (voice first, music ~13 dB under

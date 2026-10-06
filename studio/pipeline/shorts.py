@@ -160,7 +160,8 @@ def make_stickman_short(ctx, pick):
     jobs = []
     for i in range(s, e + 1):
         scene = read_json(pr.scene_path(i))
-        key = st.h(scene, beats[i], info["frames"][i], (vb[i] or {}).get("word_times") if i < len(vb) else None, wm)
+        key = st.h(scene, beats[i], info["frames"][i], (vb[i] or {}).get("word_times") if i < len(vb) else None, wm,
+                   st.ENGINE_VERSION)
         out = os.path.join(work, f"s_{i:03d}.mp4")
         if manifest.get(str(i)) == key and os.path.exists(out):
             continue
