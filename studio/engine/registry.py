@@ -141,6 +141,11 @@ for _d in (PLACES, SEA_NATURE, ANIMALS, FOOD, THINGS, _NATURE_UP, _THING_UP):
 
 from .custom_props import draw_custom, custom_bounds  # noqa: E402
 
+# props that move: name -> loop length in seconds (they get params.t = seconds since they appeared)
+ANIMATED = {"windmill": 2.5, "lighthouse": 3.0, "flag": 1.2, "fire": 0.75, "torch": 0.5, "candle": 0.7, "smoke": 2.0,
+            "wave": 2.4, "volcano": 2.0, "seaweed": 3.0, "helicopter": 0.25, "biplane": 0.25, "dynamite": 0.3,
+            "rain_cloud": 0.5, "sun": 4.0}
+
 PROPS["custom"] = ("bottom", draw_custom, "a prop drawn from shapes: params {parts: [...], anchor}")
 
 _SEA = ("fish", "shark", "whale", "octopus", "crab", "jellyfish", "anchor", "wave", "iceberg", "submarine",

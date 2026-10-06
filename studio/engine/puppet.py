@@ -15,7 +15,7 @@ import random
 from PIL import Image
 
 from .doodle import SS
-from .pen import Pen, ARMS, LEGS
+from .pen import Pen, ARMS, LEGS, MOUNTS
 
 LOOKABLE = ("dot", "wide", "angry", "sad", "worried")
 
@@ -88,8 +88,12 @@ class Puppet:
             self.glances.append((t, self.rng.choice((-1, 1, 0, -1, 1)), self.rng.uniform(0.8, 2.0)))
             t += self.rng.uniform(2.0, 5.0)
         self.cache = {}
-        self.cw, self.ch = 820 * s, 820 * s          # local canvas (screen px)
-        self.foot = (self.cw / 2, self.ch - 60 * s)  # where the feet are drawn on it
+        self.ride = MOUNTS.get(self.base.get("ride")) and self.base.get("ride")
+        if self.ride:
+            self.base["legs"] = _legs("stand" if MOUNTS[self.ride]["stand"] else "sit")
+        big = 1.35 if self.ride else 1.0
+        self.cw, self.ch = 820 * s * big, 820 * s * big   # local canvas (screen px)
+        self.foot = (self.cw / 2, self.ch - 60 * s)      # where the ground point is drawn on it
 
     # ---------------------------------------------------------------- pose at time t
     def state(self, t):
@@ -137,6 +141,11 @@ class Puppet:
                 dx += dx2
                 dy += dy2
         p["flip"] = flip
+        if self.ride:
+            # a rider keeps their seat; moving means the mount gallops (a bouncy ride)
+            p["legs"] = [list(l) for l in self.base["legs"]]
+            if moving:
+                dy -= abs(math.sin(2 * math.pi * t * 2.4)) * 12 * self.s
         # talking: mouth flaps and the head bobs a little
         talking = any(t0 <= t < t1 for t0, t1 in self.talk)
         if talking:
@@ -295,20 +304,30 @@ class Puppet:
 
     def image(self, p, kind, seed, rot=0):
         """(RGBA image, (x, y) offset of its top-left from the feet point)."""
-        key = (self._key(p), int(round(rot / 4)) if rot else 0)
+        key = (self._key(p), int(round(rot / 4)) if rot else 0, p.get("coat"), self.ride)
         hit = self.cache.get(key)
         if hit:
             return hit
         pen = Pen(seed, rgba=True, size=(self.cw, self.ch))
         q = lambda v, step=3: round(v / step) * step
-        pen.stick(self.foot[0], self.foot[1], self.s, kind,
+        fx, fy = self.foot
+        if self.ride:
+            from .registry import PROPS
+            m = MOUNTS[self.ride]
+            ms = self.s * m["k"]
+            f = -1 if p.get("flip") else 1
+            pen.shadow(fx, fy + 4 * self.s, 190 * ms)
+            PROPS[m["prop"]][1](pen, fx, fy, ms, None, {"flip": bool(p.get("flip")), "saddle": True})
+            fx = fx + m["seat"][0] * ms * f
+            fy = fy + m["seat"][1] * ms + (0 if m["stand"] else 112 * self.s)
+        pen.stick(fx, fy, self.s, kind,
                   arms=tuple(tuple(q(v) for v in a) for a in p["arms"]),
                   legs=tuple(tuple(q(v) for v in l) for l in p["legs"]),
                   mouth=p.get("mouth") or "smile", eyes=p.get("eyes") or "dot", look=p.get("look") or 0,
                   flip=bool(p.get("flip")), extra=tuple(p.get("extra") or ()), prop=p.get("prop"),
-                  blink=bool(p.get("blink")), shadow=p.get("shadow", True) and not rot,
+                  blink=bool(p.get("blink")), shadow=p.get("shadow", True) and not rot and not self.ride,
                   hat_color=p.get("hat_color"), head=(round(p["head"][0]), round(p["head"][1])),
-                  lean=q(p.get("lean", 0), 2))
+                  lean=q(p.get("lean", 0), 2), coat=p.get("coat"))
         im = pen.im.convert("RGBa").resize((int(self.cw), int(self.ch)), Image.LANCZOS).convert("RGBA")
         ox, oy = -self.foot[0], -self.foot[1]
         if rot:

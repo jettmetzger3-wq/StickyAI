@@ -76,6 +76,7 @@ class ClaudeCLI(LLMBackend):
     quality = "best"
     supports_images = True
     supports_schema = True
+    supports_web = True          # Claude Code can search the web on your plan (used by the fact-check)
     install_hint = "install Claude Code and log in once with `claude`"
 
     def path(self):
@@ -104,7 +105,7 @@ class ClaudeCLI(LLMBackend):
     def estimate_tokens(self, in_chars, out_tokens, model=None):
         return Cost(0.0, note="uses your Claude subscription's usage limits, no API charges")
 
-    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label=""):
+    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False):
         if not self.path():
             raise ProviderError("claude CLI not found")
         model = model or load_settings().get("llm_models", {}).get("claude_cli") or None
@@ -124,6 +125,8 @@ class ClaudeCLI(LLMBackend):
                 cmd += ["--tools", "Read", "--allowedTools", "Read"]
                 prompt = (f"First use the Read tool to look at these image files in the current folder: "
                           f"{', '.join(names)}.\n\n" + prompt)
+            elif web:
+                cmd += ["--tools", "WebSearch,WebFetch", "--allowedTools", "WebSearch,WebFetch"]
             else:
                 cmd += ["--tools", ""]
             if system:
@@ -196,7 +199,7 @@ class AnthropicAPI(LLMBackend):
         usd = tin / 1e6 * pin + tout / 1e6 * pout
         return Cost(round(usd, 3), note=f"{m}: ~{int(tin):,} input + ~{int(tout):,} output tokens")
 
-    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label=""):
+    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False):
         import anthropic
         m = self.model(model)
         client = anthropic.Anthropic(api_key=secret("ANTHROPIC_API_KEY"))
@@ -273,7 +276,7 @@ class Ollama(LLMBackend):
             pass
         return False, "Ollama is not running (" + self.install_hint + ")"
 
-    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label=""):
+    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False):
         import httpx
         m = model or load_settings().get("llm_models", {}).get("ollama") or "llama3.1"
         msg = {"role": "user", "content": prompt}

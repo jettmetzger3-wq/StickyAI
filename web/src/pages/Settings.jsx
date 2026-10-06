@@ -155,6 +155,65 @@ function HostedCard({ s, set }) {
   );
 }
 
+function YouTubeCard() {
+  const [st, setSt] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const back = (window.location.hash.split("youtube=")[1] || "").split("&")[0];
+  const load = () => api.get("/api/youtube/status").then(setSt).catch(() => setSt(null));
+  useEffect(() => {
+    load();
+  }, []);
+  if (!st) return null;
+  async function connect() {
+    setErr(null);
+    setBusy(true);
+    try {
+      const r = await api.post("/api/youtube/connect", {});
+      window.location.href = r.url;
+    } catch (e) {
+      setErr(e.message);
+      setBusy(false);
+    }
+  }
+  async function disconnect() {
+    await api.post("/api/youtube/disconnect", {});
+    load();
+  }
+  const onPC = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  return (
+    <Card title="YouTube channel (upload from the studio)">
+      {back && back !== "connected" && <ErrorBox error={`YouTube sign-in: ${decodeURIComponent(back)}`} />}
+      {st.connected ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge kind="done">connected</Badge>
+          <span className="text-sm">{st.channel?.title || "your channel"}</span>
+          <Button size="sm" onClick={disconnect}>Disconnect</Button>
+        </div>
+      ) : (
+        <div className="space-y-2 text-sm text-stone-600 dark:text-zinc-400">
+          <p>Free, one-time setup (about 10 minutes) so finished videos can go straight to your channel:</p>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Go to console.cloud.google.com, create a project, and enable the <b>YouTube Data API v3</b>.</li>
+            <li>Under "Google Auth Platform", set up the consent screen (External) and add your own Google account as a test user.</li>
+            <li>Create an OAuth client of type <b>Desktop app</b> and copy its client ID and secret.</li>
+            <li>Paste them above as <code>YOUTUBE_CLIENT_ID</code> and <code>YOUTUBE_CLIENT_SECRET</code>, then click Connect.</li>
+          </ol>
+          <p className="text-xs">
+            It costs nothing. Google limits how many uploads per day the free API allows (plenty for a channel). Do the Connect step on this PC
+            {onPC ? "" : " (not from your phone: Google sends you back to localhost)"}.
+          </p>
+          <ErrorBox error={err} />
+          <Button variant="primary" onClick={connect} disabled={busy || !st.configured || !onPC}>
+            {busy ? <Spinner /> : "Connect YouTube"}
+          </Button>
+          {!st.configured && <p className="text-xs text-amber-700">Add the client ID and secret first.</p>}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function Settings() {
   const cfg = useConfig();
   const [s, setS] = useState(null);
@@ -375,12 +434,23 @@ export default function Settings() {
       </Card>
 
       <CalliopeCard s={s} set={set} onTested={() => api.get("/api/providers").then((d) => setCatalog(d.catalog))} />
+      {(cfg.mode !== "hosted" || cfg.private) && <YouTubeCard />}
       {cfg.mode === "hosted" && <HostedCard s={s} set={set} />}
 
       <Card title="Video & workflow">
         <div className="grid gap-4 sm:grid-cols-2">
           <Toggle checked={s.autopilot} onChange={(v) => set({ autopilot: v })} label="Autopilot by default" hint="Off = pause after script, storyboard and voice." />
           <Toggle checked={s.share_copy} onChange={(v) => set({ share_copy: v })} label="Make a small share copy" />
+          <Toggle checked={s.transitions !== false} onChange={(v) => set({ transitions: v })} label="Transitions between scenes" hint="Slides, wipes, zooms and fades instead of hard cuts." />
+          <Toggle
+            checked={(s.caption_style || "highlight") === "highlight"}
+            onChange={(v) => set({ caption_style: v ? "highlight" : "plain" })}
+            label="Highlight the spoken word in captions"
+          />
+          <Toggle checked={s.ambience !== false} onChange={(v) => set({ ambience: v })} label="Background sounds for each place" hint="Waves at sea, crowds in streets, wind in the mountains, battle noise..." />
+          <Toggle checked={s.action_sounds !== false} onChange={(v) => set({ action_sounds: v })} label="Footsteps, jumps and cheers" />
+          <Toggle checked={s.talk_blips !== false} onChange={(v) => set({ talk_blips: v })} label='Little "blah blah" sounds when characters talk' />
+          <Toggle checked={s.fact_check !== false} onChange={(v) => set({ fact_check: v })} label="Fact-check the script" hint="After writing, Claude double-checks uncertain facts (with web search on Claude Code) and fixes mistakes." />
           <Toggle
             checked={s.custom_props !== false}
             onChange={(v) => set({ custom_props: v })}

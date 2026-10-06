@@ -10,6 +10,7 @@ import mimetypes
 import os
 import shutil
 import time
+import urllib.parse
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, HTMLResponse
@@ -874,15 +875,138 @@ async def events(request: Request, project: str | None = None):
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+# ------------------------------------------------------------------ YouTube upload (your own channel, free API)
+def _yt_allowed():
+    if config.hosted() and not config.private():
+        raise HTTPException(403, "YouTube upload is only available in your own studio")
+
+
+def _port(request):
+    host = request.headers.get("host", "")
+    try:
+        return int(host.rsplit(":", 1)[1]) if ":" in host and not host.endswith("]") else \
+            int(config.load_settings().get("port") or 8765)
+    except ValueError:
+        return int(config.load_settings().get("port") or 8765)
+
+
+@app.get("/api/youtube/status")
+def youtube_status(request: Request):
+    _yt_allowed()
+    from .. import youtube as YT
+    return dict(YT.status(), redirect_uri=YT.redirect_uri(_port(request)))
+
+
+@app.post("/api/youtube/connect")
+def youtube_connect(request: Request):
+    _yt_allowed()
+    from .. import youtube as YT
+    try:
+        return dict(url=YT.auth_url(_port(request)))
+    except YT.YouTubeError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/youtube/disconnect")
+def youtube_disconnect():
+    _yt_allowed()
+    from .. import youtube as YT
+    YT.disconnect()
+    return dict(ok=True)
+
+
+class YouTubeUpload(BaseModel):
+    which: str = "video"
+    title: str
+    description: str = ""
+    tags: list = []
+    privacy: str = "private"
+    publish_at: str = ""
+    made_for_kids: bool = False
+    synthetic: bool = False
+    thumbnail: bool = True
+
+
+@app.post("/api/projects/{slug}/youtube")
+def youtube_upload(slug: str, b: YouTubeUpload):
+    _yt_allowed()
+    from .. import youtube as YT
+    import threading
+    pr = proj(slug)
+    if not YT.connected():
+        raise HTTPException(400, "connect your YouTube channel in Settings first")
+    rel = {"video": "final/video.mp4", "short": "final/short.mp4", "short_ai": "final/short_ai.mp4"}.get(b.which)
+    if not rel or not os.path.exists(pr.p(rel)):
+        raise HTTPException(400, "that video isn't made yet")
+    up = pr.meta().get("upload") or {}
+    if up.get("status") == "uploading" and time.time() - up.get("at", 0) < 3600:
+        raise HTTPException(409, "already uploading")
+    publish_at = b.publish_at.strip() or None
+    if publish_at:
+        from datetime import datetime, timezone
+        try:
+            when = datetime.fromisoformat(publish_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(400, "the schedule time isn't a valid date")
+        if when.tzinfo is None:
+            raise HTTPException(400, "the schedule time needs a time zone")
+        if when.timestamp() < time.time() + 300:
+            raise HTTPException(400, "pick a schedule time at least a few minutes from now")
+        publish_at = when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    title = b.title.strip()
+    desc = b.description
+    if b.which != "video" and "#shorts" not in (title + desc).lower():
+        desc = (desc + "\n\n#shorts").strip()
+    resource = YT.video_resource(title, desc, b.tags, b.privacy, publish_at, b.made_for_kids, b.synthetic)
+    thumb = pr.p("final", "thumbnail.png") if b.thumbnail and b.which == "video" else None
+    state = dict(status="uploading", progress=0.0, message="starting the upload", which=b.which, at=time.time())
+    pr.update(upload=state)
+
+    def run():
+        last = [0.0]
+
+        def prog(f, msg):
+            if time.time() - last[0] > 1.5 or f >= 0.97:
+                last[0] = time.time()
+                pr.update(upload=dict(state, progress=round(f, 3), message=msg, at=time.time()))
+        try:
+            vid = YT.upload(pr.p(rel), resource, thumb, prog)
+            done = dict(state, status="done", progress=1.0, video_id=vid, url=f"https://youtu.be/{vid}",
+                        studio_url=f"https://studio.youtube.com/video/{vid}/edit", at=time.time(),
+                        privacy=resource["status"]["privacyStatus"], publish_at=publish_at,
+                        message="uploaded" + (f", goes public {publish_at}" if publish_at else ""))
+            pr.update(upload=done)
+            history = pr.meta().get("uploads") or []
+            pr.update(uploads=(history + [done])[-10:])
+        except Exception as e:  # keep the reason for the page; tokens never appear in these messages
+            pr.update(upload=dict(state, status="error", message=str(e)[:400], at=time.time()))
+
+    threading.Thread(target=run, daemon=True).start()
+    return dict(ok=True)
+
+
 # ------------------------------------------------------------------ frontend
 if os.path.isdir(os.path.join(config.WEB_DIST, "assets")):
     app.mount("/assets", StaticFiles(directory=os.path.join(config.WEB_DIST, "assets")), name="assets")
 
 
 @app.get("/{full_path:path}", include_in_schema=False)
-def spa(full_path: str):
+def spa(full_path: str, request: Request):
     if full_path.startswith("api/"):
         raise HTTPException(404, "not found")
+    q = request.query_params
+    if not full_path and q.get("state") and (q.get("code") or q.get("error")):
+        # Google sends you back here after "Connect YouTube" (a one-time state value proves it's our sign-in)
+        from fastapi.responses import RedirectResponse
+        from .. import youtube as YT
+        if YT.is_pending(q["state"]):
+            if q.get("error"):
+                return RedirectResponse("/#/settings?youtube=" + urllib.parse.quote(q["error"][:60]))
+            try:
+                YT.finish(q["code"], q["state"])
+                return RedirectResponse("/#/settings?youtube=connected")
+            except YT.YouTubeError as e:
+                return RedirectResponse("/#/settings?youtube=" + urllib.parse.quote(str(e)[:120]))
     target = os.path.join(config.WEB_DIST, full_path)
     if full_path and os.path.isfile(target) and os.path.realpath(target).startswith(os.path.realpath(config.WEB_DIST)):
         return FileResponse(target)

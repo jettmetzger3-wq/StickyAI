@@ -316,6 +316,39 @@ class Scene:
         if sfx and enter:
             self.sfx.append((self.T(at), sfx))
 
+    def dynamic(self, draw, box, enter="pop", at=0.0, edur=0.38, idle=None, exit_at=None, sfx="auto", move=None,
+                z=0, fps=12, period=None, anchor="center"):
+        """A layer that changes over time (a turning windmill, a waving flag, a moving front line).
+        draw(pen, t) paints on a box-sized canvas (box = x0, y0, w, h in screen px; pen coordinates are relative
+        to x0, y0) for t seconds after the layer appears. Drawings are cached at `fps`; with a `period` (seconds)
+        they loop, so only fps * period drawings are ever made."""
+        x0, y0, w, h = (float(v) for v in box)
+        w, h = max(2.0, w), max(2.0, h)
+        at_s = self.T(at)
+        cache = {}
+        loop = max(1, int(round(period * fps))) if period else None
+        seed = self.seed + len(self.layers) * 7 + 3
+
+        def frame(t):
+            k = int(max(0.0, t - at_s) * fps)
+            if loop:
+                k %= loop
+            im = cache.get(k)
+            if im is None:
+                p = Pen(seed, rgba=True, size=(w, h))
+                draw(p, k / fps)
+                im = p.im.convert("RGBa").resize((int(w), int(h)), Image.LANCZOS).convert("RGBA")
+                if len(cache) < 400:
+                    cache[k] = im
+            return im
+
+        img = frame(at_s)
+        if anchor == "bottom":
+            anchor = (x0 + w / 2, y0 + h)
+        self._add(img, (x0, y0), enter, at, edur, idle, anchor, exit_at, sfx, move, z, None)
+        self.layers[-1]["dyn"] = frame
+        return self.layers[-1]
+
     def char(self, x, y, s=1.0, kind="japan", enter="pop", at=0.0, idle="bob", exit_at=None, move=None, z=1,
              sfx="auto", actions=(), talk=(), life=True, **pose):
         """An animated stickman (see puppet.py): it breathes, blinks, glances, talks and does `actions`."""
@@ -508,6 +541,8 @@ class Scene:
                 if img is None:
                     continue
                 L = dict(L, ox=pz.x + pdx + off[0], oy=pz.y + pdy + off[1], ax=pz.x + pdx, ay=pz.y + pdy)
+            elif L.get("dyn") is not None:
+                img = L["dyn"](t)
             else:
                 img = L["img"]
                 if L["alt"] is not None and ((t + L["phase"]) % 3.4) < 0.12:

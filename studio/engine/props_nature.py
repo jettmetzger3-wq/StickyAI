@@ -177,13 +177,14 @@ def wave(p, x, y, s, c, k):
     for off in (0, 1, 2):
         g.line([(-170 + off * 40, -10), (-100 + off * 34, -60), (-60 + off * 30, -130), (-40 + off * 26, -190)], 3,
                darker(col, 0.8))
+    ph = 2 * math.pi * _num(k, "t", 0) / 2.4
     crest = [(-92, -228), (-70, -270), (-30, -298), (20, -306), (80, -296), (130, -262), (160, -226)]
     for i, (cx, cy) in enumerate(crest):
-        g.circ(cx, cy, 22 - i, WHITE, 4)
-    for cx, cy in ((-86, -196), (-66, -190), (-104, -180)):
-        g.circ(cx, cy, 10, WHITE, 3)
-    for cx, cy in ((-130, -250), (-150, -220), (-112, -282), (-160, -270)):
-        g.circ(cx, cy, 6, WHITE, 2.4)
+        g.circ(cx, cy + 5 * math.sin(ph + i * 0.9), 22 - i, WHITE, 4)
+    for i, (cx, cy) in enumerate(((-86, -196), (-66, -190), (-104, -180))):
+        g.circ(cx, cy + 4 * math.sin(ph + i * 2), 10, WHITE, 3)
+    for i, (cx, cy) in enumerate(((-130, -250), (-150, -220), (-112, -282), (-160, -270))):
+        g.circ(cx - 8 * math.sin(ph + i), cy - 6 * math.cos(ph + i), 6, WHITE, 2.4)
 
 
 def iceberg(p, x, y, s, c, k):
@@ -440,11 +441,12 @@ def bottle(p, x, y, s, c, k):
 def seaweed(p, x, y, s, c, k):
     col = _c(c, (76, 160, 110))
     g = Sk(p, x, y, s, wob=0.4)
+    sway = 2 * math.pi * _num(k, "t", 0) / 3.0
     for sx, h, ph in ((-36, 200, 0), (0, 250, 1.5), (34, 180, 3)):
         left, right = [], []
         for j in range(10):
             t = j / 9
-            cx = sx + 18 * math.sin(t * 6 + ph)
+            cx = sx + 18 * math.sin(t * 6 + ph) + 14 * t * math.sin(sway + ph)
             w = 14 * (1 - t) + 3
             left.append((cx - w, -h * t))
             right.append((cx + w, -h * t))
@@ -536,11 +538,15 @@ def volcano(p, x, y, s, c, k):
     col = _c(c, (130, 104, 94))
     g = Sk(p, x, y, s, wob=0.5)
     erupt = k.get("erupting", True) is not False
+    ph = 2 * math.pi * _num(k, "t", 0) / 2.0
     if erupt:
-        for cx, cy, r in ((-30, -400, 50), (40, -430, 60), (0, -480, 64), (-70, -460, 44), (80, -500, 46)):
-            g.circ(cx, cy, r, (130, 130, 140), 5)
-        for cx, cy, r in ((-20, -330, 20), (24, -350, 16), (0, -372, 22), (-40, -360, 12), (50, -330, 12)):
-            g.circ(cx, cy, r, (246, 120, 40), 4)
+        for i, (cx, cy, r) in enumerate(((-30, -400, 50), (40, -430, 60), (0, -480, 64), (-70, -460, 44),
+                                         (80, -500, 46))):
+            g.circ(cx + 6 * math.sin(ph + i), cy - 8 * math.sin(ph + i * 1.3), r * (1 + 0.06 * math.sin(ph + i)),
+                   (130, 130, 140), 5)
+        for i, (cx, cy, r) in enumerate(((-20, -330, 20), (24, -350, 16), (0, -372, 22), (-40, -360, 12),
+                                         (50, -330, 12))):
+            g.circ(cx, cy - 14 * (0.5 + 0.5 * math.sin(ph * 2 + i)), r, (246, 120, 40), 4)
     g.poly([(-250, 0), (-96, -284), (-52, -304), (52, -304), (96, -284), (250, 0)], col, 6)
     g.poly([(30, -300), (96, -284), (250, 0), (120, 0), (70, -150)], darker(col, 0.85), 0)
     g.poly([(-250, 0), (-96, -284), (-52, -304), (52, -304), (96, -284), (250, 0)], None, 6)
@@ -605,10 +611,11 @@ def bush(p, x, y, s, c, k):
 def sun(p, x, y, s, c, k):
     col = _c(c, (252, 204, 60))
     g = Sk(p, x, y, s, wob=0.3)
+    turn = 30 * _num(k, "t", 0) / 4.0                  # the rays turn slowly (one ray every 4 s)
     for i in range(12):
-        a = math.radians(i * 30)
-        b = math.radians(i * 30 + 8)
-        b2 = math.radians(i * 30 - 8)
+        a = math.radians(i * 30 + turn)
+        b = math.radians(i * 30 + 8 + turn)
+        b2 = math.radians(i * 30 - 8 + turn)
         g.poly([(math.cos(b2) * 92, math.sin(b2) * 92), (math.cos(a) * 140, math.sin(a) * 140),
                 (math.cos(b) * 92, math.sin(b) * 92)], (252, 160, 50), 4)
     g.circ(0, 0, 86, col, 6)
@@ -641,9 +648,11 @@ def lightning(p, x, y, s, c, k):
 def rain_cloud(p, x, y, s, c, k):
     col = _c(c, (150, 156, 172))
     g = Sk(p, x, y, s, wob=0.4)
+    fall = (_num(k, "t", 0) / 0.5) % 1.0
     for i in range(7):
         rx = -80 + i * 27
-        g.line([(rx, 40), (rx - 12, 96)], 5, (110, 160, 220))
+        off = ((fall + (i % 3) / 3) % 1.0) * 40
+        g.line([(rx, 30 + off), (rx - 10, 76 + off)], 5, (110, 160, 220))
     for cx, cy, r in ((-60, 0, 46), (0, -26, 62), (60, 0, 48), (24, 20, 44), (-26, 22, 44)):
         g.circ(cx, cy, r, col, 5)
     for cx, cy, r in ((-60, 0, 46), (0, -26, 62), (60, 0, 48), (24, 20, 44), (-26, 22, 44)):

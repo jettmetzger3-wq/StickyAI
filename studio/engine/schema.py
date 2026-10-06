@@ -11,7 +11,7 @@ import jsonschema
 
 from .doodle import W, H
 from .fonts import font
-from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES
+from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift
 from .puppet import resolve_action
 from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
 from .custom_props import clean_parts, kit_lookup, to_element_params, slug
@@ -35,7 +35,7 @@ ENTERS = ("pop", "drop", "grow", "fade", "slide_left", "slide_right", "slide_up"
 IDLES = ("bob", "float", "pulse", "shake", "drift", "none")
 SFX = ("auto", "none", "pop", "whoosh", "swish", "boom", "tick")
 EL_TYPES = ("char", "crowd", "text", "prop", "bubble", "note", "sign", "board", "icons", "shape", "group",
-            "territory", "city", "arrow", "pointer")
+            "territory", "city", "arrow", "pointer", "battle", "front", "counter")
 MOVES = ("cut", "pan", "whip")
 POINTER_DIRS = ("n", "s", "e", "w", "ne", "nw", "se", "sw")
 MOODS = ("fun", "tense", "somber")
@@ -71,17 +71,20 @@ ELEMENT_SCHEMAS = {
                  extras={"type": "array", "items": {"enum": list(EXTRAS) + ["?"]}},
                  prop={"enum": list(HELD)}, prop_color={"type": "string"}, flip={"type": "boolean"},
                  look={"type": "number"}, do={"type": "array", "maxItems": 12}, talk={"type": "array"},
-                 auto={"type": "boolean"}, life={"type": "boolean"}),
+                 auto={"type": "boolean"}, life={"type": "boolean"}, coat={"type": "string"},
+                 ride={"enum": list(MOUNTS)}),
     "crowd": _obj(("type",), type={"const": "crowd"}, **_xy, **_anim, kind={"type": "string"}, count=_num, rows=_num,
                   width=_num, scale=_num, flip={"type": "boolean"}, do={"type": "array", "maxItems": 12},
                   mouth={"enum": list(MOUTHS)}, eyes={"enum": list(EYES)}, prop={"enum": list(HELD)},
-                  pose={"anyOf": [{"enum": list(ARMS)}, {"type": "array"}]}, hat_color={"type": "string"}),
+                  pose={"anyOf": [{"enum": list(ARMS)}, {"type": "array"}]}, hat_color={"type": "string"},
+                  coat={"type": "string"}, ride={"enum": list(MOUNTS)}),
     "pointer": _obj(("type",), type={"const": "pointer"}, **_xy, **_anim, **{"from": {"enum": list(POINTER_DIRS)}},
                     size=_num, color={"type": "string"}),
     "text": _obj(("type", "text"), type={"const": "text"}, **_xy, **_anim, text={"type": "string"}, size=_num,
                  color={"type": "string"}, font={"enum": ["bold", "hand"]}, stroke=_num,
                  align={"enum": ["center", "left", "right"]}),
     "prop": _obj(("type", "name"), type={"const": "prop"}, **_xy, **_anim, name={"enum": sorted(PROPS)}, scale=_num,
+                 animate={"type": "boolean"},
                  color={"type": "string"}, params={"type": "object"}),
     "bubble": _obj(("type", "text"), type={"const": "bubble"}, **_xy, **_anim, text={"type": "string"}, size=_num,
                    w=_num, h=_num, font={"enum": ["bold", "hand"]}, placed={"type": "boolean"},
@@ -105,7 +108,17 @@ ELEMENT_SCHEMAS = {
                  lon=_num, lat=_num, size=_num, color={"type": "string"}, dot={"type": "boolean"}),
     "arrow": _obj(("type",), type={"const": "arrow"}, **_anim, **{"from": _pt}, to=_pt,
                   points={"type": "array", "items": _pt}, curve=_num, color={"type": "string"}, width=_num,
-                  head={"type": "boolean"}),
+                  head={"type": "boolean"}, units={"type": "string"}, count=_num, march=_num,
+                  unit_color={"type": "string"}, unit_scale=_num),
+    "battle": _obj(("type",), type={"const": "battle"}, **_xy, **_anim, label={"type": "string"}, size=_num),
+    "front": _obj(("type",), type={"const": "front"}, **_anim, points={"type": "array", "items": _pt},
+                  keys={"type": "array", "maxItems": 6, "items": {"type": "object", "required": ["points"],
+                                                                  "properties": {"at": _at, "points": {
+                                                                      "type": "array", "items": _pt}}}},
+                  color={"type": "string"}, width=_num, side={"enum": ["left", "right"]}, teeth={"type": "boolean"}),
+    "counter": _obj(("type", "from", "to"), type={"const": "counter"}, **_xy, **_anim, **{"from": _num}, to=_num,
+                    until=_at, dur=_num, size=_num, color={"type": "string"}, prefix={"type": "string"},
+                    suffix={"type": "string"}, decimals=_num, format={"enum": ["year", "number"]}),
 }
 
 SCENE_SCHEMA = {
@@ -140,6 +153,7 @@ SCENE_SCHEMA = {
                                                             "at": _at, "zoom": _num, "focus": _pt,
                                                             "move": {"enum": list(MOVES)}}}}}},
         "note": {"type": "string"},
+        "transition": {"enum": ["auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade"]},
     },
 }
 
@@ -221,9 +235,18 @@ def element_bbox(el):
     x, y = _f(el.get("x"), 960), _f(el.get("y"), 540)
     if t == "char":
         s = _f(el.get("scale"), 1.0)
-        return (x - 130 * s, y - 375 * s, x + 130 * s, y + 15 * s)
+        lift, half = mount_lift(el.get("ride"), s)
+        return (x - max(130 * s, half), y - 375 * s - lift, x + max(130 * s, half), y + 15 * s)
     if t == "text":
         return text_bbox(el.get("text", ""), x, y, _f(el.get("size"), 64), el.get("font", "bold"), el.get("align", "center"))
+    if t == "counter":
+        from .warmap import fmt_count
+        longest = max(fmt_count(_f(el.get(k), 0), "year" if el.get("format") == "year" else "number",
+                                str(el.get("prefix", "")), str(el.get("suffix", ""))) for k in ("from", "to"))
+        return text_bbox(longest, x, y, _f(el.get("size"), 90), "bold", "center")
+    if t == "battle":
+        s = _f(el.get("size"), 1.0)
+        return (x - 70 * s, y - 70 * s, x + 70 * s, y + 70 * s + (60 * s if el.get("label") else 0))
     if t in ("bubble", "note", "board", "sign"):
         from .compiler import bubble_size
         if t == "board":
@@ -376,7 +399,7 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
         head_top = fy - 400 * s - 70 * (int(_f(el.get("rows"), 2)) - 1)
     else:
         kind = str(el.get("kind") or "")
-        head_top = fy - (375 + (75 if kind in TALL_HATS else 30)) * s
+        head_top = fy - (375 + (75 if kind in TALL_HATS else 30)) * s - mount_lift(el.get("ride"), s)[0]
     first = -1 if el.get("flip") else 1
     base = _at_num(el.get("at"), 0.0) if not isinstance(el.get("at"), str) else 0.0
     n = len(lines)
@@ -584,6 +607,21 @@ def repair_scene(scene, mood="fun", text="", kit=None):
                     a["dur"] = max(0.1, min(_f(a["dur"], 1.5), 20))
                 acts.append(a)
             el["do"] = acts
+        if t in ("char", "crowd"):
+            if el.get("ride") is not None:
+                r = str(el["ride"]).strip().lower().replace(" ", "_")
+                r = MOUNT_ALIASES.get(r, r)
+                r = r if r in MOUNTS else nearest(r, list(MOUNTS), None)
+                if r:
+                    el["ride"] = r
+                else:
+                    fixes.append(f"{t}: can't ride {el['ride']!r}")
+                    el.pop("ride")
+            if el.get("coat") is not None:
+                from .palette import color as _col
+                if not isinstance(el["coat"], str) or _col(el["coat"], None) is None:
+                    fixes.append(f"{t}: coat color {el['coat']!r} not understood")
+                    el.pop("coat")
         if t == "crowd":
             k = str(el.get("kind") or "civ").lower().replace(" ", "_")
             el["kind"] = k if (k in HATS or k in KIND_ALIASES) else nearest(k, HATS, "civ")
@@ -663,6 +701,64 @@ def repair_scene(scene, mood="fun", text="", kit=None):
                     n = "mini_carrier"
             el["icon"] = n
             el["count"] = int(max(1, min(_f(el.get("count"), 6), 120)))
+        elif t == "battle":
+            el["label"] = str(el.get("label") or el.get("text") or "")[:24]
+            el.pop("text", None)
+            el["size"] = max(0.4, min(_f(el.get("size"), 1.0), 2.5))
+        elif t == "front":
+            def _pts(ps):
+                if not isinstance(ps, list):
+                    return []
+                ok = [q for q in ps if (isinstance(q, (list, tuple)) and len(q) >= 2) or
+                      (isinstance(q, dict) and (("lon" in q and "lat" in q and is_map) or ("x" in q and "y" in q)))]
+                return ok if len(ok) >= 2 else []
+            if el.get("keys"):
+                keys = [dict(k, points=_pts(k.get("points"))) for k in el["keys"] if isinstance(k, dict)]
+                el["keys"] = [k for k in keys if k["points"]][:6]
+                if not el["keys"]:
+                    el.pop("keys")
+            if el.get("points") is not None:
+                el["points"] = _pts(el["points"])
+                if not el["points"]:
+                    el.pop("points")
+            if not el.get("keys") and not el.get("points"):
+                fixes.append("dropped a front line without usable points")
+                continue
+            el["width"] = max(4, min(_f(el.get("width"), 12), 30))
+            if el.get("side") not in (None, "left", "right"):
+                el["side"] = "left" if str(el["side"]).lower().startswith("l") else "right"
+        elif t == "counter":
+            if bg["type"] in ("dark", "night", "space", "underwater") or (bg["type"] == "map" and bg.get("style") == "dark"):
+                from .palette import color as _col
+                from .compiler import luminance
+                if el.get("color") is None or luminance(_col(el.get("color"))) < 0.45:
+                    el["color"] = "#EBEBF5"
+            try:
+                el["from"], el["to"] = float(el.get("from")), float(el.get("to"))
+            except (TypeError, ValueError):
+                fixes.append("dropped a counter without numbers")
+                continue
+            for k in ("from", "to"):
+                if el[k] == int(el[k]):
+                    el[k] = int(el[k])
+            el["size"] = max(30, min(_f(el.get("size"), 90), 220))
+            for k in ("prefix", "suffix"):
+                if el.get(k) is not None:
+                    el[k] = str(el[k])[:14]
+            if el.get("format") not in (None, "year", "number"):
+                el["format"] = "year" if "year" in str(el["format"]).lower() else "number"
+        elif t == "arrow" and el.get("units") is not None:
+            from .warmap import is_kind
+            u = str(el["units"]).strip().lower().replace(" ", "_")
+            if resolve_prop(u):
+                el["units"] = resolve_prop(u)
+            elif is_kind(u):
+                el["units"] = u
+            else:
+                g = guess_prop(u)
+                el["units"] = g or "army"
+                fixes.append(f"arrow units {u!r} -> {el['units']!r}")
+            el["count"] = int(max(1, min(_f(el.get("count"), 1 if resolve_prop(el["units"]) else 4), 8)))
         elif t == "text":
             el["text"] = str(el.get("text", ""))[:120]
             el["size"] = max(30, min(_f(el.get("size"), 64), 200))
@@ -691,12 +787,12 @@ def repair_scene(scene, mood="fun", text="", kit=None):
             if t == "city":
                 if not (0 <= mx <= W and 0 <= my <= H - CAPTION_ZONE + 40):
                     fixes.append(f"city {el.get('name')!r} is outside the visible map")
-            elif t in ("text", "char", "prop", "bubble", "note", "icons", "sign", "board"):
+            elif t in ("text", "char", "prop", "bubble", "note", "icons", "sign", "board", "counter", "battle"):
                 probe = dict(el, x=mx, y=my)
                 probe.pop("lon", None)
                 probe.pop("lat", None)
                 bb = element_bbox(probe)
-                limit = H - CAPTION_ZONE if t in ("text", "bubble", "note", "board") else H
+                limit = H - CAPTION_ZONE if t in ("text", "bubble", "note", "board", "counter", "battle") else H
                 if bb is not None and (bb[0] < safe[0] or bb[2] > safe[2] or bb[1] < safe[1] or bb[3] > min(limit, safe[3] if t != "char" else H)):
                     el.pop("lon")
                     el.pop("lat")
@@ -707,7 +803,7 @@ def repair_scene(scene, mood="fun", text="", kit=None):
             _shrink_text(el, W - 40)
         bb = element_bbox(el)
         if bb is not None:
-            limit = H - CAPTION_ZONE if t in ("text", "bubble", "note", "board", "sign") else H
+            limit = H - CAPTION_ZONE if t in ("text", "bubble", "note", "board", "sign", "counter", "battle") else H
             if t == "sign":
                 limit = H
             if t == "char":
@@ -747,7 +843,7 @@ def repair_scene(scene, mood="fun", text="", kit=None):
 
     # nudge overlapping text-like elements apart (later one moves down, or up if no room)
     # boards and signs are containers: text placed on top of them is intentional
-    textish = [e for e in out if e.get("type") in ("text", "bubble", "note") and element_bbox(e)]
+    textish = [e for e in out if e.get("type") in ("text", "bubble", "note", "counter") and element_bbox(e)]
     for i, a in enumerate(textish):
         for b in textish[i + 1:]:
             ba, bb_ = element_bbox(a), element_bbox(b)
@@ -767,6 +863,14 @@ def repair_scene(scene, mood="fun", text="", kit=None):
         fixes.append(f"too many elements ({len(out)}), kept 24")
         out = out[:24]
     sc["elements"] = out
+    if sc.get("transition") is not None:
+        tr = str(sc["transition"]).lower().replace("_", "")
+        tr = {"cutto": "cut", "push": "slide", "swipe": "wipe", "dissolve": "fade", "crossfade": "fade",
+              "circle": "iris", "page": "paper", "pageturn": "paper", "zoomin": "zoom", "none": "cut"}.get(tr, tr)
+        if tr not in ("auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade"):
+            fixes.append(f"unknown transition {sc['transition']!r}, used auto")
+            tr = "auto"
+        sc["transition"] = tr
     cam = sc.get("camera")
     if cam is not None and not isinstance(cam, dict):
         sc["camera"] = {}

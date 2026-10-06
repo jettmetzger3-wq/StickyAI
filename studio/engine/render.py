@@ -5,11 +5,11 @@ import time
 
 from .core import W, H, FPS
 from .compiler import build_scene
-from .captions import make_captions
+from .captions import make_captions, paste_caption
 from .timing import WordTimer, LEAD, TAIL
 
 # bump when drawing or animation changes, so finished videos get re-rendered with the new look
-ENGINE_VERSION = 3
+ENGINE_VERSION = 4
 
 
 def plan_timeline(voice_durs, lead=LEAD, tail=TAIL):
@@ -34,7 +34,8 @@ def make_scene(job):
 
 def render_still(job, out_path, t_frac=0.85, size=(640, 360), captions=False):
     sc, timer = make_scene(job)
-    caps = make_captions(job["text"], job["dur"], timer=timer) if captions else ()
+    caps = make_captions(job["text"], job["dur"], timer=timer, style=job.get("caption_style", "highlight")) \
+        if captions else ()
     im = sc.render_at(job["dur"] * t_frac, caps)
     if size and size != (W, H):
         from PIL import Image
@@ -57,13 +58,103 @@ def watermark_image(text, size=26):
     return im
 
 
+# ------------------------------------------------------------------ transitions between scenes
+TRANSITIONS = ("auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade")
+TRANSITION_TIME = 0.45
+TRANSITION_SFX = {"slide": "swish", "wipe": "swish", "zoom": "whoosh", "paper": "swish", "iris": "swish"}
+
+
+def bg_sig(scene):
+    bg = (scene or {}).get("bg") or {}
+    return (bg.get("type"), bg.get("skyline"), bg.get("style"), tuple(bg.get("center") or ()), bg.get("width"))
+
+
+def pick_transition(prev, scene, idx, mood="fun", prev_mood="fun"):
+    """How scene `idx` starts after `prev` (both scene dicts). Explicit "transition" wins; otherwise: maps and
+    same-place scenes cut (it reads as one shot), sad moments fade, everything else rotates through the rest."""
+    want = str((scene or {}).get("transition") or "auto").lower()
+    if prev is None:
+        return "cut"
+    if want in TRANSITIONS and want != "auto":
+        return want
+    if mood == "somber" or prev_mood == "somber":
+        return "fade"
+    a, b = ((prev.get("bg") or {}).get("type"), (scene.get("bg") or {}).get("type"))
+    if a == b == "map" or bg_sig(prev) == bg_sig(scene):
+        return "cut"
+    return ("slide", "wipe", "zoom", "paper", "slide", "iris", "wipe")[idx % 7]
+
+
+def compose_transition(a, b, kind, p):
+    """Frame p (0..1) of a transition from image a (last frame before) to image b (the new scene)."""
+    from PIL import Image, ImageDraw
+    from .core import ease_io
+    q = ease_io(p)
+    a, b = a.convert("RGB"), b.convert("RGB")
+    if kind == "slide":
+        out = Image.new("RGB", (W, H))
+        out.paste(a, (int(-q * W), 0))
+        out.paste(b, (int(W - q * W), 0))
+        return out
+    if kind == "wipe":
+        edge = q * (W + 500) - 250
+        mask = Image.new("L", (W, H), 0)
+        d = ImageDraw.Draw(mask)
+        d.polygon([(0, 0), (edge + 160, 0), (edge - 160, H), (0, H)], fill=255)
+        out = a.copy()
+        out.paste(b, (0, 0), mask)
+        ImageDraw.Draw(out).line([(edge + 160, 0), (edge - 160, H)], fill=(38, 38, 48), width=10)
+        return out
+    if kind == "zoom":
+        za = 1 + 0.6 * q
+        aa = a.resize((int(W * za), int(H * za)), Image.BILINEAR).crop(
+            (int((W * za - W) / 2), int((H * za - H) / 2), int((W * za - W) / 2) + W, int((H * za - H) / 2) + H))
+        zb = 1.18 - 0.18 * q
+        bb = b.resize((int(W * zb), int(H * zb)), Image.BILINEAR).crop(
+            (int((W * zb - W) / 2), int((H * zb - H) / 2), int((W * zb - W) / 2) + W, int((H * zb - H) / 2) + H))
+        return Image.blend(aa, bb, min(1.0, q * 1.4))
+    if kind == "iris":
+        r = q * 1150
+        mask = Image.new("L", (W, H), 0)
+        ImageDraw.Draw(mask).ellipse([W / 2 - r, H / 2 - r, W / 2 + r, H / 2 + r], fill=255)
+        out = a.copy()
+        out.paste(b, (0, 0), mask)
+        if r > 4:
+            ImageDraw.Draw(out).ellipse([W / 2 - r, H / 2 - r, W / 2 + r, H / 2 + r], outline=(38, 38, 48), width=10)
+        return out
+    if kind == "paper":
+        y = int(H * (1 - q))
+        out = Image.blend(a, Image.new("RGB", (W, H), (20, 20, 26)), 0.25 * q)
+        out.paste(b, (0, y))
+        ImageDraw.Draw(out).rectangle([0, y - 12, W, y], fill=(60, 56, 52))
+        return out
+    if kind == "fade":
+        dark = Image.new("RGB", (W, H), (16, 16, 22))
+        return Image.blend(a, dark, min(1.0, p * 2)) if p < 0.5 else Image.blend(dark, b, min(1.0, (p - 0.5) * 2))
+    return b
+
+
 def render_segment(job):
-    """job: dict(idx, scene, dur, mood, text, word_times, frames, out, captions=True, watermark="").
+    """job: dict(idx, scene, dur, mood, text, word_times, frames, out, captions=True, watermark="",
+    prev=None (the previous scene's job, for a transition), transition="cut").
     Returns dict(idx, sfx=[(t, kind)], warnings=[...], seconds=elapsed)."""
     t0 = time.time()
     sc, timer = make_scene(job)
-    caps = make_captions(job["text"], job["dur"], timer=timer) if job.get("captions", True) else ()
+    caps = make_captions(job["text"], job["dur"], timer=timer, style=job.get("caption_style", "highlight")) \
+        if job.get("captions", True) else ()
     wm = watermark_image(job["watermark"]) if job.get("watermark") else None
+    kind = job.get("transition") or "cut"
+    before = None
+    if kind != "cut" and job.get("prev"):
+        try:
+            psc, _ = make_scene(job["prev"])
+            before = psc.render_at(max(0.0, job["prev"]["dur"] - 1 / FPS))
+        except Exception as e:  # a transition is a nicety; never fail the scene over it
+            sc.warn(f"transition skipped: {e}")
+            before = None
+    n_tr = int(TRANSITION_TIME * FPS) if before is not None else 0
+    if n_tr and TRANSITION_SFX.get(kind):
+        sc.sfx.append((0.02, TRANSITION_SFX[kind]))
     tmp = job["out"] + ".part.mp4"
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
            "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", job.get("preset", "veryfast"),
@@ -71,7 +162,12 @@ def render_segment(job):
            "-movflags", "+faststart", tmp]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
-        for fr in sc.render_frames(job["frames"], caps):
+        for fi in range(job["frames"]):
+            tt = fi / FPS
+            fr = sc.render_at(tt)
+            if fi < n_tr:
+                fr = compose_transition(before, fr, kind, (fi + 1) / (n_tr + 1))
+            paste_caption(fr, caps, tt)
             if wm is not None:
                 fr.paste(wm, (W - wm.width - 24, 22), wm)
             p.stdin.write(fr.convert("RGB").tobytes())

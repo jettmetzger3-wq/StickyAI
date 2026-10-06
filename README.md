@@ -127,14 +127,30 @@ once its connector works.
   - **on**: runs straight to the finished video,
   - **off**: pauses after the **script**, the **storyboard** and the **voice** so you can edit before continuing.
 - **Project page**: live progress for each step (scene X of Y with ETA), plus tabs:
-  - **Script**: edit, reorder, insert or delete beats, change moods, "↻ rewrite" one beat with the AI, tick off the fact checklist, edit the cast (who wears which hat).
+  - **Script**: edit, reorder, insert or delete beats, change moods, "↻ rewrite" one beat with the AI, tick off the fact checklist (with the automatic fact-check's verdicts and fixes), edit the cast (who wears which hat).
   - **Storyboard**: a still of every scene. Click one to scrub through time, nudge elements, delete elements, edit the scene JSON, "Redraw with AI" (optionally with instructions), or re-render just that scene into the video.
   - **Voice & music**: listen to each line, change the voice, upload your own royalty-free music and re-mix.
-  - **Output**: the video player, download buttons (full quality + a share copy under 30 MB), the 3 titles, description and tags with copy buttons, chapters, the thumbnail, the Short (with its title, description and #shorts tags) and what the video cost.
+  - **Output**: the video player, download buttons (full quality + a share copy under 30 MB), the 3 titles, description and tags with copy buttons, chapters, the thumbnail, the Short (with its title, description and #shorts tags), **Upload to YouTube** (see below) and what the video cost.
   - **Source** (remakes): what the AI saw when it watched the video, the frames and the transcript.
   - **Costs & log**: switch tools per step, remaining estimates, what was actually spent, and the run log.
 - **Re-run from here** on any step redoes it and everything after it, but each step only redoes what changed
   (edited lines get new audio, changed scenes get re-rendered).
+
+### Upload straight to YouTube (free)
+
+The Output tab can upload the finished video (or the Short) to your channel with the title, description, chapters,
+tags and thumbnail filled in, as private, unlisted or public, or scheduled to go public at a set time. It uses
+Google's free YouTube Data API with **your own** Google project, so nothing is shared with anyone:
+
+1. Open console.cloud.google.com, create a project and enable **YouTube Data API v3**.
+2. Under "Google Auth Platform" set up the consent screen (External) and add your Google account as a test user.
+3. Create an OAuth client of type **Desktop app**; copy the client ID and secret.
+4. In the studio: Settings > API keys > `YOUTUBE_CLIENT_ID` and `YOUTUBE_CLIENT_SECRET`, then **Connect YouTube**
+   (on the PC, since Google sends you back to `localhost`). After that you can upload from your phone too.
+
+It costs nothing; Google's free daily quota allows several uploads a day. Google may keep videos uploaded by a new,
+unaudited API project private; if that happens, publish them from YouTube Studio or request Google's free API
+audit for your project. Custom thumbnails need a verified channel (YouTube asks for a phone number once).
 
 ---
 
@@ -223,6 +239,20 @@ the Kokoro model in `data/models/`.
   objects. On top of that, before the storyboard the writer designs a few extra props this particular story needs
   (the Rosetta Stone, a Spitfire, Napoleon's hat on a pillow...) as simple shapes, which are checked, saved with the
   project and shown on the Storyboard tab. Turn this off in Settings ("Draw extra props for each video").
+- **Motion and sound**: windmills turn, flags wave, fires flicker, smoke rises, lighthouse beams sweep and rotors
+  spin on their own. Scenes change with slides, wipes, zoom-throughs, iris and page turns (cuts between map shots,
+  fades around sad moments). Every place has its own quiet background sound (waves, gulls, street murmur, wind,
+  jungle, battle, crickets at night), characters' footsteps, jumps and cheers are heard, and little "blah blah"
+  blips play while a speech bubble is up. Captions light up the word being spoken. All of it can be switched off
+  in Settings.
+- **Characters you recognize**: coats in each side's colors (British redcoats, French blue, Russian green...) with
+  crossbelts or gold epaulettes depending on the hat, beards and mustaches, Napoleon's hand-in-coat pose, and
+  riders on horses, camels, elephants and chariots (they gallop when they move; whole cavalry crowds too).
+- **War maps**: troops (or tanks, ships) march along invasion arrows, battles get a crossed-swords marker with a
+  boom, front lines move smoothly between positions, and counters tick years, army sizes or money.
+- **Fact-check**: right after writing the script, Claude double-checks the claims it was unsure about (with web
+  search when it runs on Claude Code, free on your plan), rewrites any beat that got a fact wrong, and lists what it
+  confirmed, fixed and couldn't settle on the Script tab.
 - **Dialogue**: characters talk. A character's `"say"` lines appear one after another in speech bubbles over their
   head (placed to dodge labels and props, tail pointing at them) while their mouth moves, and crowds can shout back.
   When the narration says someone spoke, ordered, promised or rallied people and the scene has nobody talking, the
@@ -238,7 +268,7 @@ the Kokoro model in `data/models/`.
   Every scene is auto-repaired (wrong names, off-screen positions, text in the caption area, labels on faces,
   somber-scene rules) and validated against a JSON Schema before rendering. If a scene is broken the AI is asked
   to fix it, and as a last resort a simple rule-based scene (that still follows the video's topic) is used.
-  18 hand-made example scenes
+  20 hand-made example scenes
   (`studio/prompts/examples.json`) teach the AI the style.
 - **Rendering**: each scene is composited frame by frame and piped raw into ffmpeg (x264), one MP4 per scene in
   a process pool (CPU cores minus one), then concatenated with the final mix.

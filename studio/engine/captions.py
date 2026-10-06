@@ -56,14 +56,58 @@ def render_caption(text, size=CAPTION_SIZE):
     return im
 
 
-def make_captions(text, dur, lead=LEAD, tail=TAIL, word_times=None, timer=None, max_width=1800):
-    """[(start, end, RGBA image)] ready for Scene.render_at."""
+HIGHLIGHT = (255, 214, 60)
+
+
+def render_caption_words(words, active, size=CAPTION_SIZE):
+    """Like render_caption, with word number `active` drawn in the highlight color."""
+    f = font("bold", size)
+    tmp = ImageDraw.Draw(Image.new("RGBA", (10, 10)))
+    full = "  ".join(words)
+    bb = tmp.textbbox((0, 0), full, font=f, stroke_width=5)
+    im = Image.new("RGBA", (bb[2] - bb[0] + 20, bb[3] - bb[1] + 20), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    x = 10 - bb[0]
+    for i, w in enumerate(words):
+        d.text((x, 10 - bb[1]), w, font=f, fill=HIGHLIGHT if i == active else (255, 255, 255), stroke_width=5,
+               stroke_fill=(25, 25, 32))
+        x += tmp.textlength(w + "  ", font=f)
+    return im
+
+
+def make_captions(text, dur, lead=LEAD, tail=TAIL, word_times=None, timer=None, max_width=1800, style="plain"):
+    """[(start, end, RGBA image)] ready for Scene.render_at / paste_caption.
+    style "highlight": the word being spoken lights up (one image per word, timed to the voice)."""
     out = []
-    for t0, t1, chunk in caption_timings(text, dur, lead, tail, word_times, timer):
+    timer = timer or WordTimer(text, dur, lead, tail, word_times)
+    chunks = chunk_words(timer.words)
+    for k, (t0, t1, chunk) in enumerate(caption_timings(text, dur, lead, tail, word_times, timer)):
         size = CAPTION_SIZE
         im = render_caption(chunk, size)
         while im.width > max_width and size > 30:
             size -= 4
             im = render_caption(chunk, size)
-        out.append((t0, t1, im))
+        if style != "highlight" or k >= len(chunks):
+            out.append((t0, t1, im))
+            continue
+        idx = chunks[k]
+        words = [timer.words[i] for i in idx]
+        starts = [max(t0, timer.starts[i]) for i in idx]
+        if starts[0] > t0:
+            out.append((t0, starts[0], render_caption_words(words, -1, size)))
+        for j in range(len(idx)):
+            a = starts[j]
+            b = starts[j + 1] if j + 1 < len(idx) else t1
+            if b > a:
+                out.append((a, b, render_caption_words(words, j, size)))
     return out
+
+
+def paste_caption(frame, captions, t):
+    """Paste the caption that is up at time t onto a full frame."""
+    from .doodle import W, H
+    for c0, c1, cimg in captions:
+        if c0 <= t < c1:
+            frame.paste(cimg, ((W - cimg.width) // 2, H - CAPTION_BOTTOM - cimg.height), cimg)
+            return frame
+    return frame

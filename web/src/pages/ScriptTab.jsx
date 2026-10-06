@@ -184,6 +184,30 @@ export default function ScriptTab({ d, slug, reload, running }) {
         <p className="mb-3 text-xs text-stone-500 dark:text-zinc-400">
           Every date, number and claim in the script. Tick each one after you verify it. Medium/low confidence ones deserve a quick search.
         </p>
+        {script.factcheck && (
+          <div className="mb-3 rounded-lg border border-stone-200 bg-stone-50 p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="font-semibold">
+              Auto fact-check{" "}
+              <span className="font-normal text-stone-500">
+                ({script.factcheck.web ? "Claude searched the web" : "from Claude's knowledge, no web search"})
+              </span>
+            </p>
+            <p className="text-stone-600 dark:text-zinc-400">
+              {script.factcheck.counts?.correct || 0} confirmed · {script.factcheck.counts?.wrong || 0} wrong
+              {script.factcheck.fixed?.length ? ` (fixed in beat${script.factcheck.fixed.length > 1 ? "s" : ""} ${script.factcheck.fixed.map((i) => "#" + i).join(", ")})` : ""} ·{" "}
+              {script.factcheck.counts?.unsure || 0} unsure (check these yourself)
+            </p>
+            {(script.factcheck.checks || [])
+              .filter((c) => c.verdict !== "correct")
+              .map((c, k) => (
+                <p key={k} className="mt-1 text-xs text-stone-600 dark:text-zinc-400">
+                  <Badge kind={c.verdict === "wrong" ? "error" : "paused"}>{c.verdict}</Badge> <span className="font-mono text-stone-400">#{c.beat}</span> {c.claim}
+                  {c.correction && <span className="block pl-1">→ {c.correction}</span>}
+                  {c.source && <span className="block pl-1 text-stone-400">source: {c.source}</span>}
+                </p>
+              ))}
+          </div>
+        )}
         <div className="space-y-1.5">
           {facts.map((f, k) => (
             <label key={k} className="flex items-start gap-2 text-sm">
@@ -193,6 +217,13 @@ export default function ScriptTab({ d, slug, reload, running }) {
                 {f.claim}
                 {f.note && <span className="block text-xs text-stone-500 dark:text-zinc-400">{f.note}</span>}
               </span>
+              {f.auto && (
+                <span title={f.auto_note || ""}>
+                  <Badge kind={f.auto === "correct" ? "done" : f.auto === "wrong" ? "error" : "paused"}>
+                    {f.auto === "correct" ? "confirmed" : f.auto}
+                  </Badge>
+                </span>
+              )}
               <Badge kind={f.confidence}>{f.confidence}</Badge>
             </label>
           ))}

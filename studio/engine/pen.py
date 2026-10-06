@@ -29,6 +29,7 @@ ARMS = {
     "raise_right": ((20, 15), (150, 20)),
     "raise_left": ((150, 20), (20, 15)),
     "angry_fists": ((40, -60), (40, -60)),
+    "hand_in_coat": ((20, 15), (25, -150)),      # Napoleon's famous pose
 }
 LEGS = {
     "stand": ((12, 0), (12, 0)),
@@ -36,7 +37,32 @@ LEGS = {
     "run": ((45, 60), (-35, -30)),
     "wide": ((24, 0), (24, 0)),
     "jump": ((40, 70), (40, 70)),
+    "sit": ((55, 55), (55, 55)),                 # astride a horse
 }
+
+# animals and vehicles a character can ride: prop, size relative to the rider, seat (x, y) on the prop at
+# scale 1 (y up is negative), whether the rider stands (chariots) instead of sitting
+MOUNTS = {
+    "horse": dict(prop="horse", k=0.95, seat=(-8, -238), stand=False),
+    "camel": dict(prop="camel", k=0.9, seat=(-24, -296), stand=False),
+    "elephant": dict(prop="elephant", k=0.85, seat=(-40, -292), stand=False),
+    "chariot": dict(prop="chariot", k=0.9, seat=(-130, -66), stand=True),
+}
+MOUNT_ALIASES = {"pony": "horse", "stallion": "horse", "cavalry": "horse", "war_elephant": "elephant",
+                 "dromedary": "camel"}
+# hats that come with a uniform's details when the character wears a coat
+CROSSBELTS = ("shako", "bearskin", "tricorn")
+EPAULETTES = ("bicorne", "crown", "navy", "marine")
+
+
+def mount_lift(ride, s=1.0):
+    """How far above the ground a rider's feet point sits (screen px) and the mount's half width."""
+    m = MOUNTS.get(ride)
+    if not m:
+        return 0.0, 0.0
+    ms = s * m["k"]
+    lift = -m["seat"][1] * ms - (0 if m["stand"] else 112 * s)
+    return lift, 215 * ms
 
 MOUTHS = ("smile", "grin", "open", "scream", "frown", "smirk", "wavy", "flat", "o")
 EYES = ("dot", "wide", "happy", "closed", "angry", "sad", "worried", "dead")
@@ -95,7 +121,7 @@ class Pen(doodle.Canvas):
     # ---------------- stickman ----------------
     def stick(self, x, y, s=1.0, kind="japan", arms=((20, 15), (20, 15)), legs=((12, 0), (12, 0)),
               mouth="smile", eyes="dot", look=0, flip=False, extra=(), prop=None, blink=False, shadow=True,
-              col=INK, hat_color=None, head=(0, 0), lean=0):
+              col=INK, hat_color=None, head=(0, 0), lean=0, coat=None):
         """Draw a stickman. (x, y) = point between the feet. Head top is about 375*s above y.
         head = (dx, dy) nudges the head (nods, head shakes); lean moves the shoulders sideways (bending, leaning)."""
         if isinstance(arms, str):
@@ -127,13 +153,22 @@ class Pen(doodle.Canvas):
         for (fx, fy), side in feet:
             self.ell(fx + side * L(10), fy + L(2), L(20), L(10), col, 0)
         self.line([neck, hip], lw, col, 0.6)
+        cc = to_color(coat, None) if coat else None
+        if cc:
+            self._coat(neck, sh, hip, s, cc, kind)
         hands = []
         for side, (a, b) in zip((-1, 1), arms):
             ar = math.radians(a)
             elbow = (sh[0] + side * math.sin(ar) * L(58), sh[1] + math.cos(ar) * L(58))
             fr = math.radians(a + b)
             hand = (elbow[0] + side * math.sin(fr) * L(56), elbow[1] + math.cos(fr) * L(56))
-            self.line([sh, elbow, hand], lw, col, 0.6)
+            if cc:
+                wrist = (elbow[0] + (hand[0] - elbow[0]) * 0.72, elbow[1] + (hand[1] - elbow[1]) * 0.72)
+                self.line([(sh[0] + side * L(20), sh[1] + L(4)), elbow, wrist], L(27), INK, 0.4)
+                self.line([(sh[0] + side * L(20), sh[1] + L(4)), elbow, wrist], L(19), cc, 0.4)
+                self.line([wrist, hand], lw, col, 0.4)
+            else:
+                self.line([sh, elbow, hand], lw, col, 0.6)
             self.circ(hand[0], hand[1], L(9), col, 0)
             hands.append(hand)
         if prop:
@@ -145,6 +180,34 @@ class Pen(doodle.Canvas):
         for e in extra or ():
             self._extra(e, hx, hy, s, f)
         return hands
+
+    def _coat(self, neck, sh, hip, s, cc, kind):
+        """A jacket over the stick body: uniforms (redcoats vs blue coats), suits, robes."""
+        L = lambda v: v * s
+        top_y = sh[1] - L(8)
+        pts = [(neck[0] - L(16), top_y - L(6)), (sh[0] - L(36), top_y), (hip[0] - L(32), hip[1] + L(6)),
+               (hip[0] - L(26), hip[1] + L(44)), (hip[0] - L(4), hip[1] + L(18)), (hip[0] + L(4), hip[1] + L(18)),
+               (hip[0] + L(26), hip[1] + L(44)), (hip[0] + L(32), hip[1] + L(6)), (sh[0] + L(36), top_y),
+               (neck[0] + L(16), top_y - L(6))]
+        self.poly(pts, cc, 6 * s, INK, 0.4)
+        light = tuple(min(255, int(v + (255 - v) * 0.85)) for v in cc)
+        self.poly([(neck[0] - L(14), top_y - L(4)), (neck[0], top_y + L(22)), (neck[0] + L(14), top_y - L(4))],
+                  light, 3 * s, INK, 0.3)
+        for k in range(4):
+            q = (k + 1) / 5
+            bx = neck[0] + (hip[0] - neck[0]) * q
+            by = top_y + L(26) + (hip[1] - top_y - L(26)) * q
+            self.circ(bx, by, L(5), YELLOW, 2 * s)
+        if kind in CROSSBELTS:
+            for sgn in (-1, 1):
+                self.line([(sh[0] + sgn * L(30), top_y + L(4)), (hip[0] - sgn * L(28), hip[1] + L(4))], L(9), WHITE, 0.3)
+        if kind in EPAULETTES:
+            for sgn in (-1, 1):
+                self.ell(sh[0] + sgn * L(34), top_y + L(2), L(17), L(8), YELLOW, 3 * s)
+                for fx in (-10, -3, 4, 11):
+                    self.line([(sh[0] + sgn * L(34) + L(fx), top_y + L(8)), (sh[0] + sgn * L(34) + L(fx), top_y + L(18))],
+                              2.5 * s, YELLOW, 0.2)
+        self.line([(hip[0] - L(30), hip[1] - L(4)), (hip[0] + L(30), hip[1] - L(4))], L(6), darker(cc, 0.55), 0.3)
 
     def _face(self, x, hy, s, mouth, eyes, look, f, kind):
         L = lambda v: v * s

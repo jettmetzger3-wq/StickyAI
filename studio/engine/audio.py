@@ -186,10 +186,171 @@ def sfx(kind):
         for k in range(4):
             place(out, noise_hit(0.02, 3000), k * 0.5)
         return out / max(1e-9, np.abs(out).max()) * 0.6
+    if kind == "tick1":
+        x = noise_hit(0.018, 3500)
+        return x / max(1e-9, np.abs(x).max()) * 0.6
+    if kind in ("step", "step_soft"):
+        n = int(0.09 * SR)
+        t = np.arange(n) / SR
+        x = rng.normal(0, 1, n)
+        b, a = butter(2, (500 if kind == "step" else 350) / (SR / 2))
+        s = lfilter(b, a, x) * np.exp(-t * 55) + np.sin(2 * np.pi * 90 * t) * np.exp(-t * 60) * 0.6
+        return s / max(1e-9, np.abs(s).max()) * (0.8 if kind == "step" else 0.5)
+    if kind == "jump":
+        n = int(0.22 * SR)
+        t = np.arange(n) / SR
+        f = 260 + 900 * t / 0.22
+        s = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / 0.22)
+        return s * 0.7
+    if kind == "thud":
+        n = int(0.4 * SR)
+        t = np.arange(n) / SR
+        s = np.sin(2 * np.pi * (70 * np.exp(-t * 6) + 40) * t) * np.exp(-t * 10)
+        x = rng.normal(0, 1, n)
+        b, a = butter(2, 400 / (SR / 2))
+        s += lfilter(b, a, x) * np.exp(-t * 25) * 0.6
+        return s / max(1e-9, np.abs(s).max()) * 0.9
+    if kind == "cheer":
+        n = int(1.6 * SR)
+        t = np.arange(n) / SR
+        out = np.zeros(n)
+        for k in range(6):                      # a few voices: noisy vowels with their own pitch wobble
+            x = rng.normal(0, 1, n)
+            fc = rng.uniform(700, 1600)
+            b, a = butter(2, [fc * 0.7 / (SR / 2), fc * 1.3 / (SR / 2)], "band")
+            am = 0.6 + 0.4 * np.sin(2 * np.pi * rng.uniform(3, 7) * t + rng.uniform(0, 6))
+            out += lfilter(b, a, x) * am
+        env = np.minimum(1, t / 0.15) * np.exp(-np.maximum(0, t - 0.5) * 2.2)
+        return out / max(1e-9, np.abs(out).max()) * env * 0.9
+    if kind.startswith("blip"):
+        # one "syllable" of cartoon talk: a short vowel-ish tone, pitch from the character
+        try:
+            hz = float(kind.split(":")[1])
+        except (IndexError, ValueError):
+            hz = 330.0
+        hz *= rng.uniform(0.88, 1.15)
+        n = int(rng.uniform(0.05, 0.085) * SR)
+        t = np.arange(n) / SR
+        ph = 2 * np.pi * hz * t
+        s = np.sign(np.sin(ph)) * 0.35 + np.sin(ph) * 0.65 + 0.3 * np.sin(2 * ph + 0.5)
+        env = np.minimum(1, t / 0.006) * np.minimum(1, (t[-1] - t + 1e-4) / 0.02)
+        return s * env * 0.7
     return np.zeros(10)
 
 
-SFX_GAIN = {"pop": 0.10, "whoosh": 0.10, "swish": 0.07, "boom": 0.22, "tick": 0.25}
+SFX_GAIN = {"pop": 0.10, "whoosh": 0.10, "swish": 0.07, "boom": 0.22, "tick": 0.25, "tick1": 0.12, "step": 0.05,
+            "step_soft": 0.035, "jump": 0.05, "thud": 0.16, "cheer": 0.10, "blip": 0.028}
+
+
+# ---------------- ambience (a quiet bed of sound for each kind of place)
+def _noise(n, lo, hi):
+    x = rng.normal(0, 1, n)
+    if lo and hi:
+        b, a = butter(2, [lo / (SR / 2), hi / (SR / 2)], "band")
+    elif hi:
+        b, a = butter(2, hi / (SR / 2))
+    else:
+        b, a = butter(2, lo / (SR / 2), "high")
+    y = lfilter(b, a, x)
+    return y / max(1e-9, np.abs(y).max())
+
+
+def _events(out, sig_fn, every, jitter=0.5):
+    t = rng.uniform(0, every)
+    while t < len(out) / SR:
+        place(out, sig_fn(), t)
+        t += every * rng.uniform(1 - jitter, 1 + jitter)
+
+
+def _mixed(parts):
+    """Sum signals that start at different times: parts = [(seconds, signal), ...]."""
+    n = max(int(t0 * SR) + len(s) for t0, s in parts)
+    out = np.zeros(n)
+    for t0, s in parts:
+        a = int(t0 * SR)
+        out[a:a + len(s)] += s
+    return out
+
+
+def _chirp(f0, f1, d):
+    n = int(d * SR)
+    t = np.arange(n) / SR
+    f = f0 + (f1 - f0) * t / d
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / d) ** 2
+
+
+def make_ambience(kind, seconds=16.0):
+    """A loopable ambience bed, peak about 1.0."""
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    slow = lambda f, ph=0: 0.5 + 0.5 * np.sin(2 * np.pi * f * t + ph)
+    if kind in ("waves", "harbor"):
+        swell = slow(1 / 8.0) ** 2 * 0.8 + 0.2
+        out += _noise(n, 150, 1800) * swell
+        if kind == "harbor":
+            _events(out, lambda: _mixed([(0, _chirp(1500, 900, 0.35) * 0.25), (0.4, _chirp(1400, 800, 0.3) * 0.2)]), 5.0)
+    elif kind == "wind":
+        out += _noise(n, 200, 900) * (0.4 + 0.6 * slow(1 / 6.0) * slow(1 / 2.3, 1.0))
+    elif kind == "birds":
+        out += _noise(n, 200, 800) * 0.25 * slow(1 / 7.0)
+        _events(out, lambda: _mixed([(k * 0.09, _chirp(rng.uniform(2500, 4200), rng.uniform(3000, 5200), 0.07) * 0.25)
+                                     for k in range(int(rng.integers(2, 5)))]), 1.6)
+    elif kind == "jungle":
+        out += _noise(n, 5000, 7500) * 0.18 * (0.5 + 0.5 * np.sign(np.sin(2 * np.pi * 14 * t)))
+        _events(out, lambda: _chirp(rng.uniform(1800, 3500), rng.uniform(2500, 4500), rng.uniform(0.08, 0.2)) * 0.3, 0.8)
+        out += _noise(n, 80, 300) * 0.2
+    elif kind in ("street", "crowd", "city", "room"):
+        level = {"street": 1.0, "crowd": 1.3, "city": 0.6, "room": 0.35}[kind]
+        for k in range(5):                        # murmuring voices
+            am = np.clip(np.sin(2 * np.pi * rng.uniform(2.5, 5) * t + rng.uniform(0, 6)), 0, None) * slow(1 / rng.uniform(3, 7), k)
+            out += _noise(n, rng.uniform(250, 500), rng.uniform(900, 1600)) * am * 0.3 * level
+        if kind == "city":
+            out += _noise(n, 40, 200) * 0.5
+    elif kind == "battle":
+        out += _noise(n, 30, 160) * 0.5
+        _events(out, lambda: sfx("boom") * 0.5, 3.0)
+        _events(out, lambda: noise_hit(0.03, 1500) * 0.6, 0.35, 0.9)
+    elif kind == "underwater":
+        out += _noise(n, 30, 250) * 0.6 * (0.6 + 0.4 * slow(1 / 5.0))
+        _events(out, lambda: _chirp(300, rng.uniform(700, 1200), 0.06) * 0.4, 0.6, 0.9)
+    elif kind == "space":
+        out += (np.sin(2 * np.pi * 55 * t) + np.sin(2 * np.pi * 55.4 * t) + 0.5 * np.sin(2 * np.pi * 82.5 * t)) * 0.25
+        out += _noise(n, 100, 400) * 0.15
+    elif kind == "night":
+        crick = (np.sin(2 * np.pi * 4500 * t) * (np.sin(2 * np.pi * 30 * t) > 0.3) * (np.sin(2 * np.pi * 0.7 * t) > 0))
+        out += crick * 0.25 + _noise(n, 150, 600) * 0.15
+    elif kind == "storm":
+        out += _noise(n, 1500, 9000) * 0.5 + _noise(n, 60, 300) * 0.3
+        _events(out, lambda: sfx("boom") * 0.6, 6.0)
+    elif kind == "fire":
+        out += _noise(n, 100, 600) * 0.3
+        _events(out, lambda: noise_hit(0.01, 2500) * 0.8, 0.12, 0.9)
+    else:
+        return np.zeros(n)
+    # make it loop smoothly
+    xf = int(1.0 * SR)
+    out[:xf] = out[:xf] * np.linspace(0, 1, xf) + out[-xf:] * np.linspace(1, 0, xf)
+    out = out[:-xf]
+    return out / max(1e-9, np.abs(out).max())
+
+
+AMBIENCE_FOR = {"sea": "waves", "beach": "waves", "harbor": "harbor", "underwater": "underwater", "street": "street",
+                "city": "city", "palace": "room", "interior": "room", "field": "birds", "hills": "birds",
+                "mountains": "wind", "snow": "wind", "desert": "wind", "jungle": "jungle", "battlefield": "battle",
+                "trench": "battle", "space": "space", "night": "night"}
+
+
+def ambience_kind(scene):
+    """The ambience for a scene from its background (and time of day); None for maps and plain pages."""
+    bg = (scene or {}).get("bg") or {}
+    t = bg.get("type")
+    kind = AMBIENCE_FOR.get(t)
+    if bg.get("time") == "storm" and t not in ("interior", "palace", "space", "underwater"):
+        return "storm"
+    if bg.get("time") == "night" and kind in ("birds", "wind"):
+        return "night"
+    return kind
 
 
 def movavg(x, k):
@@ -236,7 +397,8 @@ def loop_to(x, n, xf=int(1.5 * SR)):
 
 
 def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, out_path, lead=0.15,
-              music_beds=None, music_file=None, music_db=-13.0, use_sfx=True):
+              music_beds=None, music_file=None, music_db=-13.0, use_sfx=True, ambiences=None, ambience_db=-25.0,
+              talk_blips=True, action_sounds=True):
     """voice_clips: list of mono arrays @ SR, one per scene; sfx_events: [(abs_time, kind)].
     music_beds: optional {mood: array} (e.g. AI-generated tracks); music_file: one uploaded track for all moods."""
     n = int(total * SR) + SR
@@ -277,11 +439,32 @@ def build_mix(voice_clips, scene_starts, scene_durs, moods, sfx_events, total, o
     if use_sfx:
         last = -1
         for t, kind in sorted(sfx_events):
+            if kind.startswith("blip"):
+                if talk_blips:
+                    place(fx, sfx(kind), t, SFX_GAIN["blip"])
+                continue
+            if kind in ("step", "step_soft", "jump", "thud", "cheer") and not action_sounds:
+                continue
             if t - last < 0.12 and kind in ("pop", "swish"):
                 continue
             place(fx, sfx(kind), t, SFX_GAIN.get(kind, 0.1))
             last = t
-    mix = voice + music + fx
+    # ambience: a quiet bed of sound for each place, crossfaded between scenes and ducked under the voice
+    amb = np.zeros(n)
+    if ambiences:
+        beds = {}
+        gains = {}
+        for st, d, k in zip(scene_starts, scene_durs, ambiences):
+            if not k:
+                continue
+            if k not in beds:
+                beds[k] = loop_to(make_ambience(k), n)
+                gains[k] = np.zeros(n)
+            gains[k][int(st * SR):int((st + d) * SR)] = 1.0
+        for k, bed in beds.items():
+            amb += bed[:n] * movavg(gains[k], int(0.8 * SR))
+        amb *= (10 ** (ambience_db / 20)) * (1 - 0.4 * np.clip(env / (env.max() + 1e-9) * 4, 0, 1))
+    mix = voice + music + fx + amb
     fade = int(1.0 * SR)
     mix[:fade] *= np.linspace(0, 1, fade)
     mix[-fade:] *= np.linspace(1, 0, fade)

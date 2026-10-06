@@ -7,11 +7,12 @@ import math
 from .core import Scene, W, H, norm_enter
 from .geo import View, region_geom
 from .palette import color as C, INK, RED, NAVY, WHITE, PAPER, SUN, SEA, DARK, darker
-from .pen import ARMS, LEGS, resolve_kind
+from .pen import ARMS, LEGS, MOUNTS, resolve_kind
 from .puppet import ACTIONS, resolve_action
 from . import props as P
-from .registry import PROPS, resolve_prop, prop_bounds, prop_anchor
+from .registry import PROPS, ANIMATED, resolve_prop, prop_bounds, prop_anchor
 from .places import PAINTERS
+from . import warmap as WM
 import random
 
 NO_NORMALIZE = {"wall", "bar_chart", "line_chart", "railway", "skyline", "table", "crowd"}
@@ -216,7 +217,16 @@ def draw_char_static(p, el, sc):
     """A stickman drawn into a group layer (no blink)."""
     x, y = pos(el, sc)
     s = max(0.15, min(num(el.get("scale"), 1.0), 2.5))
-    p.stick(x, y, s, **char_pose(el))
+    pose = char_pose(el)
+    m = MOUNTS.get(pose.pop("ride", None))
+    if m:
+        ms = s * m["k"]
+        f = -1 if pose.get("flip") else 1
+        PROPS[m["prop"]][1](p, x, y, ms, None, {"flip": bool(pose.get("flip")), "saddle": True})
+        x, y = x + m["seat"][0] * ms * f, y + m["seat"][1] * ms + (0 if m["stand"] else 112 * s)
+        pose["legs"] = LEGS["stand" if m["stand"] else "sit"]
+        pose["shadow"] = False
+    p.stick(x, y, s, **pose)
 
 
 def char_pose(el):
@@ -232,7 +242,7 @@ def char_pose(el):
     return dict(kind=resolve_kind(el.get("kind")), arms=arms, legs=legs, mouth=el.get("mouth", "smile"),
                 eyes=el.get("eyes", "dot"), look=int(num(el.get("look"), 0)), flip=bool(el.get("flip")),
                 extra=tuple(el.get("extras") or ()), prop=prop, hat_color=el.get("hat_color"),
-                shadow=el.get("shadow", True) is not False)
+                shadow=el.get("shadow", True) is not False, coat=el.get("coat"), ride=el.get("ride"))
 
 
 DRAWERS = {"prop": draw_prop, "text": draw_text, "bubble": draw_bubble, "note": draw_note, "sign": draw_sign,
@@ -371,6 +381,38 @@ def auto_actions(el, sc, at_s, k):
     return [a for a in acts if a["dur"] > 0.2]
 
 
+STEP_EVERY = {"walk": 0.32, "run": 0.2, "sneak": 0.45}
+
+
+def action_sounds(sc, acts, crowd=False):
+    """Footsteps, jumps, thuds and cheers for a character's actions (mixed quietly under the voice)."""
+    for a in acts:
+        act, t0, d = a["act"], a["t0"], a.get("dur", 1.0)
+        if act in STEP_EVERY:
+            t = t0 + 0.05
+            while t < t0 + d:
+                sc.sfx.append((t, "step_soft" if act == "sneak" or crowd else "step"))
+                t += STEP_EVERY[act]
+        elif act in ("jump", "hop"):
+            sc.sfx.append((t0, "jump"))
+        elif act == "faint":
+            sc.sfx.append((t0 + d * 0.9, "thud"))
+        elif act in ("cheer", "celebrate") and crowd:
+            sc.sfx.append((t0, "cheer"))
+
+
+def talk_sounds(sc, talk, kind, s, seed=0):
+    """Little 'blah blah' syllables while a character talks; bigger characters sound lower."""
+    r = random.Random(seed)
+    hz = 360 / max(0.5, s) ** 0.5 * (1 + (sum(map(ord, str(kind))) % 5 - 2) * 0.06)
+    for t0, t1 in talk:
+        t, k = t0 + 0.04, 0
+        while t < t1 - 0.05:
+            sc.sfx.append((round(t, 3), f"blip:{hz:.0f}"))
+            k += 1
+            t += r.uniform(0.09, 0.15) + (0.12 if k % 4 == 0 else 0)
+
+
 def build_char(sc, el, k, talk=()):
     a = anim(el, sc, "pop")
     x, y = pos(el, sc, (960, 900))
@@ -381,6 +423,8 @@ def build_char(sc, el, k, talk=()):
         acts = auto_actions(el, sc, sc.T(a["at"]), k)
     talk = list(talk) + [(sc.T(sc.timer.resolve(w.get("at"), 0.0)), sc.T(sc.timer.resolve(w.get("at"), 0.0)) + num(w.get("dur"), 2.0))
                          for w in (el.get("talk") or []) if isinstance(w, dict)]
+    action_sounds(sc, acts)
+    talk_sounds(sc, talk, el.get("kind"), s, k)
     return sc.char(x, y, s, enter=a["enter"], at=a["at"], idle=idle, exit_at=a["exit_at"], move=a["move"],
                    z=int(num(el.get("z"), 1)), sfx=a["sfx"], actions=acts, talk=talk,
                    life=el.get("life", True) is not False, **char_pose(el))
@@ -410,6 +454,8 @@ def build_crowd(sc, el):
             acts = char_actions(sub, sc, xx, yy, s, a["at"]) if el.get("do") else []
             for ac in acts:
                 ac["t0"] += r.uniform(0, 0.25)       # a ripple, not perfect unison
+            if row == rows - 1 and i == 0:
+                action_sounds(sc, acts, crowd=True)
             L = sc.char(xx, yy, s, enter=a["enter"], at=min(0.98, a["at"] + r.uniform(0, 0.03)), idle=None,
                         exit_at=a["exit_at"], move=a["move"], z=int(num(el.get("z"), 1)) - depth,
                         sfx=a["sfx"] if i == 0 and row == rows - 1 else None, actions=acts,
@@ -488,9 +534,21 @@ def build_element(sc, el, mood, k=0, talk=()):
             pts = [point(el.get("from"), sc), point(el.get("to"), sc)]
         if len(pts) < 2:
             return
-        sc.arrow(pts, col=C(el.get("color"), RED), w=num(el.get("width"), 14), at=a["at"], edur=num(el.get("edur"), 0.7),
+        edur = num(el.get("edur"), 0.7)
+        sc.arrow(pts, col=C(el.get("color"), RED), w=num(el.get("width"), 14), at=a["at"], edur=edur,
                  enter=a["enter"] or "wipe_r", head=el.get("head", True) is not False, z=int(num(el.get("z"), 2)),
                  curve=num(el.get("curve"), 0), exit_at=a["exit_at"], sfx=a["sfx"])
+        if el.get("units"):
+            build_marchers(sc, el, pts, a, edur)
+        return
+    if t == "battle":
+        build_battle(sc, el)
+        return
+    if t == "front":
+        build_front(sc, el)
+        return
+    if t == "counter":
+        build_counter(sc, el)
         return
     if t == "group":
         items = el.get("items") or []
@@ -502,6 +560,9 @@ def build_element(sc, el, mood, k=0, talk=()):
                 if fn:
                     fn(p, it, sc)
         return
+    if t == "prop" and resolve_prop(el.get("name")) in ANIMATED and el.get("animate", True) is not False:
+        build_moving_prop(sc, el)
+        return
     fn = DRAWERS.get(t)
     if not fn:
         sc.warn(f"unknown element type '{t}' skipped")
@@ -512,6 +573,158 @@ def build_element(sc, el, mood, k=0, talk=()):
     with sc.layer(a["enter"], a["at"], edur=num(el.get("edur"), 0.38), idle=a["idle"], exit_at=a["exit_at"],
                   sfx=a["sfx"], move=a["move"], z=int(num(el.get("z"), default_z))) as p:
         fn(p, el, sc)
+
+
+def build_moving_prop(sc, el):
+    """A prop that moves on its own (windmill sails, a waving flag, flames, smoke...), redrawn a few times a second."""
+    name = resolve_prop(el.get("name"))
+    params = dict(el.get("params") or {})
+    s = max(0.1, min(num(el.get("scale"), 1.0), 4.0))
+    x, y = pos(el, sc)
+    x0, y0, x1, y1 = prop_bounds(name, params)
+    w, h = (x1 - x0) * s, (y1 - y0) * s
+    m = 0.15 * max(w, h) + 30
+    if prop_anchor(name, params) == "bottom":
+        box = (x - w / 2 - m, y - h - m, w + 2 * m, h + m + 12)
+    else:
+        box = (x - w / 2 - m, y - h / 2 - m, w + 2 * m, h + 2 * m)
+    local = dict(el, x=x - box[0], y=y - box[1], lon=None, lat=None)
+
+    def draw(p, tl):
+        draw_prop(p, dict(local, params=dict(params, t=tl)), sc)
+
+    a = anim(el, sc, "pop")
+    sc.dynamic(draw, box, a["enter"], a["at"], edur=num(el.get("edur"), 0.38), idle=a["idle"], exit_at=a["exit_at"],
+               sfx=a["sfx"], move=a["move"], z=int(num(el.get("z"), 1)), period=ANIMATED[name])
+
+
+# ------------------------------------------------------------------ war maps (see warmap.py)
+def build_marchers(sc, el, pts, a, edur):
+    """Soldiers (or a tank, a ship...) marching along an arrow, a little behind its tip."""
+    if len(pts) == 2 and num(el.get("curve"), 0):
+        (x1, y1), (x2, y2) = pts
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        nx, ny = -(y2 - y1), (x2 - x1)
+        nn = math.hypot(nx, ny) or 1
+        cx, cy = mx + nx / nn * num(el.get("curve")), my + ny / nn * num(el.get("curve"))
+        pts = [((1 - u) ** 2 * x1 + 2 * (1 - u) * u * cx + u * u * x2, (1 - u) ** 2 * y1 + 2 * (1 - u) * u * cy + u * u * y2)
+               for u in [i / 24 for i in range(25)]]
+    units = str(el.get("units"))
+    prop = resolve_prop(units)
+    n = int(max(1, min(num(el.get("count"), 1 if prop else 4), 8)))
+    s = max(0.4, min(num(el.get("unit_scale"), 1.0), 2.5))
+    col = C(el.get("unit_color") or el.get("color"), RED)
+    t0 = sc.T(a["at"])
+    march = max(edur, num(el.get("march"), max(2.0, edur * 2.5)))
+    box = WM.bbox(pts, 140 * s)
+
+    def draw(p, tl):
+        q = min(1.0, tl / march) * (1 + 0.07 * (n - 1))
+        local = [(x - box[0], y - box[1]) for x, y in pts]
+        WM.draw_marchers(p, local, min(q, 1.0 + 0.07 * (n - 1)), units, n, col, s, tl)
+
+    sc.dynamic(draw, box, None, a["at"], edur=0, exit_at=a["exit_at"], sfx=None, z=int(num(el.get("z"), 2)) + 1,
+               fps=12)
+
+
+def build_battle(sc, el):
+    a = anim(el, sc, "pop")
+    x, y = pos(el, sc)
+    s = max(0.4, min(num(el.get("size"), 1.0), 2.5))
+    label = str(el.get("label") or el.get("text") or "")[:24]
+    box = (x - 120 * s, y - 120 * s, 240 * s, 240 * s + (90 * s if label else 0))
+    if label:
+        box = (min(box[0], x - len(label) * 14 * s - 20), box[1], max(box[2], len(label) * 28 * s + 40), box[3])
+
+    def draw(p, tl):
+        WM.draw_battle(p, x - box[0], y - box[1], s, label, math.sin(2 * math.pi * tl / 0.8))
+
+    sfx = a["sfx"] if el.get("sfx") is not None else "boom"
+    sc.dynamic(draw, box, a["enter"] or "pop", a["at"], edur=0.38, exit_at=a["exit_at"], sfx=None,
+               z=int(num(el.get("z"), 3)), fps=12, period=0.8)
+    if sfx and sfx != "auto":
+        sc.sfx.append((sc.T(a["at"]), sfx))
+    elif sfx == "auto":
+        sc.sfx.append((sc.T(a["at"]), "boom"))
+
+
+def front_keys(el, sc):
+    """[(t seconds, [24 points])] for a front line that may move over time."""
+    keys = []
+    if isinstance(el.get("keys"), list):
+        for k in el["keys"][:6]:
+            if isinstance(k, dict) and isinstance(k.get("points"), list) and len(k["points"]) >= 2:
+                keys.append((sc.T(sc.timer.resolve(k.get("at"), 0.0)), WM.resample([point(q, sc) for q in k["points"]])))
+    elif isinstance(el.get("points"), list) and len(el["points"]) >= 2:
+        keys.append((0.0, WM.resample([point(q, sc) for q in el["points"]])))
+    keys.sort(key=lambda kv: kv[0])
+    return keys
+
+
+def build_front(sc, el):
+    keys = front_keys(el, sc)
+    if not keys:
+        sc.warn("front line without points skipped")
+        return
+    a = anim(el, sc, "fade")
+    col = C(el.get("color"), RED)
+    width = max(4.0, min(num(el.get("width"), 12), 30))
+    side = -1 if str(el.get("side", "right")).lower() in ("left", "-1") else 1
+    allpts = [q for _, pts in keys for q in pts]
+    box = WM.bbox(allpts, 60)
+    t_start = sc.T(a["at"])
+
+    def draw(p, tl):
+        t = t_start + tl
+        if len(keys) == 1 or t <= keys[0][0]:
+            pts = keys[0][1]
+        elif t >= keys[-1][0]:
+            pts = keys[-1][1]
+        else:
+            for (ta, pa), (tb, pb) in zip(keys, keys[1:]):
+                if ta <= t <= tb:
+                    f = (t - ta) / max(tb - ta, 1e-3)
+                    f = f * f * (3 - 2 * f)
+                    pts = [(xa + (xb - xa) * f, ya + (yb - ya) * f) for (xa, ya), (xb, yb) in zip(pa, pb)]
+                    break
+        WM.draw_front(p, [(x - box[0], y - box[1]) for x, y in pts], col, width, side,
+                      el.get("teeth", True) is not False)
+
+    sc.dynamic(draw, box, a["enter"], a["at"], edur=0.5, exit_at=a["exit_at"], sfx=None,
+               z=int(num(el.get("z"), 2)), fps=12, period=None if len(keys) > 1 else 1 / 12)
+
+
+def build_counter(sc, el):
+    """A number that counts up or down: a year ticking by, troops, money."""
+    a = anim(el, sc, "pop")
+    x, y = pos(el, sc)
+    v0, v1 = num(el.get("from"), 0), num(el.get("to"), 100)
+    kind = "year" if (str(el.get("format", "")).lower() == "year" or
+                      (el.get("format") is None and 0 < abs(v0) < 2100 and 0 < abs(v1) < 2100 and v0 == int(v0)
+                       and v1 == int(v1) and not el.get("prefix") and not el.get("suffix"))) else "number"
+    size = max(30.0, min(num(el.get("size"), 90), 220))
+    col = C(el.get("color"), INK)
+    t0 = sc.T(a["at"])
+    until = el.get("until")
+    t1 = sc.T(sc.timer.resolve(until, 0.0)) if until is not None else t0 + num(el.get("dur"), 2.0)
+    t1 = max(t1, t0 + 0.3)
+    longest = max(len(WM.fmt_count(v, kind, el.get("prefix", ""), el.get("suffix", ""), el.get("decimals", 0)))
+                  for v in (v0, v1))
+    w, h = longest * size * 0.62 + 60, size * 1.5
+    box = (x - w / 2, y - h / 2, w, h)
+
+    def draw(p, tl):
+        f = min(1.0, max(0.0, (t0 + tl - t0) / (t1 - t0)))
+        f = 1 - (1 - f) ** 2
+        v = v0 + (v1 - v0) * f
+        p.text(WM.fmt_count(v, kind, el.get("prefix", ""), el.get("suffix", ""), el.get("decimals", 0)),
+               w / 2, h / 2, size, col, stroke=9, scol=(25, 25, 32) if luminance(col) > 0.6 else WHITE)
+
+    sc.dynamic(draw, box, a["enter"], a["at"], edur=0.38, idle=a["idle"], exit_at=a["exit_at"], sfx=a["sfx"],
+               move=a["move"], z=int(num(el.get("z"), 3)), fps=30)
+    n_ticks = int(min(12, (t1 - t0) * 6))
+    for i in range(n_ticks):
+        sc.sfx.append((t0 + (t1 - t0) * i / max(n_ticks, 1), "tick1"))
 
 
 def talk_windows(sc, elements):

@@ -208,7 +208,9 @@ def biplane(p, x, y, s, c, k):
     g.poly([(-150, 4), (130, -14), (150, 0), (130, 16), (-140, 14)], col, 5)
     g.circ(50, -24, 16, (60, 60, 70), 3)
     g.rect(-40, 6, 100, 20, darker(col, 0.8), 4, r=6)
-    g.line([(152, -50), (152, 50)], 6, (120, 90, 60))
+    blade = (50, 28, 8)[int(round(_num(k, "t", 0) * 12)) % 3]       # a spinning propeller
+    g.line([(152, -blade), (152, blade)], 6, (120, 90, 60))
+    g.ell(152, 0, 4, 48, None, 1.5, (150, 150, 160))
     g.line([(30, 20), (20, 50)], 3)
     g.line([(70, 20), (80, 50)], 3)
     g.circ(20, 54, 9, (60, 60, 70), 3)
@@ -236,7 +238,8 @@ def hot_air_balloon(p, x, y, s, c, k):
 def helicopter(p, x, y, s, c, k):
     col = _c(c, (104, 118, 84))
     g = Sk(p, x, y, s, flip=_flip(k), wob=0.3)
-    g.line([(-170, -76), (170, -76)], 6)
+    rotor = (170, 100, 40)[int(round(_num(k, "t", 0) * 12)) % 3]      # a spinning rotor
+    g.line([(-rotor, -76), (rotor, -76)], 6)
     g.line([(0, -76), (0, -54)], 6)
     g.rect(-200, -30, -20, -10, col, 4)
     g.poly([(-210, -60), (-190, -60), (-180, -24), (-206, -24)], col, 4)
@@ -254,7 +257,8 @@ def dynamite(p, x, y, s, c, k):
         g.rect(xx - 17, -60, xx + 17, 80, (214, 56, 52), 5, r=8)
     g.rect(-54, -10, 54, 14, (60, 60, 66), 4)
     g.line([(0, -60), (10, -96), (40, -110), (50, -136)], 4, (90, 80, 70))
-    g.poly(star_pts(54, -144, 20, 0.4, 6), (252, 210, 60), 3)
+    fl = 1 + 0.3 * math.sin(2 * math.pi * _num(k, "t", 0) / 0.3)
+    g.poly(star_pts(54, -144, 20 * fl, 0.4, 6), (252, 210, 60), 3)
 
 
 def barbed_wire(p, x, y, s, c, k):
@@ -347,7 +351,8 @@ def torch(p, x, y, s, c, k):
     g.poly([(-12, 110), (12, 110), (18, -40), (-18, -40)], WOOD, 5)
     g.rect(-24, -64, 24, -36, (150, 120, 90), 4)
     g.line([(-24, -50), (24, -50)], 2.4, (110, 86, 60))
-    g.flame(0, -60, 70, 110)
+    ph = 2 * math.pi * _num(k, "t", 0) / 0.5
+    g.flame(2 * math.sin(ph * 2), -60, 70 * (1 + 0.05 * math.cos(ph)), 110 * (1 + 0.1 * math.sin(ph)))
 
 
 def telescope(p, x, y, s, c, k):
@@ -682,14 +687,16 @@ def cannon(p, x, y, s, c, k):
 def candle(p, x, y, s, c, k):
     col = _c(c, (252, 248, 236))
     g = Sk(p, x, y, s, wob=0.3)
-    g.circ(0, -190, 44, (255, 244, 200), 0)
-    g.circ(0, -190, 28, (255, 232, 160), 0)
+    ph = 2 * math.pi * _num(k, "t", 0) / 0.7
+    glow = 1 + 0.08 * math.sin(ph)
+    g.circ(0, -190, 44 * glow, (255, 244, 200), 0)
+    g.circ(0, -190, 28 * glow, (255, 232, 160), 0)
     g.ell(0, -8, 54, 12, GOLD, 5)
     g.rect(-24, -150, 24, -10, col, 5)
     g.poly([(-24, -150), (-24, -120), (-18, -126), (-16, -150)], darker(col, 0.92), 0)
     g.poly([(10, -150), (12, -110), (18, -116), (20, -150)], darker(col, 0.92), 0)
     g.line([(0, -150), (0, -160)], 3)
-    g.flame(0, -158, 28, 52)
+    g.flame(1.5 * math.sin(ph * 2), -158, 28, 52 * (1 + 0.1 * math.sin(ph)))
 
 
 def coin(p, x, y, s, c, k):
@@ -748,10 +755,13 @@ def crown(p, x, y, s, c, k):
 
 def campfire(p, x, y, s, c, k):
     g = Sk(p, x, y, s, wob=0.35)
-    for cx, cy in ((-80, -60), (70, -90), (-30, -150), (40, -170)):
-        g.circ(cx, cy, 5, FLAME_Y, 0)
-    g.flame(0, -24, 150, 190)
-    g.flame(-30, -24, 60, 90)
+    tt = _num(k, "t", 0)
+    ph = 2 * math.pi * tt / 0.75
+    for i, cx in enumerate((-80, 70, -30, 40)):
+        rise = ((tt / 0.75 + i / 4) % 1.0)
+        g.circ(cx + 10 * math.sin(ph + i), -40 - rise * 160, 5 * (1 - rise * 0.6), FLAME_Y, 0)
+    g.flame(4 * math.sin(ph * 2), -24, 150 * (1 + 0.04 * math.cos(ph)), 190 * (1 + 0.09 * math.sin(ph)))
+    g.flame(-30, -24, 60, 90 * (1 + 0.15 * math.sin(ph * 2 + 1)))
     g.line([(-90, -10), (80, -30)], 18, INK)
     g.line([(-90, -10), (80, -30)], 12, WOOD)
     g.line([(-80, -30), (90, -6)], 18, INK)
@@ -801,6 +811,47 @@ def mountain(p, x, y, s, c, k):
         sw = w * 0.3
         g.poly([(cx - sw, -h * 0.7), (cx, -h), (cx + sw, -h * 0.7), (cx + sw * 0.4, -h * 0.64), (cx, -h * 0.74),
                 (cx - sw * 0.4, -h * 0.64)], WHITE, 4)
+
+
+def flag(p, x, y, s, c, k):
+    """A flag on a pole that waves (params.t = seconds, loops every 1.2 s)."""
+    col = _c(c, RED)
+    c2 = C(k["color2"]) if k.get("color2") else None
+    g = Sk(p, x, y, s, flip=_flip(k), wob=0.3)
+    ph = 2 * math.pi * _num(k, "t", 0) / 1.2
+    n = 10
+
+    def edge(u, base):
+        return (170 * u, base + 11 * u * math.sin(2 * math.pi * u * 1.1 - ph))
+
+    top = [edge(i / n, -270) for i in range(n + 1)]
+    bot = [edge(i / n, -160) for i in range(n + 1)]
+    g.line([(0, 0), (0, -280)], 8, WOOD_D)
+    g.circ(0, -284, 9, GOLD, 3)
+    g.poly(top + bot[::-1], col, 0)
+    if c2:
+        a, b = int(n / 3), int(2 * n / 3 + 0.5)
+        g.poly(top[a:b + 1] + bot[a:b + 1][::-1], c2, 0)
+    for i in range(1, n, 3):
+        u = i / n
+        slope = math.cos(2 * math.pi * u * 1.1 - ph)
+        if slope < -0.3:
+            (x0, y0), (x1, y1) = top[i], bot[i]
+            g.line([(x0, y0 + 6), (x1, y1 - 6)], 6, darker(c2 if (c2 and n / 3 <= i <= 2 * n / 3) else col, 0.85))
+    g.poly(top + bot[::-1], None, 5)
+
+
+def smoke(p, x, y, s, c, k):
+    """Rising puffs of smoke (params.t = seconds, loops every 2 s)."""
+    col = _c(c, (140, 140, 150))
+    g = Sk(p, x, y, s, wob=0.4)
+    tt = _num(k, "t", 0)
+    puffs = []
+    for i in range(4):
+        q = (tt / 2.0 + i / 4) % 1.0
+        puffs.append((q, 10 * math.sin(q * 5 + i), -20 - q * 190, 20 + q * 28))
+    for q, cx, cy, r in sorted(puffs, key=lambda v: -v[0]):
+        g.circ(cx, cy, r, col if q < 0.75 else lighter(col, 0.3), 5)
 
 
 THINGS = {
@@ -853,6 +904,8 @@ THINGS = {
 }
 
 UPGRADES = {
+    "flag": ("bottom", flag, "flag on a pole, waving. color + params: color2 (middle stripe)"),
+    "smoke": ("bottom", smoke, "rising smoke. color"),
     "barrel": ("bottom", oil_barrel, "oil barrel / steel drum. color, params: empty (bool, crossed out)"),
     "bomb": ("center", bomb, "falling aerial bomb, nose down. params: angle"),
     "helmet": ("bottom", helmet, "soldier helmet on the ground. color"),

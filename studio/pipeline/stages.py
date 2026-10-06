@@ -16,8 +16,8 @@ from .. import config
 from ..config import load_settings
 from ..engine import (check_scene, plan_timeline, render_segment, render_still, concat_segments, share_copy,
                       prep, word_times_from_alignment, render_thumbnail, LEAD, TAIL)
-from ..engine.audio import build_mix, loudnorm, load_audio, SR
-from ..engine.render import ENGINE_VERSION
+from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind
+from ..engine.render import ENGINE_VERSION, pick_transition
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
 from . import rules, costs, themes as TH
@@ -53,21 +53,23 @@ def clean_line(t):
 
 
 # roughly how long each kind of AI call takes, so the progress bar can keep moving while we wait
-EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15, "props": 60}
+EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15, "props": 60,
+          "facts": 120}
 SAYING = {"script": "Claude is writing the script", "storyboard": "Claude is drawing up the scenes",
           "watch": "Claude is watching the video", "package": "Claude is writing titles and the description",
           "short": "Claude is picking the best moment for the Short", "fix": "Claude is fixing a scene",
-          "props": "Claude is designing props for this video"}
+          "props": "Claude is designing props for this video", "facts": "Claude is fact-checking the script"}
 
 
-def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None):
+def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None, web=False):
     last = None
     kind = label.split()[0] if label else ""
     for attempt in range(tries):
         ctx.check_cancel()
         with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working"),
                          expect=EXPECT.get(kind, 45), until=until):
-            text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label)
+            text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label,
+                                       **({"web": True} if web and getattr(llm, "supports_web", False) else {}))
         if usage.get("billed_usd"):
             costs.record(ctx.project, ctx.stage, llm.id, usd=usage["billed_usd"],
                          note=f"{label}: {usage.get('input_tokens', 0)} in / {usage.get('output_tokens', 0)} out tokens")
@@ -219,12 +221,52 @@ def stage_script(ctx):
         script = normalize_script(data, meta.get("topic") or (src or {}).get("title", ""))
     script["generated_by"] = llm.id
     script["created"] = time.time()
+    if llm.id != "offline" and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
+        ctx.progress(0.6, "fact-checking")
+        try:
+            fact_check(ctx, llm, script)
+        except P.ProviderError as e:
+            ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
     pr.save_script(script)
     if not meta.get("title") or meta.get("title") in (meta.get("source_url"), meta.get("topic")):
         pr.update(title=script.get("title") or meta.get("title"))
     words = sum(len(b["text"].split()) for b in script["beats"])
     ctx.log(f"script: {len(script['beats'])} beats, {words} words (~{words / 150:.1f} min), {len(script.get('facts', []))} facts")
     ctx.progress(1.0, f"{len(script['beats'])} beats")
+
+
+def fact_check(ctx, llm, script):
+    """Double-check the claims the writer wasn't sure about (Claude Code searches the web for them), fix beats
+    that got something wrong, and keep a report in script["factcheck"]. Changes `script` in place."""
+    facts = script.get("facts") or []
+    beats = script.get("beats") or []
+    web = bool(getattr(llm, "supports_web", False))
+    data = call_llm(ctx, llm, PR.FACTCHECK_SYSTEM, PR.factcheck_prompt(script, web), schema=PR.FACTCHECK_SCHEMA,
+                    label="facts", tries=1, until=0.95, web=web)
+    checks, fixed = [], []
+    for c in (data.get("checks") if isinstance(data, dict) else None) or []:
+        if not isinstance(c, dict):
+            continue
+        verdict = str(c.get("verdict", "unsure")).lower()
+        verdict = verdict if verdict in ("correct", "wrong", "unsure") else "unsure"
+        entry = dict(fact=c.get("fact"), beat=c.get("beat"), claim=str(c.get("claim", ""))[:300], verdict=verdict,
+                     correction=str(c.get("correction", ""))[:300], source=str(c.get("source", ""))[:200])
+        checks.append(entry)
+        i = c.get("fact")
+        if isinstance(i, int) and 0 <= i < len(facts):
+            facts[i]["auto"] = verdict
+            facts[i]["auto_note"] = (entry["correction"] or entry["source"])[:240]
+    for rw in (data.get("rewrites") if isinstance(data, dict) else None) or []:
+        if not isinstance(rw, dict):
+            continue
+        i, text = rw.get("beat"), clean_line(rw.get("text"))
+        if isinstance(i, int) and 0 <= i < len(beats) and text and text != beats[i]["text"] and len(text.split()) <= 45:
+            beats[i]["text"] = text
+            fixed.append(i)
+    script["factcheck"] = dict(at=time.time(), web=web, checks=checks, fixed=fixed,
+                               counts={v: sum(1 for c in checks if c["verdict"] == v) for v in ("correct", "wrong", "unsure")})
+    ctx.log(f"fact-check: {len(checks)} claims checked, {len(fixed)} beats corrected"
+            + (" (with web search)" if web else " (from the model's knowledge, no web search)"))
 
 
 # ================================================================== storyboard
@@ -484,18 +526,30 @@ def stage_render(ctx, only=None, force=False):
     warns = {int(k): v for k, v in (info.get("warnings") or {}).items()}
     jobs = []
     opts = pr.meta().get("options") or {}
+    settings = load_settings()
     wm = opts.get("watermark") or ""
+    cap_style = opts.get("caption_style") or settings.get("caption_style", "highlight")
+    use_tr = opts.get("transitions", settings.get("transitions", True)) is not False
+    scenes = [read_json(pr.scene_path(i)) for i in range(len(beats))]
     for i, b in enumerate(beats):
-        scene = read_json(pr.scene_path(i))
+        scene = scenes[i]
         if scene is None:
             raise P.ProviderError(f"scene {i} is missing; run the Storyboard stage first")
-        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, ENGINE_VERSION)
+        prev = scenes[i - 1] if i > 0 else None
+        kind = pick_transition(prev, scene, i, b["mood"], beats[i - 1]["mood"] if i else "fun") if use_tr else "cut"
+        prev_job = None
+        if kind != "cut" and prev is not None:
+            prev_job = dict(idx=i - 1, scene=prev, dur=durs[i - 1], mood=beats[i - 1]["mood"], text=beats[i - 1]["text"],
+                            word_times=vb[i - 1].get("word_times"))
+        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, ENGINE_VERSION, cap_style, kind,
+                h(prev_job) if prev_job else None)
         up_to_date = manifest.get(str(i)) == key and os.path.exists(pr.segment_path(i))
         if not (force or not up_to_date or (only is not None and i in only)):
             continue
         jobs.append((key, dict(idx=i, scene=scene, dur=durs[i], mood=b["mood"], text=b["text"],
                                word_times=vb[i].get("word_times"), frames=frames[i], out=pr.segment_path(i),
-                               captions=opts.get("captions", True), watermark=wm)))
+                               captions=opts.get("captions", True), watermark=wm, caption_style=cap_style,
+                               transition=kind, prev=prev_job)))
     ctx.log(f"render: {len(jobs)} of {len(beats)} scenes need rendering ({workers()} workers)")
     t0 = time.time()
     total_frames = sum(j["frames"] for _, j in jobs) or 1
@@ -577,9 +631,14 @@ def stage_mix(ctx):
     os.makedirs(pr.p("final"), exist_ok=True)
     raw = pr.p("final", "mix_raw.wav")
     with ctx.working("mixing voice, music and sound effects", expect=10 + total / 30, until=0.54):
+        ambiences = None
+        if opts.get("ambience", settings.get("ambience", True)) is not False:
+            ambiences = [ambience_kind(read_json(pr.scene_path(i))) for i in range(len(beats))]
         build_mix(clips, starts, durs, [b["mood"] for b in beats], events, total, raw, lead=LEAD, music_beds=beds,
                   music_file=music_file, music_db=float(settings.get("music_db", -13)),
-                  use_sfx=opts.get("sfx", True))
+                  use_sfx=opts.get("sfx", True), ambiences=ambiences,
+                  talk_blips=opts.get("talk_blips", settings.get("talk_blips", True)) is not False,
+                  action_sounds=opts.get("action_sounds", settings.get("action_sounds", True)) is not False)
     ctx.progress(0.55, "making the loudness right for YouTube")
     with ctx.working("making the loudness right for YouTube", expect=10 + total / 20, until=0.69):
         loudnorm(raw, pr.p("final", "mix.wav"))

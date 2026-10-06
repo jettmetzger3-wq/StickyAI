@@ -64,6 +64,8 @@ SECRET_KEYS = {
     "STRIPE_PRICE_PRO": "Stripe Price ID of the Pro monthly subscription (price_...)",
     "STRIPE_PRICE_PACK": "Stripe Price ID of the +10 Pro minutes pack (price_...)",
     "STUDIO_LINK_SECRET": "Netlify site: the secret that lets this PC post its online link (same value as on Netlify)",
+    "YOUTUBE_CLIENT_ID": "YouTube upload: OAuth client ID of your own Google Cloud project (Desktop app)",
+    "YOUTUBE_CLIENT_SECRET": "YouTube upload: OAuth client secret of the same client",
 }
 
 DEFAULT_SETTINGS = {
@@ -98,6 +100,12 @@ DEFAULT_SETTINGS = {
     "music_db": -13.0,
     "reuse_music_beds": True,          # pay for each ElevenLabs music mood once, reuse it in later videos
     "custom_props": True,              # let the writer design a few extra props for each video (one more AI call)
+    "transitions": True,               # slides, wipes, zooms and fades between scenes
+    "caption_style": "highlight",      # "highlight" = the spoken word lights up, "plain" = white captions
+    "ambience": True,                  # background sound for each place (waves, wind, crowds, battle)
+    "talk_blips": True,                # little "blah blah" sounds while a speech bubble is up
+    "action_sounds": True,             # footsteps, jumps, cheers, thuds
+    "fact_check": True,                # double-check uncertain facts right after the script is written
     "share_copy": True,
     "share_max_mb": 30,
     "render_workers": 0,

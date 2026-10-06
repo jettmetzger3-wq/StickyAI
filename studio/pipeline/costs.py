@@ -70,6 +70,8 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
             tr = read_json(project.p("source", "transcript.json"), []) or []
             tchars = sum(len(s.get("text", "")) + 8 for s in tr) or duration * 16
         lines.append((llm.label, llm.estimate_tokens(min(tchars, 120000) + 9000, n * 70 + 1500)))
+        if opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
+            lines.append((llm.label + " (fact-check)", llm.estimate_tokens(n * 260 + 4000, 4000)))
     elif stage == "storyboard" and llm.paid:
         batches = max(1, (n + 7) // 8)
         lines.append((llm.label, llm.estimate_tokens(batches * 28000, n * 700)))

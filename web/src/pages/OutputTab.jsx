@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, fileUrl, fmtBytes, fmtCost, fmtTime } from "../api.js";
 import { Button, Card, CopyButton, ErrorBox, Spinner } from "../ui.jsx";
 import { useConfig } from "../App.jsx";
@@ -97,6 +97,173 @@ function ShortCard({ d, slug, dl }) {
   );
 }
 
+function YouTubeCard({ d, slug, reload }) {
+  const cfg = useConfig();
+  const yt = d.youtube || {};
+  const f = d.final || {};
+  const up = d.meta?.upload;
+  const [st, setSt] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [which, setWhich] = useState("video");
+  const [title, setTitle] = useState(yt.titles?.[0] || d.meta?.title || "");
+  const [desc, setDesc] = useState(yt.description || "");
+  const [tags, setTags] = useState((yt.tags || []).join(", "));
+  const [privacy, setPrivacy] = useState("private");
+  const [when, setWhen] = useState("");
+  const [kids, setKids] = useState("no");
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const allowed = cfg.mode !== "hosted" || cfg.private;
+  useEffect(() => {
+    if (allowed) api.get("/api/youtube/status").then(setSt).catch(() => setSt(null));
+  }, [allowed]);
+  const uploading = up?.status === "uploading" && Date.now() / 1000 - (up.at || 0) < 3600;
+  useEffect(() => {
+    if (!uploading || !reload) return;
+    const id = setInterval(reload, 3000);
+    return () => clearInterval(id);
+  }, [uploading, reload]);
+  if (!allowed) return null;
+
+  async function go() {
+    setErr(null);
+    setBusy(true);
+    try {
+      await api.post(`/api/projects/${encodeURIComponent(slug)}/youtube`, {
+        which,
+        title,
+        description: which === "video" ? desc : [d.short?.description || "", (d.short?.hashtags || []).join(" ")].join("\n\n"),
+        tags: tags.split(",").map((s) => s.trim()).filter(Boolean),
+        privacy: when ? "private" : privacy,
+        publish_at: when ? new Date(when).toISOString() : "",
+        made_for_kids: kids === "yes",
+        synthetic: false,
+        thumbnail: true,
+      });
+      setOpen(false);
+      reload && reload();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Upload to YouTube">
+      {!st?.configured && (
+        <p className="text-sm text-stone-600 dark:text-zinc-400">
+          Upload straight to your channel, free. One-time setup in <a className="text-amber-600 underline" href="#/settings">Settings</a>: add your
+          Google OAuth client and click Connect YouTube.
+        </p>
+      )}
+      {st?.configured && !st?.connected && (
+        <p className="text-sm text-stone-600 dark:text-zinc-400">
+          Connect your channel once in <a className="text-amber-600 underline" href="#/settings">Settings</a> (on this PC).
+        </p>
+      )}
+      {up && (
+        <div className="mb-3 rounded-lg bg-stone-100 p-3 text-sm dark:bg-zinc-800">
+          {uploading && (
+            <p>
+              <Spinner /> Uploading the {up.which === "video" ? "video" : "Short"}: {up.message} ({Math.round((up.progress || 0) * 100)}%)
+            </p>
+          )}
+          {up.status === "done" && (
+            <p>
+              ✅ Uploaded{up.publish_at ? `, scheduled for ${new Date(up.publish_at).toLocaleString()}` : ` as ${up.privacy}`}:{" "}
+              <a className="text-amber-600 underline" href={up.url} target="_blank" rel="noreferrer">{up.url}</a> ·{" "}
+              <a className="text-amber-600 underline" href={up.studio_url} target="_blank" rel="noreferrer">open in YouTube Studio</a>
+            </p>
+          )}
+          {up.status === "error" && <p className="text-red-600">Upload failed: {up.message}</p>}
+        </div>
+      )}
+      {st?.connected && !open && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="primary" onClick={() => setOpen(true)} disabled={uploading}>
+            Upload to {st.channel?.title || "my channel"}…
+          </Button>
+          <span className="text-xs text-stone-500">Title, description with chapters, tags and thumbnail are filled in for you.</span>
+        </div>
+      )}
+      {st?.connected && open && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <Button size="sm" variant={which === "video" ? "primary" : undefined} onClick={() => setWhich("video")}>Full video</Button>
+            {f.short && (
+              <Button size="sm" variant={which === "short" ? "primary" : undefined} onClick={() => (setWhich("short"), setTitle(d.short?.title || title))}>
+                Stickman Short
+              </Button>
+            )}
+            {f.short_ai && (
+              <Button size="sm" variant={which === "short_ai" ? "primary" : undefined} onClick={() => (setWhich("short_ai"), setTitle(d.short?.title || title))}>
+                AI Short
+              </Button>
+            )}
+          </div>
+          <label className="block text-sm">
+            Title <span className="text-xs text-stone-400">({title.length}/100)</span>
+            <input className="mt-1 w-full" value={title} maxLength={100} onChange={(e) => setTitle(e.target.value)} />
+            {(yt.titles || []).length > 1 && which === "video" && (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {yt.titles.map((tt) => (
+                  <button key={tt} type="button" className="rounded bg-stone-100 px-2 py-0.5 text-xs dark:bg-zinc-800" onClick={() => setTitle(tt)}>
+                    {tt}
+                  </button>
+                ))}
+              </span>
+            )}
+          </label>
+          {which === "video" && (
+            <label className="block text-sm">
+              Description (with chapters)
+              <textarea className="mono mt-1 h-40 w-full text-xs" value={desc} onChange={(e) => setDesc(e.target.value)} />
+            </label>
+          )}
+          <label className="block text-sm">
+            Tags (comma separated)
+            <input className="mt-1 w-full" value={tags} onChange={(e) => setTags(e.target.value)} />
+          </label>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block text-sm">
+              Visibility
+              <select className="mt-1 w-full" value={when ? "private" : privacy} disabled={!!when} onChange={(e) => setPrivacy(e.target.value)}>
+                <option value="private">Private</option>
+                <option value="unlisted">Unlisted</option>
+                <option value="public">Public</option>
+              </select>
+            </label>
+            <label className="block text-sm">
+              Schedule (optional)
+              <input type="datetime-local" className="mt-1 w-full" value={when} onChange={(e) => setWhen(e.target.value)} />
+              <span className="text-xs text-stone-500">Goes public at this time (your time zone).</span>
+            </label>
+            <label className="block text-sm">
+              Made for kids?
+              <select className="mt-1 w-full" value={kids} onChange={(e) => setKids(e.target.value)}>
+                <option value="no">No, it's not made for kids</option>
+                <option value="yes">Yes, it's made for kids</option>
+              </select>
+            </label>
+          </div>
+          <ErrorBox error={err} />
+          <div className="flex gap-2">
+            <Button variant="primary" onClick={go} disabled={busy || !title.trim()}>
+              {busy ? <Spinner /> : "Upload now"}
+            </Button>
+            <Button onClick={() => setOpen(false)}>Cancel</Button>
+          </div>
+          <p className="text-xs text-stone-500 dark:text-zinc-400">
+            Uploads use Google's free YouTube Data API with your own Google project. Google can keep videos uploaded through a new, unaudited
+            project private; if that happens, open the video in YouTube Studio, or request Google's free API audit for your project.
+          </p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function CostSummary({ d }) {
   const cfg = useConfig();
   const m = d.meta;
@@ -144,7 +311,7 @@ function CostSummary({ d }) {
   );
 }
 
-export default function OutputTab({ d, slug }) {
+export default function OutputTab({ d, slug, reload }) {
   const yt = d.youtube;
   const f = d.final || {};
   const dl = (kind) => `/api/projects/${encodeURIComponent(slug)}/download/${kind}`;
@@ -231,6 +398,7 @@ export default function OutputTab({ d, slug }) {
           )}
         </>
       )}
+      <YouTubeCard d={d} slug={slug} reload={reload} />
       <ShortCard d={d} slug={slug} dl={dl} />
       <CostSummary d={d} />
     </div>

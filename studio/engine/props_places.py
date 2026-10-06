@@ -172,7 +172,7 @@ def windmill(p, x, y, s, c, k):
         g.rect(-ww / 2, wy - ww, ww / 2, wy + ww * 0.3, GLASS, 3)
     g.poly([(-58, -288), (58, -288), (48, -320), (20, -342), (-20, -342), (-48, -320)], WOOD_D, 5)
     hx, hy = 0, -318
-    a0 = _num(k, "angle", 20)
+    a0 = _num(k, "angle", 20) + 36 * _num(k, "t", 0)            # turns 90 degrees every 2.5 s
     for i in range(4):
         a = math.radians(a0 + 90 * i)
         ux, uy = math.cos(a), math.sin(a)
@@ -193,8 +193,12 @@ def lighthouse(p, x, y, s, c, k):
     g = Sk(p, x, y, s, wob=0.35)
     lit = k.get("lit", True) is not False
     if lit:
-        for f in (1, -1):
-            g.poly([(30 * f, -384), (300 * f, -440), (300 * f, -324)], (255, 242, 176), 0)
+        sweep = 0.5 + 0.5 * math.cos(2 * math.pi * _num(k, "t", 0) / 3.0)       # the beam swings round every 3 s
+        for f, a in ((1, sweep), (-1, 1 - sweep)):
+            if a > 0.06:
+                half = 8 + 50 * a
+                g.poly([(30 * f, -384), ((60 + 240 * a) * f, -384 - half), ((60 + 240 * a) * f, -384 + half)],
+                       (255, 242, 176), 0)
     for cx, cy, rx, ry, col in ((-62, -14, 62, 22, (150, 150, 162)), (58, -10, 72, 20, (132, 132, 146)),
                                  (0, -6, 92, 16, (166, 166, 178))):
         g.ell(cx, cy, rx, ry, col, 4)

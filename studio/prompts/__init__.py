@@ -4,7 +4,8 @@ import json
 import os
 
 from ..engine.pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES
-from ..engine.registry import PROPS, ICONABLE, PROP_GROUPS
+from ..engine.registry import PROPS, ICONABLE, PROP_GROUPS, ANIMATED
+from ..engine.pen import MOUNTS
 from ..engine.places import SKYLINES, STREET_STYLES
 from ..engine.geo import REGIONS
 from ..engine.schema import ENTERS, IDLES, BG_TYPES
@@ -140,6 +141,57 @@ REGEN_BEAT_SCHEMA = {"type": "object", "additionalProperties": False, "required"
                                     "text": {"type": "string"}}}
 
 
+# ------------------------------------------------------------------ fact-check
+FACTCHECK_SYSTEM = ("You are a careful history fact-checker for an educational YouTube channel. You verify claims "
+                    "against reliable sources, you say when something is debated, and you never invent sources. "
+                    "You always answer with JSON only.")
+
+FACTCHECK_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["checks", "rewrites"],
+    "properties": {
+        "checks": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False,
+            "required": ["fact", "beat", "claim", "verdict", "correction", "source"],
+            "properties": {"fact": {"type": "integer"}, "beat": {"type": "integer"}, "claim": {"type": "string"},
+                           "verdict": {"type": "string", "enum": ["correct", "wrong", "unsure"]},
+                           "correction": {"type": "string"}, "source": {"type": "string"}}}},
+        "rewrites": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False, "required": ["beat", "text"],
+            "properties": {"beat": {"type": "integer"}, "text": {"type": "string"}}}},
+    },
+}
+
+
+def factcheck_prompt(script, web=False):
+    beats = "\n".join(f"[{i}] {b['text']}" for i, b in enumerate(script.get("beats") or []))
+    facts = "\n".join(f"#{i} (beat {f.get('beat')}, {f.get('confidence', '?')}): {f.get('claim')}"
+                      + (f" -- writer's note: {f['note']}" if f.get("note") else "")
+                      for i, f in enumerate(script.get("facts") or []))
+    how = ("Use web search to check them: prefer encyclopedias, museums, universities and well-known history "
+           "references; name the source you used in a few words.") if web else \
+        ("You can't browse the web here, so check them against what you know; if you are not confident, say "
+         "\"unsure\" rather than guessing, and use the source field for what the mainstream view is.")
+    return f"""Fact-check this narration script for a history video titled "{script.get('title', '')}".
+
+SCRIPT (beat number in brackets):
+{beats}
+
+FACT LIST from the writer (index, beat, the writer's own confidence):
+{facts or "(none listed)"}
+
+Check every fact marked medium or low, every number of deaths or casualties, and any other claim in the script
+that looks wrong or exaggerated to you (at most 25 checks; skip the obviously true ones). {how}
+
+For each check give: fact (its # index from the list, or -1 if it's not in the list), beat, claim, verdict
+("correct", "wrong" or "unsure"), correction (the right fact, or the accepted range if historians disagree; empty if
+correct), source (a few words).
+
+For every beat that contains something WRONG, add a rewrite: the whole beat rewritten with the fact corrected, same
+length, same voice and jokes, spoken style, no em dashes. Don't rewrite beats that are fine or only "unsure".
+
+Answer with JSON only: {{"checks": [...], "rewrites": [{{"beat": n, "text": "..."}}]}}"""
+
+
 # ------------------------------------------------------------------ storyboard
 STORYBOARD_SYSTEM = ("You are the storyboard artist of a funny stickman history YouTube channel. You turn each "
                      "narration beat into ONE doodle scene described in a small JSON scene language. You never write "
@@ -191,6 +243,11 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          legs: {", ".join(LEGS)}
          mouth: {", ".join(MOUTHS)}    eyes: {", ".join(EYES)}
          extras: {", ".join(EXTRAS)} ("q" = question mark)   prop: {", ".join(HELD)}
+         coat: a jacket color, so people and armies are recognizable (British redcoats "#C8302B", French blue
+         "#2B3F8C", Russian green "#2F5D3A", Prussian "#1F2A44", Union blue "#30407A", Confederate gray "#8A8C8E",
+         a king's purple, a businessman's gray suit). Uniform hats (shako, bearskin, tricorn) add white crossbelts,
+         officers' hats (bicorne, crown, navy) add gold epaulettes. pose "hand_in_coat" = Napoleon's pose.
+         ride: {"|".join(MOUNTS)} (the character sits on it; walk/run then gallops; flip faces left)
          say: what the character SAYS, as a list of 1-3 short lines (max ~8 words each), shown one after another in
          speech bubbles over their head while they talk: ["Soldiers! Glory awaits!", {{"text": "CHARGE!",
          "at": "word:attacked"}}]. The engine positions the bubbles and points the tails; no need for bubble elements.
@@ -201,8 +258,8 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
            walk/run/sneak also take "to": [x, y] (or dx); "offscreen": true lets them leave the frame.
            e.g. "do": [{{"act": "walk", "to": [1200, 900], "at": "word:marched"}}, {{"act": "cheer", "at": "word:won"}}]
   crowd: rows of the same character with depth, all alive {{kind, count (2-40), rows (1-4), x, y (front row feet),
-         width (px), scale (0.4-0.9), pose, mouth, eyes, flip, do: [...], say: [...] (the crowd shouts back)}}
-         (armies, mobs, voters, workers)
+         width (px), scale (0.4-0.9), pose, mouth, eyes, flip, coat, ride (cavalry!), do: [...], say: [...] (the crowd
+         shouts back)}} (armies, mobs, voters, workers)
   text:  {{text, x, y (center), size (40-120), color, font: "bold" (Fredoka) | "hand" (handwritten), align}}
   prop:  {{name, x, y, scale, color?, params?}}. Props stand on x,y (bottom-center) unless marked (center), then x,y is
          their middle. Scale 1 is roughly life-size next to a scale-1 stickman for objects, and about 1.5-2x a
@@ -210,6 +267,7 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
          Available props (detailed doodles, pick the most specific one):
 {props}
          Plus any CUSTOM PROPS listed for this video below (use them by name like library props).
+         These props move on their own (no need to animate them): {", ".join(sorted(ANIMATED))}.
   bubble: a free-standing speech/thought bubble {{text ("\\n" for new line), x, y (center), size, tail:
          "left"|"right"|"down"|"none", font}} (prefer a character's "say"; use bubble for narrator asides)
   note:  yellow sticky note {{text, x, y, size}}
@@ -222,7 +280,15 @@ ELEMENTS (all screen positions are x,y pixels; on map scenes you may use lon/lat
   territory (maps): {{countries: [...] | region, clip?, box?, color}} default enter "wipe_right"
   city (maps): {{name, lon, lat, size, color}}
   arrow: {{from: [x,y] or {{lon,lat}}, to: ..., or points: [...], curve (px bend, + or -), color, width, head}}
-         (it draws itself from start to end)
+         (it draws itself from start to end). Armies on the move: add units: a hat kind ("shako", "army",
+         "roman"...) for little soldiers marching along it, or a prop ("tank", "ship", "horse", "galleon"...),
+         count (soldiers 1-8), unit_color (their coats), march (seconds to reach the end).
+  battle: crossed swords on a burst, with a boom {{x, y or lon, lat, label ("Waterloo"), size}}
+  front: a front line with little teeth on the side that is attacking {{points: [...] or keys: [{{at, points}}, ...]
+         (the line moves smoothly from one shape to the next: a front advancing, a border shifting), color, side:
+         "left"|"right" (relative to the direction of the points), width}}
+  counter: a number that counts {{from, to, x, y, size, at, until (or dur seconds), prefix ("$"), suffix (" troops"),
+         format: "year"|"number"}} (years ticking by 1939 -> 1945, armies growing, money, deaths in somber beats)
   pointer: a big bobbing arrow pointing AT a spot {{x, y or lon, lat (the tip), from: n|ne|e|se|s|sw|w|nw
          (where the arrow comes from), size, color}} (a front line, a city, a tiny detail)
 
@@ -234,6 +300,9 @@ ANIMATION (any element): enter: {", ".join(ENTERS)} (default pop); at: when it a
   scene or "word:Britain" to pop in exactly when the narrator says that word (best!); delay (seconds after "at");
   idle: {", ".join(IDLES)} (chars default to bob); exit: fraction or "word:xxx" to fade out;
   move: {{dx, dy, from, to}} (from/to like "at"); z: layer order (higher = in front).
+TRANSITION (optional, top level): "transition": auto (default) | cut | slide | wipe | zoom | iris | paper | fade,
+  how this scene replaces the one before. Leave it out; auto cuts between map shots and same-place scenes and fades
+  around sad beats. Use "cut" for rapid-fire jokes, "zoom" to dive into a detail, "iris" for a reveal.
 CAMERA: {{zoom: [start, end] (1.0-1.12, a slow push-in like [1.0, 1.05]), center: [x, y], to: [x, y],
   shots: [{{at, zoom (1.0-2.2), focus: [x, y] or {{lon, lat}}, move: cut|pan|whip}}]}}
   shots make a scene feel edited: start wide, then cut to a close-up of a face (zoom 1.6-2) when the joke lands,
@@ -260,6 +329,10 @@ STYLE RULES
   background twice in a row: switch between maps, painted places (field, city, interior...) and plain ones.
 - Keep things moving: give the main character at least one action ("do"), use 1-3 camera shots in scenes longer
   than ~5 seconds, and on maps let arrows draw, pointers bob and the camera travel.
+- Make people recognizable: armies and officials wear coat colors that match their side, leaders ride horses on
+  battlefields, a king has his crown and a purple or red coat; the same person keeps the same look all video.
+- War maps should feel alive: troops march along invasion arrows (units), battles get a battle marker, fronts and
+  borders move with keys, and a counter ticks the year or the size of an army.
 - Somber beats: bg "dark", "paper" or a dusk/storm place, fade entrances, no jokes, no grins, no explosions as gags,
   candles are fine; slow actions only (bow, cry, look, walk); any "say" lines are quiet and respectful.
 - Keep every element fully inside the frame; text never below y=880.
@@ -271,7 +344,7 @@ def load_examples():
         return json.load(f)
 
 
-def examples_block(limit=18):
+def examples_block(limit=20):
     ex = load_examples()[:limit]
     out = []
     for e in ex:

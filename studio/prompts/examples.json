@@ -1320,7 +1320,7 @@
     },
     {
      "type": "char",
-     "kind": "helmet",
+     "kind": "knight",
      "x": 250,
      "y": 900,
      "scale": 0.8,
@@ -1419,7 +1419,8 @@
        "text": "Did he say FOOD?!",
        "at": "word:believe"
       }
-     ]
+     ],
+     "coat": "#2B3F8C"
     },
     {
      "type": "prop",
@@ -1446,7 +1447,8 @@
        "text": "Glory! Food! Loot!",
        "at": "word:promises"
       }
-     ]
+     ],
+     "coat": "#2B3F8C"
     }
    ],
    "camera": {
@@ -1793,6 +1795,241 @@
       "at": "word:Bastille",
       "zoom": 1.0,
       "move": "whip"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "invasion_map",
+  "mood": "tense",
+  "text": "June 1812. Napoleon marches into Russia with half a million men, wins a bloody battle at Borodino, and by September he is in Moscow.",
+  "scene": {
+   "bg": {
+    "type": "map",
+    "style": "dark",
+    "center": [
+     30,
+     54
+    ],
+    "width": 34,
+    "territories": [
+     {
+      "countries": [
+       "Russia"
+      ],
+      "color": "#9E3B3B"
+     }
+    ]
+   },
+   "elements": [
+    {
+     "type": "counter",
+     "from": 1812,
+     "to": 1812,
+     "x": 960,
+     "y": 105,
+     "size": 84,
+     "at": 0
+    },
+    {
+     "type": "front",
+     "keys": [
+      {
+       "at": 0.05,
+       "points": [
+        {
+         "lon": 23,
+         "lat": 58
+        },
+        {
+         "lon": 24,
+         "lat": 54
+        },
+        {
+         "lon": 23.5,
+         "lat": 50
+        }
+       ]
+      },
+      {
+       "at": 0.85,
+       "points": [
+        {
+         "lon": 34,
+         "lat": 58
+        },
+        {
+         "lon": 35.5,
+         "lat": 55
+        },
+        {
+         "lon": 33,
+         "lat": 51
+        }
+       ]
+      }
+     ],
+     "color": "#6F8BFF",
+     "side": "right"
+    },
+    {
+     "type": "arrow",
+     "points": [
+      {
+       "lon": 19,
+       "lat": 53
+      },
+      {
+       "lon": 28,
+       "lat": 54.5
+      },
+      {
+       "lon": 37.3,
+       "lat": 55.6
+      }
+     ],
+     "color": "#6F8BFF",
+     "at": "word:marches",
+     "edur": 1.2,
+     "units": "shako",
+     "count": 4,
+     "unit_color": "#2B3F8C"
+    },
+    {
+     "type": "counter",
+     "from": 0,
+     "to": 500000,
+     "suffix": " men",
+     "x": 430,
+     "y": 800,
+     "size": 60,
+     "at": "word:half",
+     "dur": 1.5
+    },
+    {
+     "type": "battle",
+     "lon": 35.8,
+     "lat": 55.5,
+     "label": "Borodino",
+     "at": "word:Borodino"
+    },
+    {
+     "type": "city",
+     "name": "Moscow",
+     "lon": 37.6,
+     "lat": 55.75,
+     "at": "word:Moscow"
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:Borodino",
+      "zoom": 1.45,
+      "focus": {
+       "lon": 35.5,
+       "lat": 55.4
+      },
+      "move": "pan"
+     }
+    ]
+   }
+  }
+ },
+ {
+  "name": "cavalry_charge",
+  "mood": "tense",
+  "text": "At Waterloo the British redcoats form squares, and the French cavalry charges them again and again.",
+  "scene": {
+   "bg": {
+    "type": "battlefield"
+   },
+   "transition": "zoom",
+   "elements": [
+    {
+     "type": "text",
+     "text": "Waterloo, 1815",
+     "x": 960,
+     "y": 105,
+     "size": 72,
+     "at": 0
+    },
+    {
+     "type": "crowd",
+     "kind": "shako",
+     "coat": "#C8302B",
+     "count": 10,
+     "rows": 2,
+     "x": 1450,
+     "y": 930,
+     "width": 640,
+     "scale": 0.6,
+     "flip": true,
+     "at": "word:redcoats",
+     "do": [
+      {
+       "act": "tremble",
+       "at": "word:charges"
+      }
+     ],
+     "say": [
+      {
+       "text": "Hold the line!",
+       "at": "word:again"
+      }
+     ]
+    },
+    {
+     "type": "crowd",
+     "kind": "shako",
+     "coat": "#2B3F8C",
+     "ride": "horse",
+     "count": 4,
+     "rows": 1,
+     "x": 430,
+     "y": 930,
+     "width": 640,
+     "scale": 0.5,
+     "at": "word:cavalry",
+     "do": [
+      {
+       "act": "run",
+       "dx": 300,
+       "at": "word:charges"
+      }
+     ]
+    },
+    {
+     "type": "prop",
+     "name": "flag",
+     "x": 1700,
+     "y": 640,
+     "color": "#C8302B",
+     "params": {
+      "color2": "white"
+     },
+     "at": "word:squares"
+    }
+   ],
+   "camera": {
+    "shots": [
+     {
+      "at": 0,
+      "zoom": 1.0
+     },
+     {
+      "at": "word:charges",
+      "zoom": 1.3,
+      "focus": [
+       900,
+       640
+      ],
+      "move": "pan"
      }
     ]
    }

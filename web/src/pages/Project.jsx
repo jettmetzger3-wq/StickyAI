@@ -262,7 +262,7 @@ export default function ProjectPage({ slug }) {
           {tab === "script" && <ScriptTab d={d} slug={slug} reload={load} running={running} />}
           {tab === "storyboard" && <StoryboardTab d={d} slug={slug} reload={load} running={running} />}
           {tab === "audio" && <AudioTab d={d} slug={slug} reload={load} running={running} />}
-          {tab === "output" && <OutputTab d={d} slug={slug} />}
+          {tab === "output" && <OutputTab d={d} slug={slug} reload={load} />}
           {tab === "costs" && <CostsTab d={d} slug={slug} log={log} />}
         </div>
       </div>

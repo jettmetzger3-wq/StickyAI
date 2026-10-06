@@ -78,9 +78,11 @@ class LLMBackend(Provider):
     stage = "llm"
     supports_images = False
     supports_schema = False
+    supports_web = False
 
-    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label=""):
-        """Return (text, usage dict). `schema` is a JSON schema the backend may enforce."""
+    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False):
+        """Return (text, usage dict). `schema` is a JSON schema the backend may enforce. `web`: allow web search
+        (only backends with supports_web; others ignore it)."""
         raise NotImplementedError
 
     def estimate_tokens(self, in_chars, out_tokens, model=None):
