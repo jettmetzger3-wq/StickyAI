@@ -222,6 +222,36 @@ def sfx(kind):
             out += lfilter(b, a, x) * am
         env = np.minimum(1, t / 0.15) * np.exp(-np.maximum(0, t - 0.5) * 2.2)
         return out / max(1e-9, np.abs(out).max()) * env * 0.9
+    if kind == "rumble":
+        n = int(2.4 * SR)
+        t = np.arange(n) / SR
+        s = _noise(n, 30, 220) * np.minimum(1, t / 0.08) * np.exp(-t * 1.4)
+        for k in range(7):                          # stones knocking
+            place(s, noise_hit(0.03, 900) * rng.uniform(0.3, 0.7), rng.uniform(0.1, 1.6))
+        return s / max(1e-9, np.abs(s).max()) * 0.9
+    if kind == "splash":
+        n = int(2.2 * SR)
+        t = np.arange(n) / SR
+        s = _noise(n, 300, 4000) * np.exp(-t * 3.5) * 0.8
+        for k in range(14):                         # glugs
+            place(s, _chirp(rng.uniform(250, 420), rng.uniform(500, 900), 0.06) * 0.5, 0.6 + k * 0.1)
+        return s / max(1e-9, np.abs(s).max()) * 0.8
+    if kind == "clang":
+        n = int(0.7 * SR)
+        t = np.arange(n) / SR
+        s = sum(np.sin(2 * np.pi * f0 * t) * np.exp(-t * d) * g
+                for f0, d, g in ((1840, 7, 1.0), (2630, 9, 0.7), (3790, 12, 0.5), (5110, 16, 0.35)))
+        hit = noise_hit(0.01, 5000)
+        s[:len(hit)] += hit * 0.6
+        return s / max(1e-9, np.abs(s).max()) * 0.8
+    if kind == "thunder":
+        n = int(2.6 * SR)
+        t = np.arange(n) / SR
+        crack = _noise(n, 300, 3000) * np.exp(-t * 9) * 0.7
+        rumble = _noise(n, 25, 160) * (np.minimum(1, t / 0.25) * np.exp(-np.maximum(0, t - 0.3) * 1.3))
+        rumble *= 0.75 + 0.25 * np.sin(2 * np.pi * 3.1 * t) * np.sin(2 * np.pi * 0.9 * t + 1)
+        s = crack + rumble * 1.2
+        return s / max(1e-9, np.abs(s).max()) * 0.95
     if kind.startswith("blip"):
         # one "syllable" of cartoon talk: a short vowel-ish tone, pitch from the character
         try:
@@ -239,7 +269,8 @@ def sfx(kind):
 
 
 SFX_GAIN = {"pop": 0.10, "whoosh": 0.10, "swish": 0.07, "boom": 0.22, "tick": 0.25, "tick1": 0.12, "step": 0.05,
-            "step_soft": 0.035, "jump": 0.05, "thud": 0.16, "cheer": 0.10, "blip": 0.028}
+            "step_soft": 0.035, "jump": 0.05, "thud": 0.16, "cheer": 0.10, "blip": 0.028, "thunder": 0.2, "rumble": 0.2,
+            "splash": 0.14, "clang": 0.09}
 
 
 # ---------------- ambience (a quiet bed of sound for each kind of place)
@@ -323,6 +354,9 @@ def make_ambience(kind, seconds=16.0):
     elif kind == "storm":
         out += _noise(n, 1500, 9000) * 0.5 + _noise(n, 60, 300) * 0.3
         _events(out, lambda: sfx("boom") * 0.6, 6.0)
+    elif kind == "rain":
+        out += _noise(n, 1200, 8000) * 0.55 * (0.85 + 0.15 * slow(1 / 5.0)) + _noise(n, 100, 500) * 0.12
+        _events(out, lambda: noise_hit(0.012, 4000) * 0.35, 0.05, 0.9)
     elif kind == "fire":
         out += _noise(n, 100, 600) * 0.3
         _events(out, lambda: noise_hit(0.01, 2500) * 0.8, 0.12, 0.9)
@@ -341,10 +375,21 @@ AMBIENCE_FOR = {"sea": "waves", "beach": "waves", "harbor": "harbor", "underwate
                 "trench": "battle", "space": "space", "night": "night"}
 
 
+WEATHER_AMBIENCE = {"rain": "rain", "storm": "storm", "snow": "wind", "blizzard": "wind", "fog": "wind",
+                    "ash": "fire"}
+
+
 def ambience_kind(scene):
-    """The ambience for a scene from its background (and time of day); None for maps and plain pages."""
+    """The ambience for a scene from its weather or background (and time of day); None for maps and plain pages."""
     bg = (scene or {}).get("bg") or {}
     t = bg.get("type")
+    w = (scene or {}).get("weather")
+    w = (w.get("type") if isinstance(w, dict) else w) or None
+    if w:
+        from .weather import norm_weather
+        wk = WEATHER_AMBIENCE.get(norm_weather(w))
+        if wk:
+            return wk
     kind = AMBIENCE_FOR.get(t)
     if bg.get("time") == "storm" and t not in ("interior", "palace", "space", "underwater"):
         return "storm"

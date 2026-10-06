@@ -214,6 +214,40 @@ function YouTubeCard() {
   );
 }
 
+function FreeModel({ id, label, hint, s, set }) {
+  const [models, setModels] = useState([]);
+  const [msg, setMsg] = useState("");
+  const load = () => {
+    setMsg("loading…");
+    api
+      .get(`/api/llm/models?provider=${id}`)
+      .then((d) => {
+        setModels(d.models || []);
+        setMsg(d.error ? d.error : d.models?.length ? `${d.models.length} models` : "add the key first");
+      })
+      .catch((e) => setMsg(String(e.message || e)));
+  };
+  return (
+    <Field label={label} hint={hint}>
+      <div className="flex gap-2">
+        <input
+          className="flex-1"
+          list={`models-${id}`}
+          value={s.llm_models[id] || ""}
+          onChange={(e) => set({ llm_models: { ...s.llm_models, [id]: e.target.value } })}
+        />
+        <Button size="sm" variant="ghost" onClick={load}>List</Button>
+      </div>
+      <datalist id={`models-${id}`}>
+        {models.map((m) => (
+          <option key={m} value={m} />
+        ))}
+      </datalist>
+      {msg && <span className="text-xs text-stone-500 dark:text-zinc-400">{msg}</span>}
+    </Field>
+  );
+}
+
 export default function Settings() {
   const cfg = useConfig();
   const [s, setS] = useState(null);
@@ -311,7 +345,7 @@ export default function Settings() {
           <div className="mt-4 rounded-lg bg-stone-100 p-3 text-sm dark:bg-zinc-800">
             {Object.entries(balances.balances).map(([id, b]) => (
               <div key={id}>
-                {b.label}: {b.remaining?.toLocaleString()} of {b.limit?.toLocaleString()} {b.unit} left ({b.tier})
+                {b.label}: {b.text || `${b.remaining?.toLocaleString()} of ${b.limit?.toLocaleString()} ${b.unit} left (${b.tier})`}
               </div>
             ))}
           </div>
@@ -368,12 +402,26 @@ export default function Settings() {
           <Field label="Path to the claude command (optional)" hint="Only if it isn't found automatically.">
             <input className="w-full" value={s.claude_cli_path || ""} onChange={(e) => set({ claude_cli_path: e.target.value })} />
           </Field>
+          <FreeModel id="gemini" label="Gemini model (free key)" s={s} set={set}
+            hint="gemini-flash-latest: best free quality. gemini-flash-lite-latest: more free requests per day, plainer scenes." />
+          <FreeModel id="groq" label="Groq model (free key)" s={s} set={set}
+            hint="openai/gpt-oss-120b is the strongest free model. Free plan: ~8,000 tokens a minute, 1,000 requests a day." />
           <Field label="Ollama URL and model">
             <div className="flex gap-2">
               <input className="flex-1" value={s.ollama_url} onChange={(e) => set({ ollama_url: e.target.value })} />
               <input className="w-32" value={s.llm_models.ollama} onChange={(e) => set({ llm_models: { ...s.llm_models, ollama: e.target.value } })} />
             </div>
           </Field>
+        </div>
+        <div className="mt-3 rounded-lg bg-stone-100 p-3 text-xs text-stone-600 dark:bg-zinc-800 dark:text-zinc-300">
+          <b>Free writers without your Claude plan:</b> get a free Gemini key at{" "}
+          <a className="underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">aistudio.google.com/apikey</a>{" "}
+          or a free Groq key at{" "}
+          <a className="underline" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">console.groq.com/keys</a>,
+          paste it under API keys above, then pick it as the default writer. No card is needed. Keep the Gemini key in a
+          Google project <b>without billing</b> and stay on Groq's free plan, and they can never cost money. Free limits:
+          when a minute's limit is hit the studio waits; when the day's limit is used up the video pauses and you press
+          Resume the next day. Google may use free-tier prompts to improve its products.
         </div>
       </Card>
 

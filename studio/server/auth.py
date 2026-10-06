@@ -30,7 +30,7 @@ def admin_only(path, method):
         return True
     if path in ("/api/settings", "/api/secrets") and method != "GET":
         return True
-    if path in ("/api/balances",):
+    if path in ("/api/balances", "/api/llm/models"):
         return True
     return False
 

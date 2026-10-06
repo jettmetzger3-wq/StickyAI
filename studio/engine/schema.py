@@ -17,6 +17,7 @@ from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds
 from .custom_props import clean_parts, kit_lookup, to_element_params, slug
 from .geo import REGIONS, View, unknown_names
 from .captions import CAPTION_ZONE
+from .weather import WEATHERS, LIGHTS, norm_weather, norm_light
 
 BG_TYPES = ("paper", "sunburst", "ground", "field", "hills", "desert", "snow", "city", "interior", "battlefield",
             "sea", "night", "dark", "map", "street", "palace", "harbor", "beach", "underwater", "space", "jungle",
@@ -84,7 +85,10 @@ ELEMENT_SCHEMAS = {
                  color={"type": "string"}, font={"enum": ["bold", "hand"]}, stroke=_num,
                  align={"enum": ["center", "left", "right"]}),
     "prop": _obj(("type", "name"), type={"const": "prop"}, **_xy, **_anim, name={"enum": sorted(PROPS)}, scale=_num,
-                 animate={"type": "boolean"},
+                 animate={"type": "boolean"}, do={"type": "array", "maxItems": 4, "items": {
+                     "type": "object", "required": ["act"], "properties": {
+                         "act": {"enum": ["fire", "explode", "collapse", "sink", "shake"]}, "at": _at, "dur": _num,
+                         "target": _pt}}},
                  color={"type": "string"}, params={"type": "object"}),
     "bubble": _obj(("type", "text"), type={"const": "bubble"}, **_xy, **_anim, text={"type": "string"}, size=_num,
                    w=_num, h=_num, font={"enum": ["bold", "hand"]}, placed={"type": "boolean"},
@@ -154,6 +158,11 @@ SCENE_SCHEMA = {
                                                             "move": {"enum": list(MOVES)}}}}}},
         "note": {"type": "string"},
         "transition": {"enum": ["auto", "cut", "slide", "wipe", "zoom", "iris", "paper", "fade"]},
+        "weather": {"type": "object", "required": ["type"],
+                    "properties": {"type": {"enum": list(WEATHERS)}, "amount": _num, "wind": _num, "at": _at,
+                                   "until": _at}},
+        "light": {"type": "object", "required": ["to"],
+                  "properties": {"to": {"enum": list(LIGHTS)}, "at": _at, "dur": _num}},
     },
 }
 
@@ -688,6 +697,30 @@ def repair_scene(scene, mood="fun", text="", kit=None):
                 fixes.append(f"prop {el.get('name')!r} -> {n!r}")
             el["name"] = n
             el["scale"] = max(0.1, min(_f(el.get("scale"), 1.0), 3.0))
+            if el.get("do") is not None:
+                from .action_fx import resolve_prop_act
+                acts = []
+                for a in el["do"] if isinstance(el["do"], list) else [el["do"]]:
+                    a = {"act": a} if isinstance(a, str) else a
+                    if not isinstance(a, dict):
+                        continue
+                    k = resolve_prop_act(a.get("act") or a.get("action"))
+                    if not k:
+                        fixes.append(f"prop {n}: unknown action {a.get('act')!r} dropped")
+                        continue
+                    if mood == "somber" and k in ("explode",):
+                        fixes.append(f"somber scene: prop {n} doesn't explode")
+                        continue
+                    a = {kk: v for kk, v in dict(a, act=k).items() if kk in ("act", "at", "dur", "target")}
+                    if a.get("dur") is not None:
+                        a["dur"] = max(0.4, min(_f(a["dur"], 2.0), 10))
+                    if a.get("target") is not None and not (isinstance(a["target"], (list, dict))):
+                        a.pop("target")
+                    acts.append(a)
+                if acts:
+                    el["do"] = acts[:4]
+                else:
+                    el.pop("do", None)
         elif t == "icons":
             design = custom.get(slug(el.get("icon")))
             if design and resolve_prop(el.get("icon")) is None:
@@ -869,10 +902,85 @@ def repair_scene(scene, mood="fun", text="", kit=None):
             fixes.append(f"unknown transition {sc['transition']!r}, used auto")
             tr = "auto"
         sc["transition"] = tr
+    repair_weather(sc, bg, mood, text, fixes)
     cam = sc.get("camera")
     if cam is not None and not isinstance(cam, dict):
         sc["camera"] = {}
     return sc, fixes
+
+
+INDOORS = ("interior", "palace", "underwater", "space", "paper", "sunburst", "dark")
+WEATHER_WORDS = (("blizzard", ("blizzard", "snowstorm", "froze to death", "frozen to death")),
+                 ("snow", ("snow", "snowed", "snowing", "winter", "freezing")),
+                 ("storm", ("thunderstorm", "thunder", "lightning", "hurricane", "typhoon", "monsoon")),
+                 ("rain", ("rain", "rained", "raining", "downpour", "rainy")),
+                 ("fog", ("fog", "foggy", "mist", "misty")),
+                 ("ash", ("burned down", "burnt down", "burned to the ground", "went up in flames", "set fire to",
+                          "in flames", "ablaze", "great fire", "torched", "razed", "reduced to ashes")))
+
+
+def weather_from_text(text):
+    import re
+    low = " " + str(text or "").lower() + " "
+    for kind, words in WEATHER_WORDS:
+        for w in words:
+            if re.search(r"\b" + re.escape(w) + r"\b", low):
+                return kind
+    return None
+
+
+def repair_weather(sc, bg, mood, text, fixes):
+    """Clean "weather" and "light"; add weather the narration talks about (snow in a winter campaign, rain at
+    Waterloo) to outdoor places; gentle snowfall in snowy places."""
+    w = sc.get("weather")
+    if isinstance(w, str):
+        w = {"type": w}
+    if w is not None and not isinstance(w, dict):
+        w = None
+    if isinstance(w, dict):
+        kind = norm_weather(w.get("type"))
+        if not kind:
+            if str(w.get("type", "")).lower() not in ("none", "clear", "sunny", ""):
+                fixes.append(f"unknown weather {w.get('type')!r} removed")
+            w = None
+        elif bg["type"] in INDOORS:
+            fixes.append(f"no {kind} indoors / on a plain background")
+            w = None
+        else:
+            w = {k: v for k, v in dict(w, type=kind).items() if k in ("type", "amount", "wind", "at", "until")}
+            for k, lo, hi in (("amount", 0.2, 2.0), ("wind", -2.0, 2.0)):
+                if w.get(k) is not None:
+                    w[k] = max(lo, min(_f(w[k], 1.0 if k == "amount" else 0.0), hi))
+    elif sc.get("weather") is None and bg["type"] not in INDOORS and bg["type"] != "map":
+        kind = weather_from_text(text)
+        if kind == "ash" and bg["type"] not in ("city", "street", "battlefield", "trench", "harbor"):
+            kind = None
+        if kind == "snow" and bg["type"] in ("desert", "beach", "jungle"):
+            kind = None
+        if kind:
+            w = {"type": kind, "amount": 0.8}
+            fixes.append(f"added {kind} because the narration mentions it")
+        elif bg["type"] == "snow":
+            w = {"type": "snow", "amount": 0.45}
+    if w:
+        sc["weather"] = w
+    else:
+        sc.pop("weather", None)
+    li = sc.get("light")
+    if isinstance(li, str):
+        li = {"to": li}
+    if isinstance(li, dict):
+        to = norm_light(li.get("to"))
+        if to:
+            li = {k: v for k, v in dict(li, to=to).items() if k in ("to", "at", "dur")}
+            if li.get("dur") is not None:
+                li["dur"] = max(0.5, min(_f(li["dur"], 3.0), 12.0))
+            sc["light"] = li
+        else:
+            fixes.append(f"unknown light change {li.get('to')!r} removed")
+            sc.pop("light", None)
+    elif li is not None:
+        sc.pop("light", None)
 
 
 def check_scene(scene, mood="fun", text="", kit=None):

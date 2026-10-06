@@ -76,6 +76,7 @@ class Provider:
 class LLMBackend(Provider):
     """Text (and optionally image) completion used by ScriptProvider and StoryboardProvider."""
     stage = "llm"
+    short = "The AI"               # how progress messages name it ("Gemini is writing the script")
     supports_images = False
     supports_schema = False
     supports_web = False

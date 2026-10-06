@@ -136,7 +136,7 @@ def balances():
     out = {}
     for stage, items in P.REGISTRY.items():
         for p in items:
-            if p.paid and p.available()[0] and p.id not in out:
+            if (p.paid or getattr(p, "shows_usage", False)) and p.available()[0] and p.id not in out:
                 try:
                     b = p.balance()
                 except Exception:
@@ -144,6 +144,21 @@ def balances():
                 if b:
                     out[p.id] = dict(b, label=p.label)
     return dict(balances=out, spent=db.spend_summary())
+
+
+@app.get("/api/llm/models")
+def llm_models(provider: str):
+    """Model names a free API writer offers with your key (Gemini, Groq)."""
+    try:
+        p = P.get("llm", provider)
+    except KeyError:
+        raise HTTPException(404, "unknown writer")
+    if not hasattr(p, "list_models"):
+        return dict(models=[])
+    try:
+        return dict(models=p.list_models())
+    except Exception as e:
+        return dict(models=[], error=str(e)[:300])
 
 
 # ------------------------------------------------------------------ voices

@@ -1,6 +1,7 @@
 """Provider registry: one dropdown per stage. The free provider is always listed first and is the default."""
 from .base import Cost, FREE, Provider, ProviderError, NeedsSetup
 from .llm import ClaudeCLI, AnthropicAPI, Ollama, OfflineLLM, extract_json
+from .free_llm import Gemini, Groq, TooLarge, DailyLimit
 from .voice import Kokoro, ElevenLabsVoice, SystemVoice
 from .music import SynthMusic, UploadMusic, ElevenLabsMusic
 from .transcript import YouTubeCaptions, WhisperLocal, ElevenLabsScribe, video_id, canonical_url
@@ -8,7 +9,7 @@ from .image import LocalImage, ElevenLabsImage, HiggsfieldImage
 from .shorts import StickmanShorts, CalliopeShorts, NoShorts
 
 REGISTRY = {
-    "llm": [ClaudeCLI(), AnthropicAPI(), Ollama(), OfflineLLM()],
+    "llm": [ClaudeCLI(), Gemini(), Groq(), AnthropicAPI(), Ollama(), OfflineLLM()],
     "voice": [Kokoro(), ElevenLabsVoice(), SystemVoice()],
     "music": [SynthMusic(), UploadMusic(), ElevenLabsMusic()],
     "transcript": [YouTubeCaptions(), WhisperLocal(), ElevenLabsScribe()],

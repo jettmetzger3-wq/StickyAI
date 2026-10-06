@@ -198,8 +198,10 @@ STORYBOARD_SYSTEM = ("You are the storyboard artist of a funny stickman history 
                      "code, only JSON.")
 
 
-def props_doc():
+def props_doc(compact=False):
     out = []
+    if compact:
+        return "\n".join(f"  {label}: {', '.join(names)}" for label, names in PROP_GROUPS)
     for label, names in PROP_GROUPS:
         out.append(f"  {label}:")
         for n in names:
@@ -208,8 +210,8 @@ def props_doc():
     return "\n".join(out)
 
 
-def scene_language():
-    props = props_doc()
+def scene_language(compact=False):
+    props = props_doc(compact)
     regions = ", ".join(sorted(REGIONS))
     return f"""SCENE LANGUAGE (1920x1080 frame, x to the right, y down. Bottom 180 px (y > 900) is reserved for captions:
 never put text there. Characters' feet may stand at y 860-930.)
@@ -344,8 +346,15 @@ def load_examples():
         return json.load(f)
 
 
+# the most instructive examples first, for writers that only get a few
+KEY_EXAMPLES = ("army_speech", "invasion_map", "pirates_harbor", "broke_king", "paris_bread")
+
+
 def examples_block(limit=20):
-    ex = load_examples()[:limit]
+    ex = load_examples()
+    if limit < len(ex):
+        key = [e for n in KEY_EXAMPLES for e in ex if e["name"] == n]
+        ex = (key + [e for e in ex if e not in key])[:limit]
     out = []
     for e in ex:
         out.append(f'BEAT ({e["mood"]}): {e["text"]}\nSCENE: ' + json.dumps(e["scene"], separators=(",", ":")))
@@ -359,7 +368,8 @@ def custom_props_block(kit):
     return "CUSTOM PROPS DRAWN FOR THIS VIDEO (use them by name as props, they look great):\n" + "\n".join(lines)
 
 
-def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text="", custom=None):
+def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text="", custom=None, examples=20,
+                      compact=False):
     """batch: list of (index, beat). visual_hints: {index: "what the source video showed around then"}.
     kit_text: the topic's VISUAL KIT block. custom: props designed for this video."""
     cast_lines = "\n".join(f"- {c.get('name')}: kind={c.get('kind')}" + (f", hat_color={c['hat_color']}" if c.get("hat_color") else "")
@@ -372,10 +382,10 @@ def storyboard_prompt(batch, all_beats, cast, title, visual_hints=None, kit_text
         if visual_hints and visual_hints.get(i):
             line += f"\n     (source video showed: {visual_hints[i]})"
         beats.append(line)
-    return f"""{scene_language()}
+    ex = f"EXAMPLES (beat -> scene):\n{examples_block(examples)}\n" if examples else ""
+    return f"""{scene_language(compact)}
 
-EXAMPLES (beat -> scene):
-{examples_block()}
+{ex}
 
 VIDEO: {title}
 CAST (use these kinds consistently):

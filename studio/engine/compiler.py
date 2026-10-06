@@ -13,6 +13,8 @@ from . import props as P
 from .registry import PROPS, ANIMATED, resolve_prop, prop_bounds, prop_anchor
 from .places import PAINTERS
 from . import warmap as WM
+from . import weather as WX
+from . import action_fx as FX
 import random
 
 NO_NORMALIZE = {"wall", "bar_chart", "line_chart", "railway", "skyline", "table", "crowd"}
@@ -425,6 +427,11 @@ def build_char(sc, el, k, talk=()):
                          for w in (el.get("talk") or []) if isinstance(w, dict)]
     action_sounds(sc, acts)
     talk_sounds(sc, talk, el.get("kind"), s, k)
+    for act in acts:
+        if act["act"] == "slash" or (act["act"] == "fight" and el.get("prop") in ("sword", "spear")):
+            if not hasattr(sc, "fighters"):
+                sc.fighters = []
+            sc.fighters.append(dict(x=x, y=y, s=s, t0=act["t0"], dur=act["dur"]))
     return sc.char(x, y, s, enter=a["enter"], at=a["at"], idle=idle, exit_at=a["exit_at"], move=a["move"],
                    z=int(num(el.get("z"), 1)), sfx=a["sfx"], actions=acts, talk=talk,
                    life=el.get("life", True) is not False, **char_pose(el))
@@ -560,6 +567,10 @@ def build_element(sc, el, mood, k=0, talk=()):
                 if fn:
                     fn(p, it, sc)
         return
+    if t == "prop" and (prop_acts(el) or (resolve_prop(el.get("name")) == "explosion" and
+                                          el.get("animate", True) is not False)):
+        build_prop_fx(sc, el)
+        return
     if t == "prop" and resolve_prop(el.get("name")) in ANIMATED and el.get("animate", True) is not False:
         build_moving_prop(sc, el)
         return
@@ -596,6 +607,135 @@ def build_moving_prop(sc, el):
     a = anim(el, sc, "pop")
     sc.dynamic(draw, box, a["enter"], a["at"], edur=num(el.get("edur"), 0.38), idle=a["idle"], exit_at=a["exit_at"],
                sfx=a["sfx"], move=a["move"], z=int(num(el.get("z"), 1)), period=ANIMATED[name])
+
+
+# ------------------------------------------------------------------ action moments (see action_fx.py)
+def prop_acts(el):
+    return [a for a in (el.get("do") or []) if isinstance(a, dict) and FX.resolve_prop_act(a.get("act"))]
+
+
+def build_prop_fx(sc, el):
+    """A prop that fires, explodes, collapses, sinks or shakes at a moment (or the explosion prop bursting in)."""
+    from .pen import Pen
+    from PIL import Image
+    name = resolve_prop(el.get("name")) or "explosion"
+    params = dict(el.get("params") or {})
+    s = max(0.1, min(num(el.get("scale"), 1.0), 4.0))
+    x, y = pos(el, sc)
+    x0, y0, x1, y1 = prop_bounds(name, params)
+    w, h = (x1 - x0) * s, (y1 - y0) * s
+    m = 30
+    if prop_anchor(name, params) == "bottom":
+        box = (x - w / 2 - m, y - h - m, w + 2 * m, h + m + 14)
+    else:
+        box = (x - w / 2 - m, y - h / 2 - m, w + 2 * m, h + 2 * m)
+    p = Pen(sc.seed + 77, rgba=True, size=(box[2], box[3]))
+    draw_prop(p, dict(el, x=x - box[0], y=y - box[1], lon=None, lat=None, params=dict(params, t=0.0)), sc)
+    img = p.im.convert("RGBa").resize((int(box[2]), int(box[3])), Image.LANCZOS).convert("RGBA")
+    bb = img.getbbox()
+    if not bb:
+        return
+    img = img.crop(bb)
+    bx, by = box[0] + bb[0], box[1] + bb[1]
+    a = anim(el, sc, "pop")
+    at_s = sc.T(a["at"])
+    events, t_next = [], at_s + 0.6
+    for act in prop_acts(el)[:4]:
+        kind = FX.resolve_prop_act(act.get("act"))
+        t0 = sc.T(sc.timer.resolve(act.get("at"), 0.0)) if act.get("at") is not None else t_next
+        t0 = max(t0, at_s + 0.1)
+        dur = max(0.4, min(num(act.get("dur"), FX.ACT_DUR[kind]), 10.0))
+        events.append(dict(act=kind, t0=t0, dur=dur, target=act.get("target")))
+        t_next = t0 + dur + 0.3
+    burst = at_s if name == "explosion" and el.get("animate", True) is not False else None
+    fx = FX.PropFX(name, img, bx, by, s, bool(params.get("flip")), events, sc.seed + len(sc.layers), burst)
+    enter = None if burst is not None else a["enter"]
+    sc.fx(fx.frame, fx.box, enter, a["at"], edur=num(el.get("edur"), 0.38),
+          idle="pulse" if burst is not None and not a["idle"] else a["idle"], exit_at=a["exit_at"],
+          sfx=a["sfx"] if burst is None else None, move=a["move"], z=int(num(el.get("z"), 1)),
+          anchor=(x, y))
+    sc.sfx.extend(fx.sounds)
+    for e in events:
+        if e["act"] == "fire" and e.get("target") is not None:
+            cannonball(sc, fx, e, point(e["target"], sc))
+
+
+def cannonball(sc, fx, e, target):
+    """The shot flies from the muzzle to the target and explodes there."""
+    mx, my = fx._muzzles()[0]
+    sx, sy = fx.box[0] + mx, fx.box[1] + my
+    tx, ty = target
+    flight = max(0.35, min(math.hypot(tx - sx, ty - sy) / 1800, 1.0))
+    t0 = e["t0"] + 0.03
+    pad = 60
+    box = (min(sx, tx) - pad, min(sy, ty) - 200 - pad, abs(tx - sx) + 2 * pad, abs(ty - sy) + 200 + 2 * pad)
+    ball = FX.sprites()["ball"]
+    empty = blank_rgba(1, 1)
+
+    def frame(t):
+        q = (t - t0) / flight
+        if not 0 <= q < 1:
+            return empty
+        cv = blank_rgba(int(box[2]), int(box[3]))
+        bx = sx + (tx - sx) * q - box[0]
+        by = sy + (ty - sy) * q - 4 * 160 * q * (1 - q) - box[1]
+        FX.put(cv, ball, bx, by, fx.s * 1.2)
+        return cv
+
+    sc.fx(frame, box, None, 0.0, edur=0, z=4)
+    hit = FX.burst_at(tx, ty, max(0.6, fx.s), t0 + flight, seed=sc.seed + 5)
+    sc.fx(hit.frame, hit.box, None, 0.0, edur=0, z=4)
+    sc.sfx.append((t0 + flight, "boom"))
+
+
+def blank_rgba(w, h):
+    from PIL import Image
+    return Image.new("RGBA", (max(1, w), max(1, h)), (0, 0, 0, 0))
+
+
+def sword_clashes(sc):
+    """Two characters slashing at each other: sparks and a clang on every strike; alone: a swish."""
+    fighters = getattr(sc, "fighters", [])
+    used = set()
+    spark = FX.spark_sprite()
+    for i, a in enumerate(fighters):
+        if i in used:
+            continue
+        partner = None
+        for j, b in enumerate(fighters):
+            if j == i or j in used:
+                continue
+            close = abs(a["x"] - b["x"]) < 620 * max(a["s"], b["s"]) and abs(a["y"] - b["y"]) < 200
+            overlap = a["t0"] < b["t0"] + b["dur"] and b["t0"] < a["t0"] + a["dur"]
+            if close and overlap:
+                partner = j
+                break
+        times = FX.strike_times(a["t0"], a["dur"])[:10]
+        if partner is None:
+            for t in times[:8]:
+                sc.sfx.append((t, "swish"))
+            continue
+        b = fighters[partner]
+        used.update((i, partner))
+        lo, hi = max(a["t0"], b["t0"]), min(a["t0"] + a["dur"], b["t0"] + b["dur"])
+        times = [t for t in times if lo <= t <= hi]
+        cx = (a["x"] + b["x"]) / 2
+        cy = (a["y"] - 212 * a["s"] + b["y"] - 212 * b["s"]) / 2
+        sz = 260 * max(a["s"], b["s"])
+        box = (cx - sz / 2, cy - sz / 2, sz, sz)
+        empty = blank_rgba(1, 1)
+
+        def frame(t, times=times, sz=sz, k=max(a["s"], b["s"])):
+            for ts in times:
+                if 0 <= t - ts < 0.13:
+                    cv = blank_rgba(int(sz), int(sz))
+                    FX.put(cv, spark, sz / 2, sz / 2, k * (1.3 + 3 * (t - ts)), 1 - 0.6 * (t - ts) / 0.13)
+                    return cv
+            return empty
+
+        sc.fx(frame, box, None, 0.0, edur=0, z=5)
+        for t in times:
+            sc.sfx.append((t, "clang"))
 
 
 # ------------------------------------------------------------------ war maps (see warmap.py)
@@ -809,6 +949,42 @@ def safe_zoom(sc, elements, center, zooms=(1.22, 1.18, 1.14, 1.1)):
     return None
 
 
+# ------------------------------------------------------------------ weather and light (see weather.py)
+NIGHT_SKY = ("field", "hills", "desert", "snow", "city", "battlefield", "street", "harbor", "beach", "jungle",
+             "mountains", "trench")
+HORIZON = {"field": 640, "hills": 700, "desert": 700, "snow": 700, "city": 820, "battlefield": 700, "sea": 520}
+
+
+def _when(sc, v, default):
+    return sc.T(sc.timer.resolve(v, default)) if v is not None else None
+
+
+def build_weather(sc, scene):
+    bg = scene.get("bg") or {}
+    w = scene.get("weather")
+    if isinstance(w, str):
+        w = {"type": w}
+    if isinstance(w, dict):
+        kind = WX.norm_weather(w.get("type"))
+        if kind:
+            wx = WX.Weather(kind, sc.seed, num(w.get("amount"), 1.0), w.get("wind"),
+                            _when(sc, w.get("at"), 0.0) or 0.0, _when(sc, w.get("until"), 1.0), sc.dur)
+            sc.overlay(wx.apply, WX.WEATHER_Z)
+            sc.sfx.extend(wx.sounds())
+    if (bg.get("time") == "night" and bg.get("type") in NIGHT_SKY) or bg.get("type") in ("night", "space"):
+        tw = WX.Twinkle(sc.seed, HORIZON.get(bg.get("type"), 600), sc.dur, sc.bg)
+        sc.overlay(tw.apply, z=-0.5)
+    light = scene.get("light")
+    if isinstance(light, str):
+        light = {"to": light}
+    if isinstance(light, dict):
+        to = WX.norm_light(light.get("to"))
+        if to:
+            t0 = _when(sc, light.get("at"), 0.15) if light.get("at") is not None else sc.T(0.15)
+            t1 = t0 + max(0.5, num(light.get("dur"), 3.0))
+            sc.overlay(WX.Light(to, t0, t1).apply, WX.WEATHER_Z + 0.1)
+
+
 def build_scene(scene, idx, dur, mood, text, timer=None):
     """scene: validated scene dict. Returns a Scene ready for render_at()."""
     sc = Scene(idx, dur, mood, text, timer=timer)
@@ -820,6 +996,14 @@ def build_scene(scene, idx, dur, mood, text, timer=None):
             build_element(sc, el, mood, k, talk.get(k, ()))
         except Exception as e:  # one bad element should never kill the whole scene
             sc.warn(f"element {el.get('type')} failed: {e}")
+    try:
+        sword_clashes(sc)
+    except Exception as e:
+        sc.warn(f"sword clashes failed: {e}")
+    try:
+        build_weather(sc, scene)
+    except Exception as e:
+        sc.warn(f"weather failed: {e}")
     cam = scene.get("camera") or {}
     z = cam.get("zoom") or [1.0, 1.035]
     if not isinstance(z, (list, tuple)):

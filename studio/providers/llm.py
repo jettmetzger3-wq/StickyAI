@@ -3,6 +3,7 @@
 - claude_cli: the `claude` command in headless mode, which runs on your Claude subscription (no API bill).
 - anthropic:  the Anthropic API with your key (paid per token, estimate shown first).
 - ollama:     a local model through Ollama (free, lower quality).
+- gemini / groq: free API keys (see free_llm.py).
 - offline:    no AI at all; the pipeline uses simple rules instead (for testing).
 """
 import base64
@@ -70,6 +71,7 @@ def extract_json(text):
 # ------------------------------------------------------------------ Claude Code CLI
 class ClaudeCLI(LLMBackend):
     id = "claude_cli"
+    short = "Claude"
     label = "Claude Code (my subscription)"
     description = "Runs `claude -p` on this PC, so it uses your Claude plan instead of API credits."
     paid = False
@@ -179,6 +181,7 @@ def using_model(model):
 
 class AnthropicAPI(LLMBackend):
     id = "anthropic"
+    short = "Claude"
     label = "Anthropic API (pay per use)"
     description = "Uses your ANTHROPIC_API_KEY. Billed per token; you approve an estimate first."
     paid = True
@@ -255,6 +258,7 @@ class AnthropicAPI(LLMBackend):
 # ------------------------------------------------------------------ Ollama (local)
 class Ollama(LLMBackend):
     id = "ollama"
+    short = "The local AI"
     label = "Ollama (local model)"
     description = "A free model running on your own PC through Ollama. Lower quality than Claude."
     paid = False
@@ -294,6 +298,7 @@ class Ollama(LLMBackend):
 
 class OfflineLLM(LLMBackend):
     id = "offline"
+    short = "Basic mode"
     label = "Basic (no AI, for testing)"
     description = "No language model. Uses simple rules: scenes are generic and a YouTube remake just reuses " \
                   "the transcript text, so only use it to test the pipeline."

@@ -492,7 +492,7 @@ export default function NewVideo() {
                 <div className="rounded-lg bg-stone-100 p-2 text-xs dark:bg-zinc-800">
                   {Object.entries(balances).map(([id, b]) => (
                     <div key={id}>
-                      {b.label}: {b.remaining?.toLocaleString()} of {b.limit?.toLocaleString()} {b.unit} left
+                      {b.label}: {b.text || `${b.remaining?.toLocaleString()} of ${b.limit?.toLocaleString()} ${b.unit} left`}
                     </div>
                   ))}
                 </div>

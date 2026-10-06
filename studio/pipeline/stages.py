@@ -55,10 +55,10 @@ def clean_line(t):
 # roughly how long each kind of AI call takes, so the progress bar can keep moving while we wait
 EXPECT = {"script": 90, "storyboard": 75, "watch": 45, "package": 30, "short": 25, "fix": 30, "beat": 15, "props": 60,
           "facts": 120}
-SAYING = {"script": "Claude is writing the script", "storyboard": "Claude is drawing up the scenes",
-          "watch": "Claude is watching the video", "package": "Claude is writing titles and the description",
-          "short": "Claude is picking the best moment for the Short", "fix": "Claude is fixing a scene",
-          "props": "Claude is designing props for this video", "facts": "Claude is fact-checking the script"}
+SAYING = {"script": "{who} is writing the script", "storyboard": "{who} is drawing up the scenes",
+          "watch": "{who} is watching the video", "package": "{who} is writing titles and the description",
+          "short": "{who} is picking the best moment for the Short", "fix": "{who} is fixing a scene",
+          "props": "{who} is designing props for this video", "facts": "{who} is fact-checking the script"}
 
 
 def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None, web=False):
@@ -66,7 +66,8 @@ def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=T
     kind = label.split()[0] if label else ""
     for attempt in range(tries):
         ctx.check_cancel()
-        with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working"),
+        who = getattr(llm, "short", "The AI")
+        with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working").format(who=who),
                          expect=EXPECT.get(kind, 45), until=until):
             text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label,
                                        **({"web": True} if web and getattr(llm, "supports_web", False) else {}))
@@ -204,7 +205,7 @@ def stage_script(ctx):
     ctx.progress(0.05, "writing the script")
     if llm.id == "offline":
         script = rules.offline_script(meta.get("topic"), minutes, src if youtube else None)
-        ctx.warn("Basic mode wrote a placeholder script. Use Claude for a real one.")
+        ctx.warn("Basic mode wrote a placeholder script. Pick an AI writer (Claude, Gemini, Groq...) for a real one.")
     else:
         ok, why = llm.available()
         if not ok:
@@ -313,12 +314,31 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         if not ok:
             raise P.ProviderError(f"{llm.label} is not available: {why}")
         custom = design_props(ctx, llm, script, beats, vthemes, kit_text, custom)
-        batches = [todo[k:k + 8] for k in range(0, len(todo), 8)]
+        # free API writers have small per-minute limits: they get fewer scenes (and examples) per request
+        size = max(1, int(getattr(llm, "batch_beats", 8) or 8))
+        n_ex = int(getattr(llm, "examples", 20))
+        compact = bool(getattr(llm, "compact", False))
+        batches = [todo[k:k + size] for k in range(0, len(todo), size)]
         done = [0]
+        who = getattr(llm, "short", "The AI")
 
-        def run_batch(idx):
+        def run_batch(idx, n_ex=n_ex):
+            try:
+                return ask_batch(idx, n_ex)
+            except P.TooLarge:
+                # too big for the writer's free limits (or its reply got cut off): send less at once
+                if len(idx) > 1:
+                    half = len(idx) // 2
+                    out = run_batch(idx[:half], n_ex)
+                    out.update(run_batch(idx[half:], n_ex))
+                    return out
+                if n_ex > 0:
+                    return run_batch(idx, 0)
+                raise
+
+        def ask_batch(idx, n_ex):
             prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, cast, script.get("title", ""), hints,
-                                          kit_text=kit_text, custom=custom)
+                                          kit_text=kit_text, custom=custom, examples=n_ex, compact=compact)
             if instruction:
                 prompt += f"\n\nEXTRA DIRECTION FROM THE USER: {instruction}"
             data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, prompt, label=f"storyboard {idx[0]}-{idx[-1]}")
@@ -336,9 +356,10 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
             return out
 
         ctx.progress(0.02, f"drawing {len(todo)} scenes")
-        rounds = (len(batches) + 2) // 3
-        with ctx.working(f"Claude is drawing up {len(todo)} scenes", expect=75 * rounds, until=0.64), \
-                cf.ThreadPoolExecutor(max_workers=3) as ex:
+        par = max(1, int(getattr(llm, "parallel", 3) or 3))
+        rounds = (len(batches) + par - 1) // par
+        with ctx.working(f"{who} is drawing up {len(todo)} scenes", expect=75 * rounds, until=0.64), \
+                cf.ThreadPoolExecutor(max_workers=par) as ex:
             futs = {ex.submit(run_batch, b): b for b in batches}
             for fut in cf.as_completed(futs):
                 b = futs[fut]
@@ -347,7 +368,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 except Exception as e:
                     ctx.warn(f"storyboard batch {b[0]}-{b[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b)
-                ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"Claude drew {done[0]} of {len(todo)} scenes")
+                ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"{who} drew {done[0]} of {len(todo)} scenes")
     finished = {}
     for i in todo:
         ctx.check_cancel()

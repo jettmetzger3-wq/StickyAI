@@ -182,7 +182,7 @@ def balances(meta):
             p = _prov(meta, stage)
         except KeyError:
             continue
-        if p.paid and p.available()[0]:
+        if (p.paid or getattr(p, "shows_usage", False)) and p.available()[0]:
             b = p.balance()
             if b:
                 out[p.id] = b

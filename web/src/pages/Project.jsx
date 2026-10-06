@@ -328,7 +328,7 @@ function PendingBanner({ slug, pend, onDone, setTab, canApprove }) {
         <div className="mt-2 text-xs text-stone-500">
           {Object.entries(pend.balances).map(([id, b]) => (
             <div key={id}>
-              Balance: {b.remaining?.toLocaleString()} of {b.limit?.toLocaleString()} {b.unit} left
+              {b.text ? `${b.label || id}: ${b.text}` : `Balance: ${b.remaining?.toLocaleString()} of ${b.limit?.toLocaleString()} ${b.unit} left`}
             </div>
           ))}
         </div>

@@ -24,7 +24,7 @@ ACTIONS = {
     "walk": 2.0, "run": 1.2, "sneak": 2.5, "jump": 0.6, "hop": 0.4, "wave": 1.6, "point": 1.6, "cheer": 1.6,
     "celebrate": 2.0, "nod": 1.0, "shake_head": 1.0, "shrug": 1.4, "think": 2.0, "facepalm": 1.6, "tremble": 2.0,
     "lean": 1.6, "bow": 1.4, "turn": 0.0, "faint": 0.6, "laugh": 1.6, "angry": 1.6, "cry": 2.0, "dance": 2.4,
-    "look": 1.6, "talk": 2.0, "surprise": 0.8, "salute": 1.6, "fight": 1.6,
+    "look": 1.6, "talk": 2.0, "surprise": 0.8, "salute": 1.6, "fight": 1.6, "slash": 1.7,
 }
 ACTION_ALIASES = {
     "walks": "walk", "move": "walk", "go": "walk", "stroll": "walk", "march": "walk", "running": "run",
@@ -36,7 +36,9 @@ ACTION_ALIASES = {
     "peek": "lean", "bend": "lean", "kneel": "bow", "flip": "turn", "turn_around": "turn", "fall": "faint",
     "die": "faint", "collapse": "faint", "giggle": "laugh", "rage": "angry", "stomp": "angry", "sob": "cry",
     "sad": "cry", "glance": "look", "speak": "talk", "say": "talk", "shout": "talk", "gasp": "surprise",
-    "shock": "surprise", "punch": "fight", "attack": "fight",
+    "shock": "surprise", "punch": "fight", "attack": "fight", "duel": "slash", "swordfight": "slash",
+    "sword_fight": "slash", "fence": "slash", "fencing": "slash", "clash": "slash", "stab": "slash",
+    "swing": "slash", "strike": "slash", "slashes": "slash", "parry": "slash",
 }
 
 
@@ -286,6 +288,16 @@ class Puppet:
         elif act == "salute":
             p["arms"][1] = [140, -120]
             p["mouth"] = "flat"
+        elif act == "slash" or (act == "fight" and p.get("prop") in ("sword", "spear")):
+            # raise the sword, then strike forward (one cycle every 0.42 s; see action_fx.SLASH_CYCLE)
+            ph = (el % 0.42) / 0.42
+            up = ph < 0.45
+            p["arms"] = [[45, -60], [128, 22] if up else [88, -14]]
+            p["eyes"] = "angry"
+            p["mouth"] = "frown" if up else "scream"
+            if p.get("prop") is None:
+                p["prop"] = "sword"
+            dx = (0 if up else 18) * fwd
         elif act == "fight":
             k = int(el * 4) % 2
             p["arms"] = [[100, 10], [40, 10]] if k else [[40, 10], [100, 10]]

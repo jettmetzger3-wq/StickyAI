@@ -349,6 +349,22 @@ class Scene:
         self.layers[-1]["dyn"] = frame
         return self.layers[-1]
 
+    def fx(self, frame, box, enter=None, at=0.0, edur=0.38, idle=None, exit_at=None, sfx=None, move=None, z=1,
+           anchor="center"):
+        """A layer whose image comes from frame(t) (t = seconds into the scene), drawn at box's top-left; used by
+        action moments (action_fx.py), which build each frame from small sprites."""
+        x0, y0, w, h = (float(v) for v in box)
+        img = frame(self.T(at))
+        if anchor == "bottom":
+            anchor = (x0 + w / 2, y0 + h)
+        self._add(img, (x0, y0), enter, at, edur, idle, anchor, exit_at, sfx, move, z, None)
+        self.layers[-1]["dyn"] = frame
+        return self.layers[-1]
+
+    def overlay(self, fn, z=2.5):
+        """Something drawn straight onto every frame (weather, a change of light): fn(frame, t) -> frame."""
+        self.layers.append(dict(overlay=fn, z=z, at=0.0))
+
     def char(self, x, y, s=1.0, kind="japan", enter="pop", at=0.0, idle="bob", exit_at=None, move=None, z=1,
              sfx="auto", actions=(), talk=(), life=True, **pose):
         """An animated stickman (see puppet.py): it breathes, blinks, glances, talks and does `actions`."""
@@ -533,6 +549,9 @@ class Scene:
         fr = self.bg.copy()
         for L in layers:
             if t < L["at"]:
+                continue
+            if L.get("overlay") is not None:
+                fr = L["overlay"](fr, t) or fr
                 continue
             pz = L.get("puppet")
             if pz is not None:

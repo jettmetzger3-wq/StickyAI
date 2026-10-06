@@ -168,7 +168,7 @@ class Pen(doodle.Canvas):
         cc = to_color(coat, None) if coat else None
         if cc:
             self._coat(neck, sh, hip, s, cc, kind)
-        hands = []
+        hands, fdirs = [], []
         for side, (a, b) in zip((-1, 1), arms):
             ar = math.radians(a)
             elbow = (sh[0] + side * math.sin(ar) * L(58), sh[1] + math.cos(ar) * L(58))
@@ -183,8 +183,9 @@ class Pen(doodle.Canvas):
                 self.line([sh, elbow, hand], lw, col, 0.6)
             self.circ(hand[0], hand[1], L(9), col, 0)
             hands.append(hand)
+            fdirs.append((side * math.sin(fr), math.cos(fr)))
         if prop:
-            self._prop(prop, hands, s, flip)
+            self._prop(prop, hands, s, flip, fdirs)
         self.circ(hx, hy, hr, (255, 253, 247), 7 * s)
         f = -1 if flip else 1
         self._hat(kind, hx, hy, hr, s, f, to_color(hat_color, None) if hat_color else None)
@@ -546,7 +547,7 @@ class Pen(doodle.Canvas):
             for k in range(3):
                 self.text("z", x + f * L(70 + k * 26), hy - L(70 + k * 34), (34 + k * 10) * s, INK, stroke=4 * s, f="hand")
 
-    def _prop(self, p, hands, s, flip):
+    def _prop(self, p, hands, s, flip, fdirs=None):
         L = lambda v: v * s
         if isinstance(p, (list, tuple)):
             kind, pcol = p[0], (to_color(p[1]) if len(p) > 1 else RED)
@@ -555,8 +556,17 @@ class Pen(doodle.Canvas):
         hx, hy = hands[1] if not flip else hands[0]
         sgn = -1 if flip else 1
         if kind == "sword":
-            self.line([(hx, hy), (hx + sgn * L(10), hy - L(150))], 10 * s, (225, 228, 236), 0.2)
-            self.line([(hx - L(18), hy - L(4)), (hx + L(18), hy + L(2))], 9 * s, YELLOW, 0.2)
+            # held upright, or along the forearm when the arm is raised or thrust forward (slashing)
+            ux, uy = sgn * 0.07, -1.0
+            if fdirs:
+                fx, fy = fdirs[1] if not flip else fdirs[0]
+                if fy < 0.45:
+                    n = math.hypot(fx, fy - 0.35) or 1
+                    ux, uy = fx / n, (fy - 0.35) / n
+            n = math.hypot(ux, uy) or 1
+            ux, uy = ux / n, uy / n
+            self.line([(hx, hy), (hx + ux * L(150), hy + uy * L(150))], 10 * s, (225, 228, 236), 0.2)
+            self.line([(hx - uy * L(18), hy + ux * L(18)), (hx + uy * L(18), hy - ux * L(18))], 9 * s, YELLOW, 0.2)
         elif kind == "flag":
             self.line([(hx, hy + L(30)), (hx, hy - L(150))], 7 * s, BROWN, 0.2)
             self.poly([(hx, hy - L(150)), (hx + sgn * L(110), hy - L(130)), (hx, hy - L(95))], pcol, 5 * s)

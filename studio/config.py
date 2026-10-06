@@ -56,6 +56,8 @@ def ytdlp_opts(**kw):
 
 SECRET_KEYS = {
     "ANTHROPIC_API_KEY": "Anthropic API key (paid script/storyboard writer)",
+    "GEMINI_API_KEY": "Google Gemini API key (free writer; make it in Google AI Studio on a project without billing)",
+    "GROQ_API_KEY": "Groq API key (free writer; from console.groq.com, free plan)",
     "ELEVENLABS_API_KEY": "ElevenLabs API key (voice, music, transcripts, images)",
     "HF_API_KEY": "Higgsfield API key (images)",
     "HF_API_SECRET": "Higgsfield API secret (images)",
@@ -82,7 +84,8 @@ DEFAULT_SETTINGS = {
         "image": "local",
         "shorts": "stickman",
     },
-    "llm_models": {"claude_cli": "", "anthropic": "claude-opus-5-5", "ollama": "llama3.1"},
+    "llm_models": {"claude_cli": "", "anthropic": "claude-opus-5-5", "ollama": "llama3.1",
+                   "gemini": "gemini-flash-latest", "groq": "openai/gpt-oss-120b"},
     "ollama_url": "http://localhost:11434",
     "claude_cli_path": "",
     "voice": {
