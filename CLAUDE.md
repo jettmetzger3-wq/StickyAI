@@ -50,6 +50,6 @@ retrieval, prop text, character looks, continuity, review fixes, flow seam detec
 file conversion. AI: the script, fact-check (needs web), choosing patterns + jokes + slot text, odd scenes, titles/description.
 
 ## Tests
-`python -m pytest -q tests` (about 450 tests, ~2 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
+`python -m pytest -q tests` (about 460 tests, ~2.5 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
 Rendering checks: `python -m studio research build-docs` regenerates `research/scene-patterns.md` after editing patterns.json.
 When you change how scenes look, bump `ENGINE_VERSION` in `studio/engine/render.py` (it is part of the render cache key).

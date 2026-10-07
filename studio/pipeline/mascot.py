@@ -96,36 +96,59 @@ def _buttons(cx, y_like, y_sub, bell_x=None):
     ]
 
 
+def _short_title(title, limit=40):
+    """A long title cut at a word boundary (never ending on a little word like AND or THE) so it fits the card."""
+    if len(title) <= limit:
+        return title
+    words = title.split()
+    while len(words) > 1 and len(" ".join(words)) > limit:
+        words.pop()
+    while len(words) > 1 and words[-1] in ("AND", "OF", "THE", "A", "AN", "IN", "TO", "FOR", "WITH", "ITS", "ON"):
+        words.pop()
+    return " ".join(words)
+
+
+def _title_lines(title, cx, y, width=800, biggest=110):
+    """The video's title as one or two big red lines that fit `width` pixels (long titles split near the middle)."""
+    words = title.split()
+    lines = [title]
+    if len(title) > 13 and len(words) > 1:
+        best = min(range(1, len(words)), key=lambda k: abs(len(" ".join(words[:k])) - len(" ".join(words[k:]))))
+        lines = [" ".join(words[:best]), " ".join(words[best:])]
+    size = int(max(40, min(biggest, width / (0.6 * max(len(x) for x in lines)))))
+    return [{"type": "text", "text": ln, "x": cx, "y": int(y + i * size * 1.5), "size": size, "color": "red", "enter": "pop",
+             "at": 0.5 + 0.12 * i} for i, ln in enumerate(lines)]
+
+
 def host_scene(beat, settings, title="", idx=0):
     """The greeting and the ending: the host big on screen, talking with the narrator's voice."""
     m = settings_of(settings)
     talk = [{"at": 0.0, "dur": 60}]
-    title_txt = re.sub(r"\s+", " ", str(title or "")).strip().upper()[:28]
+    title_txt = _short_title(re.sub(r"\s+", " ", str(title or "")).strip().upper())
     kind = beat.get("host")
     if kind in ("outro", "end"):
         somber = beat.get("mood") == "somber"
         bg = {"type": "dark"} if somber else {"type": "sunburst", "color": "#FFE7A8", "ray": "#FFD36B"}
         if kind == "end":
-            return {"bg": bg, "elements": _buttons(900, 360, 590, 1360), "camera": {"zoom": [1.0, 1.04]}, "react": False}
+            return {"bg": bg, "elements": _buttons(900, 420, 650, 1360), "camera": {"zoom": [1.0, 1.04]}, "react": False}
         return {
             "bg": bg,
             "elements": [
-                host_el(m, x=560, y=900, scale=1.3, narrator=True, talk=talk, pose="wave" if not somber else "down",
+                host_el(m, x=540, y=985, scale=1.75, narrator=True, talk=talk, pose="wave" if not somber else "down",
                         mouth="smile", enter="pop", at=0.0,
                         do=[] if somber else [{"act": "wave", "at": 0.05, "dur": 1.8},
                                               {"act": "point", "at": "word:subscribe"}]),
-            ] + _buttons(1300, 360, 590, 1700),
+            ] + _buttons(1290, 400, 640, 1700),
             "camera": {"zoom": [1.0, 1.04]}, "react": False,
         }
     return {
         "bg": {"type": "sunburst", "color": "#DDF0FF", "ray": "#B8E0FF"},
         "elements": [
-            host_el(m, x=560, y=900, scale=1.35, narrator=True, talk=talk, pose="wave", mouth="grin", enter="drop",
+            host_el(m, x=540, y=985, scale=1.75, narrator=True, talk=talk, pose="wave", mouth="grin", enter="drop",
                     at=0.0, do=[{"act": "wave", "at": 0.1, "dur": 1.6}, {"act": "point", "at": 0.55}]),
-            {"type": "text", "text": m["name"].upper(), "x": 560, "y": 310, "size": 60, "color": "navy", "at": 0.05},
-            {"type": "text", "text": title_txt or "TODAY", "x": 1330, "y": 450, "size": 96 if len(title_txt) < 16 else 70,
-             "color": "red", "enter": "pop", "at": 0.45},
-        ],
+            {"type": "text", "text": m["name"].upper(), "x": 540, "y": 200, "size": 64, "color": "navy", "at": 0.05},
+            {"type": "text", "text": "TODAY'S VIDEO", "x": 1360, "y": 330, "size": 48, "color": "navy", "enter": "pop", "at": 0.35},
+        ] + _title_lines(title_txt or "TODAY", 1360, 500),
         "camera": {"zoom": [1.0, 1.05]}, "react": False,
     }
 
@@ -180,3 +203,33 @@ def with_cameo(scene, i, beats, settings, plan=None):
     out = dict(scene)
     out["elements"] = list(scene.get("elements") or []) + cameo_elements(word, expr, settings, i)
     return out
+
+
+# ------------------------------------------------------------------ the channel's profile picture
+def profile_scene(settings, backdrop="sunburst"):
+    """A big friendly close-up of the host for a profile picture: face and hat fill the middle of the frame (YouTube
+    crops profile pictures to a circle, so everything important sits well inside)."""
+    m = settings_of(settings)
+    bg = {"sunburst": {"type": "sunburst", "color": "#FFE7A8", "ray": "#FFD36B"},
+          "sky": {"type": "sunburst", "color": "#DDF0FF", "ray": "#B8E0FF"},
+          "paper": {"type": "paper"},
+          "dark": {"type": "dark"}}.get(backdrop, {"type": "sunburst", "color": "#FFE7A8", "ray": "#FFD36B"})
+    from ..engine.pen import HAT_TOP
+    top = HAT_TOP.get(m["kind"], 64)                       # how far the hat reaches above the head's center
+    s = round(4.6 * min(1.0, (84.0 / top) ** 0.6), 2)      # tall hats get a smaller head so the whole hat fits
+    head_y = top * s + 100                                 # head center on screen: the hat top keeps a margin
+    el = host_el(m, x=960, y=int(head_y + 294 * s), scale=s, pose="down", mouth="grin", eyes="happy", peek=True, at=0.0, enter="none")
+    return {"bg": bg, "elements": [el], "camera": {"zoom": [1.0, 1.0], "auto_shots": False, "pan": False}, "react": False}
+
+
+def profile_picture(settings, size=800, backdrop="sunburst"):
+    """The mascot as a square PNG (PIL image) for the YouTube channel profile picture."""
+    from ..engine.compiler import build_scene
+    sc = build_scene(profile_scene(settings, backdrop), 0, 3.0, "fun", "")
+    im = sc.render_at(1.0).convert("RGB")
+    w, h = im.size
+    side = min(w, h)
+    left = (w - side) // 2
+    im = im.crop((left, 0, left + side, side))
+    from PIL import Image
+    return im.resize((size, size), Image.LANCZOS)

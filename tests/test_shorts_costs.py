@@ -138,3 +138,24 @@ def test_calliope_line_in_draft_estimate_but_not_in_check():
     pr.update(calliope_quote={"cost": {"usd": 0, "credits": 300, "credit_unit": "Calliope credits", "known": True}})
     with pytest.raises(costs.NeedsApproval):
         costs.check(pr, "shorts")
+
+
+def test_free_short_skips_the_channel_host_and_its_text_matches(monkeypatch):
+    """With no AI picking the moment, the Short starts after the host's greeting, stops before the sign-off, and the
+    text kept for it is the narration of the beats actually used (not the greeting)."""
+    from studio.pipeline import mascot as M
+    from studio.pipeline.runner import Ctx
+    pr = new_project("Short pick", "topic", topic="mills", options={"minutes": 1},
+                     providers={"llm": "offline", "shorts": "stickman"})
+    script = {"title": "Mills", "beats": [{"mood": "fun", "part": "hook" if i == 0 else "story",
+                                           "text": f"Fact number {i} about the mill and its workers in town."} for i in range(8)]}
+    M.add_host_beats(script, {})
+    pr.save_script(script)
+    from studio.pipeline.shorts import pick_clip
+    ctx = Ctx(pr, "shorts")
+    monkeypatch.setattr(type(pr), "render_info", lambda self: {"durs": [9.0] * len(script["beats"])})
+    pick, durs = pick_clip(ctx)
+    used = script["beats"][pick["start"]:pick["end"] + 1]
+    assert used and not any(b.get("host") for b in used)
+    assert "Sticky" not in pick["script"] and "like and subscribe" not in pick["script"]
+    assert pick["script"].split()[:3] == used[0]["text"].split()[:3]

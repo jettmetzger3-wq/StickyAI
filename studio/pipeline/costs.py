@@ -84,8 +84,17 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
     elif stage == "storyboard":
         w = _writer(meta, "storyboard")
         if w.paid:
-            batches = max(1, (n + 7) // 8)
-            lines.append((w.label, w.estimate_tokens(batches * 28000, n * 700)))
+            from . import estimate as ES
+            est = ES.estimate_video(project, meta)
+            if est.get("engine") == "director":
+                # the director plan + only the odd scenes through the full scene writer (about 40% of the old tokens)
+                its = [i for i in est["items"] if i["task"] == "storyboard"]
+                share = min(1.0, n / max(1, est["beats"])) if only is not None else 1.0
+                lines.append((w.label, w.estimate_tokens(int(sum(i["in_tok"] for i in its) * share),
+                                                         int(sum(i["out_tok"] for i in its) * share))))
+            else:
+                batches = max(1, (n + 7) // 8)
+                lines.append((w.label, w.estimate_tokens(batches * 28000, n * 700)))
         pw = _writer(meta, "props")
         if pw.paid and w.id != "offline" and load_settings().get("custom_props", True) and \
                 not os.path.exists(project.p("props.json")):

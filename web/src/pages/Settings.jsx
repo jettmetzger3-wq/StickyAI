@@ -460,7 +460,43 @@ function MascotCard({ s, set }) {
           <input className="w-full" value={m.outro_line || ""} onChange={(e) => setM({ outro_line: e.target.value })} />
         </Field>
       </div>
+      <ProfilePicture />
     </Card>
+  );
+}
+
+// The mascot as a YouTube profile picture. Drawn on this PC from the SAVED mascot settings (no AI, no cost).
+function ProfilePicture() {
+  const [backdrop, setBackdrop] = useState("sunburst");
+  const [rev, setRev] = useState(0);
+  const url = (extra = "") => `/api/mascot/profile-picture?size=800&backdrop=${backdrop}${extra}&v=${rev}`;
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-4 border-t border-stone-200 pt-4 dark:border-zinc-700">
+      <img src={url()} alt="Mascot profile picture" className="h-28 w-28 rounded-full border border-stone-300 object-cover dark:border-zinc-600" />
+      <div className="min-w-[14rem] flex-1">
+        <div className="text-sm font-medium">YouTube profile picture</div>
+        <p className="mb-2 text-xs text-stone-500 dark:text-zinc-400">
+          Your mascot as an 800x800 picture. YouTube shows it as a circle, so everything important sits in the middle. Uses the saved mascot above (save first
+          after changing the hat), drawn on this PC, no AI and no cost.
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={backdrop} onChange={(e) => setBackdrop(e.target.value)}>
+            <option value="sunburst">Sunny rays</option>
+            <option value="sky">Sky blue rays</option>
+            <option value="paper">Paper</option>
+            <option value="dark">Dark</option>
+          </select>
+          <Button size="sm" onClick={() => setRev(rev + 1)}>Refresh</Button>
+          <a
+            className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-medium text-zinc-950 shadow-sm transition hover:bg-amber-400"
+            href={url("&download=true")}
+            download="mascot-profile-picture.png"
+          >
+            Download PNG
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
 

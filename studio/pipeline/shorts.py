@@ -104,6 +104,10 @@ def pick_clip(ctx):
         except Exception as e:
             ctx.warn(f"Couldn't pick the Short's moment with the AI ({str(e)[:120]}); used the opening instead.")
     pick = fix_range(pick or rule_pick(beats, durs), durs, beats)
+    if pick.get("by") == "rule":
+        # the range may have moved off the channel host's greeting: the text must match the beats actually used
+        words = " ".join(b["text"] for b in beats[pick["start"]:pick["end"] + 1]).split()
+        pick["script"] = " ".join(words[:140])
     pick["title"] = st.clean_line(pick.get("title") or script.get("title", ""))[:40]
     pick["script"] = st.clean_line(pick.get("script") or "")
     tags = [("#" + re.sub(r"[^A-Za-z0-9]", "", str(t).lstrip("#"))) for t in pick.get("hashtags") or [] if t]

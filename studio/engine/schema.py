@@ -458,6 +458,27 @@ def _at_num(v, default):
         return default
 
 
+def char_box(el):
+    """The space a character (head, hat and body) or a crowd takes on screen: nothing else should cover it."""
+    if el.get("lon") is not None:
+        return None
+    x, y = _f(el.get("x"), 960), _f(el.get("y"), 900)
+    if el.get("type") == "crowd":
+        s_ = _f(el.get("scale"), 0.6)
+        w = max(_f(el.get("width"), 600), 160) / 2 + 60 * s_
+        return (x - w, y - 400 * s_ - 70 * (int(_f(el.get("rows"), 2)) - 1) - 20, x + w, y + 12)
+    if el.get("type") != "char":
+        return None
+    s_ = _f(el.get("scale"), 1.0)
+    lift, half = mount_lift(el.get("ride"), s_)
+    top = y - max(405, 300 + hat_top(str(el.get("kind") or "")) + 26) * s_ - lift
+    return (x - max(115 * s_, half), top, x + max(115 * s_, half), y + 12 * s_)
+
+
+def _area(a, b):
+    return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
+
+
 def say_bubbles(el, says, safe, mood="fun", others=()):
     """Speech bubbles for a character's (or crowd's) "say" lines: above the head, tail pointing at the speaker,
     shown one after another."""
@@ -487,6 +508,7 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
     texty = [element_bbox(o) for o in others if o.get("type") in ("text", "note", "board", "bubble", "sign")
              and o.get("exit") is None and element_bbox(o)]
     solid = [element_bbox(o) for o in others if o.get("type") in ("prop", "icons") and element_bbox(o)]
+    people = [char_box(o) for o in others if o is not el and o.get("type") in ("char", "crowd") and char_box(o)]
 
     def area(a, b):
         return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
@@ -514,7 +536,7 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
                             by = up
                 bb = (bx - w / 2, by - h / 2, bx + w / 2, by + h / 2)
                 score = sum(area(bb, o) for o in texty) * 10 + sum(area(bb, o) for o in solid) + \
-                    abs(bx - tip_x) * 2 + (tip_y - by) * 3
+                    sum(area(bb, o) for o in people) * 12 + abs(bx - tip_x) * 2 + (tip_y - by) * 3
                 cands.append((score, bx, by, tip_x, tip_y))
         _, bx, by, tip_x, tip_y = min(cands)
         ty = tip_y - (by + h / 2)
@@ -1161,11 +1183,63 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
                     fixes.append(f"label '{str(e.get('text'))[:20]}' moved off a character's face")
                 break
 
+    # nothing may cover a character: labels and bubbles keep off every head, hat and body; props that overlap go behind it
+    people = [(e, char_box(e)) for e in out if e.get("type") in ("char", "crowd") and char_box(e)]
+    top_limit = safe[1] + 6
+    for e in out:
+        t_ = e.get("type")
+        if e.get("lon") is not None or e.get("placed") or t_ not in ("text", "note", "sign", "counter", "bubble", "board", "prop", "icons"):
+            continue
+        bb = element_bbox(e)
+        if not bb or not people:
+            continue
+        def zone(pb):
+            """What a label must not cover: the head and hat (the top half of the box). Bubbles, notes and signs
+            must keep off the whole character."""
+            return (pb[0], pb[1], pb[2], pb[1] + 0.5 * (pb[3] - pb[1])) if t_ == "text" else pb
+        label_area = max(1.0, (bb[2] - bb[0]) * (bb[3] - bb[1]))
+        hits = [(p, pb) for p, pb in people if p is not e and _area(bb, zone(pb)) > 0]
+        if not hits or sum(_area(bb, zone(pb)) for _, pb in hits) <= (0.4 if t_ == "text" else 0.12) * label_area:
+            continue
+        if t_ in ("prop", "icons"):
+            # a free-standing thing that overlaps a character is drawn BEHIND it (held items are the character's own `prop`)
+            if e.get("z") is None:
+                e["z"] = 0
+            continue
+        if t_ == "crowd" or (t_ == "text" and e.get("exit") is not None):
+            continue
+        h_ = bb[3] - bb[1]
+        w_ = bb[2] - bb[0]
+        cx_, cy_ = _f(e.get("x"), 960), _f(e.get("y"), 540)
+        cands = []
+        top_of_all = min(pb[1] for _, pb in hits)
+        cands.append((cx_, cy_ - (bb[3] - top_of_all) - 12))                      # above the heads
+        lx = min(pb[0] for _, pb in hits)
+        rx = max(pb[2] for _, pb in hits)
+        cands.append((lx - w_ / 2 - 14, cy_))                                      # to the left of them
+        cands.append((rx + w_ / 2 + 14, cy_))                                      # to the right of them
+        best, best_cost = None, None
+        for nx, ny in cands:
+            nb = (bb[0] + nx - cx_, bb[1] + ny - cy_, bb[2] + nx - cx_, bb[3] + ny - cy_)
+            if nb[0] < safe[0] or nb[2] > safe[2] or nb[1] < top_limit or nb[3] > H - CAPTION_ZONE:
+                continue
+            cost = sum(_area(nb, pb) for _, pb in people if _ is not e) * 5 + abs(nx - cx_) + abs(ny - cy_)
+            if best_cost is None or cost < best_cost:
+                best, best_cost = (nx, ny), cost
+        if best is not None:
+            now = sum(_area(bb, pb) for _, pb in hits)
+            nb2 = (bb[0] + best[0] - cx_, bb[1] + best[1] - cy_, bb[2] + best[0] - cx_, bb[3] + best[1] - cy_)
+            if sum(_area(nb2, pb) for _, pb in people) < now:
+                e["x"], e["y"] = round(best[0]), round(best[1])
+                fixes.append(f"{t_} '{str(e.get('text') or e.get('title') or '')[:20]}' moved so it doesn't cover a character")
+
     # nudge overlapping text-like elements apart (later one moves down, or up if no room)
     # boards and signs are containers: text placed on top of them is intentional
     textish = [e for e in out if e.get("type") in ("text", "bubble", "note", "counter") and element_bbox(e)]
     for i, a in enumerate(textish):
         for b in textish[i + 1:]:
+            if b.get("placed") and not a.get("placed") and a.get("type") == "text":
+                a, b = b, a                              # a speech bubble was placed on purpose: the label gives way
             ba, bb_ = element_bbox(a), element_bbox(b)
             if ba and bb_ and overlaps(ba, bb_) and a.get("exit") is None and b.get("exit") is None and \
                     not b.get("placed"):

@@ -51,7 +51,7 @@ Total, normal run: ~13 calls, ~135k input + ~56k output tokens.
 6. A bug that hurts quality: `normalize_script` drops the cast's `coat` and `look`, so recurring characters lose
    their coat color and beard between scenes (only hat + hat color survive).
 
-## D. Caching system (proposed)
+## D. Caching system (built)
 
 `studio/cache.py`: one content-addressed store under `data/cache/` (namespaces below), with hit/miss counters.
 * `llm/` response cache keyed by sha256(provider, model, system, prompt, schema, image hashes). Never stores failures.
@@ -62,7 +62,7 @@ Total, normal run: ~13 calls, ~135k input + ~56k output tokens.
 * Per project: `usage.json` ledger (every AI call: stage, task, model, tokens in/out, cached or not, seconds).
 Settings: `cache_enabled`, "Clear cache" button. Cached results are shown in the estimate ("12 of 80 scenes cached").
 
-## E. Visual memory (proposed)
+## E. Visual memory (built; contents are seed knowledge)
 
 * `research/` (markdown, human-readable, committed, global): per-channel and per-video analysis files plus distilled
   `scene-patterns.md`, `camera-patterns.md`, ... Every rule is tagged with where it came from (analysed video /
@@ -74,7 +74,7 @@ Settings: `cache_enabled`, "Clear cache" button. Cached results are shown in the
 * Video-specific, in `projects/<slug>/`: `characters/<id>.json`, `plan.json`, `continuity.json`, `review.json`, `usage.json`.
 * Rule: nothing from a creator's frames, art, characters or dialogue is stored; only the production logic.
 
-## F. Research system (proposed)
+## F. Research system (tooling built; real video analysis pending)
 
 1. **What I can really do from this machine** (checked, not assumed):
    * `youtube.com` is blocked by this session's egress proxy (HTTP 403 on CONNECT), so `yt-dlp`/`/watch` cannot run here.
@@ -89,7 +89,7 @@ Settings: `cache_enabled`, "Clear cache" button. Cached results are shown in the
    `research/videos/` for the patterns to be distilled.
 4. Deep mode only: one cached "topic brief" call per topic (key people with looks, places, documents, numbers, timeline).
 
-## G. Scene-generation pipeline (proposed)
+## G. Scene-generation pipeline (built)
 
 ```
 TOPIC -> cache check -> [deep: research brief, cached]
@@ -109,12 +109,53 @@ cache everything, ~3-4 calls), **Normal** (plan + full storyboard for custom bea
 (research brief, fact-check with web, richer plan batches, AI fix pass after review).
 Before any run: a VIDEO ESTIMATE (calls, tokens, cached vs new, warning above a threshold).
 
-## H. Files to be created / modified
+## H. Files (what exists)
 
-New: `research/**` (see E), `studio/cache.py`, `studio/usage.py`, `studio/knowledge/{__init__,patterns,analysis,people,props_intel,composer}.py`
-+ `patterns.json`, `people.json`, `studio/pipeline/{modes,characters,continuity,review,director}.py`, `studio/research_cli.py`,
-`CLAUDE.md`, tests (`test_cache_usage.py`, `test_knowledge.py`, `test_director.py`, `test_review.py`).
+New: `research/**` (see E/F), `studio/cache.py`, `studio/usage.py`, `studio/knowledge/{people,gazetteer,analysis,patterns,props_intel,composer}.py`
++ `people.json` (85 figures), `gazetteer.json` (121 places), `patterns.json` (33 patterns), `studio/pipeline/{modes,estimate,characters,continuity,review,flow,director,research}.py`,
+`studio/research_cli.py`, `scripts/measure_usage.py`, `CLAUDE.md`, tests (`test_knowledge.py`, `test_director_stage.py`,
+`test_mascot_picture_and_overlap.py`).
 Modified: `pipeline/stages.py` (call_llm cache + ledger, script merge, storyboard director route, review hook, props cache),
-`prompts/__init__.py` (director prompt, script cast fields, entities), `pipeline/costs.py` + `server/app.py` (usage estimate,
-mode, cache endpoints), `providers/llm.py` (token usage capture), `config.py`, `pipeline/mascot.py`, `pipeline/flow.py`,
+`prompts/__init__.py`, `pipeline/costs.py` + `server/app.py` (usage estimate, mode, cache endpoints, profile picture),
+`providers/llm.py` (token usage capture, Sonnet 5.5 default), `config.py`, `pipeline/mascot.py`,
 `web/src/pages/{NewVideo,Settings,StoryboardTab,ScriptTab}.jsx`, `README.md`.
+
+## I. Status and measured results
+
+### What exists and is tested
+Cache (llm/research/props/plans/people), usage ledger per project, three modes with a pre-run estimate, local beat analysis,
+33 scene patterns + local composer (31 layouts), director plan, character registry, continuity tracker, storyboard QC review
+with local auto-fixes, script seam checker, research brief (deep mode), the research CLI, and the UI for all of it.
+
+### What does NOT exist yet (said plainly)
+* **Real frame-by-frame analysis of OverSimplified, History Matters, Sam O'Nella, Simple History or Extra History has not
+  been done.** This sandbox cannot reach youtube.com / googlevideo.com / ytimg.com (the proxy refuses the connection), and the
+  paid options (vidIQ `video_watch` = 25 credits per video; the Memories.ai skill needs your own API key) were not used
+  because you did not approve spending. Everything in `research/` is therefore tagged **[seed]** (general craft knowledge,
+  not observed in a specific video) except one rule marked **[user clip]** (from the battlefield/construction clip you
+  gave). Nothing claims to be "verified from video".
+* `python -m studio research add <url>` is the tool to fix that on your PC: it measures cuts, shot lengths and narration per
+  shot with ffmpeg and writes a shot table to fill in. It does not call any AI by itself and does not "watch" the video:
+  describing what is on screen is a separate step (you, or Claude Code on the contact sheets).
+* Token numbers below come from a **stand-in writer** that returns plausible answers to the studio's REAL prompts. Input tokens
+  are exact for those prompts (characters / 3.6); output tokens are estimates. Real Claude token use will differ, and the
+  studio now records the real numbers after each call (`projects/<slug>/usage.json`).
+
+### Claude/API calls, one 39-beat video (scripts/measure_usage.py)
+| | calls | tokens (in + out) | vs old |
+|---|---|---|---|
+| Before (classic storyboard, always props + package + short) | 7 | 83,828 | |
+| Fast | 3 | 11,031 | -87% |
+| Normal | 8 | 38,845 | -54% |
+| Deep | 10 | 41,434 | -51% |
+| Normal again (same video, nothing changed) | 0 | 0 | everything cached |
+| Deep, second video on the same topic (new words) | 6 | 31,617 | research brief + props reused |
+
+In Normal mode 35 of 39 scenes were built locally from patterns, 4 went to the full scene writer, and the review pass fixed 26
+problems with no AI call (0 left). A 10-minute video is estimated at about 19k tokens (Fast), 81k (Normal), 113k (Deep), against
+about 201k the old way.
+
+### Next steps
+1. Unblock YouTube for the sandbox (or run the research tool on your PC), then analyse the queued videos in
+   `research/videos/QUEUE.md` and replace `[seed]` tags with `[verified: video id, time]` where a rule is really observed.
+2. Re-measure with real Claude token counts after a few real videos (the ledger already stores them).

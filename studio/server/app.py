@@ -106,6 +106,20 @@ def get_providers():
                               "reached from a standalone website; paid tools here use their official APIs with your keys."})
 
 
+@app.get("/api/mascot/profile-picture")
+def mascot_profile_picture(size: int = 800, backdrop: str = "sunburst", download: bool = False):
+    """The channel mascot as a square PNG for the YouTube profile picture (drawn from the saved mascot settings)."""
+    import io
+    from fastapi.responses import Response
+    from ..pipeline import mascot as MA
+    size = max(98, min(int(size), 2000))     # YouTube wants at least 98 px; 800 is what it recommends
+    im = MA.profile_picture(config.load_settings(), size, backdrop if backdrop in ("sunburst", "sky", "paper", "dark") else "sunburst")
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    headers = {"Content-Disposition": 'attachment; filename="mascot-profile-picture.png"'} if download else {}
+    return Response(buf.getvalue(), media_type="image/png", headers=headers)
+
+
 @app.get("/api/settings")
 def get_settings():
     if config.hosted() and not is_admin():

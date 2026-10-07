@@ -325,10 +325,37 @@ the Kokoro model in `data/models/`.
   last face that reacts) and cuts back out after it; wide painted places get a slow sideways pan instead of a
   plain push-in. Settings → "Smart camera".
 - **Channel mascot** (`pipeline/mascot.py`): your channel's own host stickman (Settings → Channel mascot: name, hat,
-  colors, beard, its lines). It says hi right after the hook ("Hey, it's Sticky! Today: ..."), signs off at the end
-  next to a subscribe button, and leans in from the edge of the screen to react to the biggest moments ("WHAT?!",
+  colors, beard, its lines). Right after the hook it introduces the video ("Hey, it's Sticky! Today we're talking
+  about ..."), and the video ends with just "If you liked this video, hit like and subscribe to see more!": a like button
+  pops in on "like", a subscribe button pulses on "subscribe" and the bell shakes (without the mascot the same card
+  is shown with no character). It also leans in from the edge of the screen to react to the biggest moments ("WHAT?!",
   "Oof.", "Ha!"), at most once every 7 scenes. Its lines are ordinary beats in the Script tab, so you can edit or
   delete them, they never end up in the Short, and the New Video page can switch it off for one video.
+  **YouTube profile picture**: Settings → Channel mascot → "Download PNG" draws your mascot (big head, whole hat
+  inside the circle YouTube crops to) as an 800x800 picture on this PC: no AI, no cost.
+- **Nothing covers a character**: labels, signs, notes and speech bubbles are moved off every character's head, hat and
+  body (and bubbles are placed away from the other characters); a camera close-up frames the speaker's head, hat and
+  bubble together; free-standing props that overlap a character go behind them.
+- **Less Claude usage: the director, modes and the cache** (`docs/architecture-upgrade.md`, `CLAUDE.md`): the AI decides
+  WHAT happens in a scene, the studio decides HOW it is drawn. The storyboard first analyses every beat locally (who is named,
+  places, documents, numbers, event type, emotion), picks one of 33 scene patterns (person introduction, battle,
+  signing a treaty, speech to a crowd, ...) and asks the writer for one short "director plan" per ~16 beats (pattern + slot
+  fills: which person, which document, which line). A local composer builds the scene JSON; only beats no pattern
+  fits go through the full scene writer. Then a local review checks narration match, history (era props), characters,
+  continuity, camera and pacing and fixes what it can without any AI call (Deep mode may send what is left in one
+  batched call). A **character registry** (`characters.json`, plus 85 historical figures with consistent looks)
+  keeps every person looking the same, and a **continuity tracker** carries place, time and props from scene to scene.
+  Pick **Fast / Normal / Deep** on the New Video page (default in Settings): Fast uses about 3 calls, Normal plans +
+  fact-check + props + review, Deep adds a research brief and an AI fix pass. Before you start, the page shows the
+  estimated calls and tokens and warns when it is a lot. Every AI answer is **cached** (`data/cache/`, and your plan's usage
+  is recorded in `projects/<slug>/usage.json`), so re-running a stage with unchanged input costs nothing. Settings →
+  "How the studio generates videos" has the default mode, the storyboard engine (`director` or the old `classic`) and a
+  cache clear button. Measured numbers are in `docs/architecture-upgrade.md` (stand-in writer, so treat them as estimates).
+- **Research library** (`research/`): written-down visual storytelling rules, a scene-pattern catalog, character/prop/camera/
+  transition notes and one file per reference channel. It is **seed knowledge** (each rule is tagged `[seed]`, not
+  verified from a specific video) until you run `python -m studio research add <youtube url>` on a PC that can reach
+  YouTube: that measures the cuts, shot lengths and narration per shot with ffmpeg and writes a shot table for the
+  video; frames stay in `data/research_frames/` (never in the repository).
 - **Drifting clouds**: the clouds of every painted sky drift slowly and pass behind buildings, hills and towers.
 - **Fallback scenes** (Basic mode, or when an AI scene can't be repaired) now use maps with territories and
   invasion arrows when countries are mentioned, timelines for several dates, counters for big numbers ("600,000
@@ -369,7 +396,7 @@ the Kokoro model in `data/models/`.
 ## Development
 
 ```bash
-python -m pytest                        # tests: TopoJSON, scene schema/compiler, captions, years, chapters, costs,
+python -m pytest                        # tests: TopoJSON, scene schema/compiler, patterns/director/review, captions, costs,
                                         # accounts/plans/Stripe webhooks, Shorts, the Claude Code MCP bridge
 python -m studio.engine.measure_props   # after adding/changing a prop
 cd web && npm install && npm run dev    # dashboard with hot reload (proxy to python -m studio serve)

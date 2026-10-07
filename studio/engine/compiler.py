@@ -430,7 +430,7 @@ def talk_sounds(sc, talk, kind, s, seed=0):
 def build_char(sc, el, k, talk=()):
     a = anim(el, sc, "pop")
     x, y = pos(el, sc, (960, 900))
-    s = max(0.15, min(num(el.get("scale"), 1.0), 2.5))
+    s = max(0.15, min(num(el.get("scale"), 1.0), 6.0 if el.get("peek") else 2.5))
     idle = a["idle"] if "idle" in el else "bob"
     acts = char_actions(el, sc, x, y, s, a["at"]) if el.get("do") else []
     if not el.get("do") and el.get("auto", True) is not False:
@@ -1241,10 +1241,25 @@ def punch_shot(sc, elements):
     s = max(0.15, num(e.get("scale"), 1.0))
     talking = bool(e.get("say")) or any(isinstance(o, dict) and o.get("type") == "bubble" for o in elements)
     zoom = max(1.25, min(1.9, (1.45 if talking else 1.75) / max(0.6, s)))   # leave room for a speech bubble
+    # the close-up must keep the speaker's head, hat and speech bubble in view (a bubble above a tall hat used to be cut off)
+    from .schema import char_box, element_bbox
+    cb = char_box(e)
+    rect = [cb[0], cb[1], cb[2], y - 60 * s] if cb else [x - 130 * s, y - 400 * s, x + 130 * s, y - 60 * s]
+    for o in elements:
+        if isinstance(o, dict) and o.get("type") == "bubble" and abs(num(o.get("x"), 960) - x) < 500:
+            bb = element_bbox(o)
+            if bb and bb[3] < y - 150 * s:
+                rect = [min(rect[0], bb[0]), min(rect[1], bb[1]), max(rect[2], bb[2]), rect[3]]
+    need_h, need_w = rect[3] - rect[1] + 50, rect[2] - rect[0] + 50
+    fit = min(H / max(need_h, 1.0), W / max(need_w, 1.0))
+    zoom = min(zoom, fit)
+    if zoom < 1.12:
+        return False                           # the picture is too tall to close in on without cutting something off
+    focus = ((rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2)
     if sc.mood == "somber":
-        sc.shot(t0 - 0.3, min(zoom, 1.3), (x, y - 280 * s), "pan")      # a slow push, never a snap
+        sc.shot(t0 - 0.3, min(zoom, 1.3), focus, "pan")      # a slow push, never a snap
     else:
-        sc.shot(t0 - 0.04, zoom, (x, y - 290 * s), "cut")
+        sc.shot(t0 - 0.04, zoom, focus, "cut")
     back = min(sc.dur - 0.5, t0 + 1.7)
     if sc.dur - back > 0.6:
         sc.shot(back, 1.0, None, "cut", base=True)
@@ -1273,6 +1288,12 @@ def slow_pan(sc, scene):
                 num(e.get("width"), 300) / 2 if e.get("type") == "crowd" else 170
             xs += [x - half, x + half]
     zoom = 1.12
+    # everything must also stay inside the frame vertically (a speech bubble above a tall hat used to get cut off)
+    from .schema import element_bbox
+    top = min([bb[1] for bb in (element_bbox(e) for e in scene.get("elements") or [] if isinstance(e, dict)) if bb] or [H])
+    view_top = H / 2 + 20 - H / (2 * (zoom + 0.025))
+    if top < view_top + 12:
+        return False
     hw = W / (2 * zoom)
     lo, hi = hw, W - hw
     if xs:
