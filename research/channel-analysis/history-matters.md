@@ -1,0 +1,18 @@
+# History Matters
+
+Provenance: `[seed]` Nothing in this file was taken from frames: this session could not reach YouTube. The channel's general approach
+is described from public knowledge of the genre. Replace the `[seed]` marks as videos are analysed with
+`python -m studio research add <url>`.
+
+## What the studio takes from it (technique only)
+Short, clean explainers with a lot of map work and flat-coloured characters; politics and geography explained step by step. Technique to borrow: map first, then the person, then the document; one idea per scene; numbers always on screen.
+
+## Videos queued for frame analysis
+(ids not collected yet: needs YouTube search access)
+
+## Questions the analysis must answer (per video)
+1. What is on screen for each narration clause, and how long does each shot last (measured with `research add`)?
+2. How is a new person introduced (name card, role label, prop)? A new place? A new object? A statistic?
+3. How do maps, crowds, documents and battles appear, and what is written on the props?
+4. What does the camera do on the punchline? What transition leads into the next scene?
+5. How does the picture change when the tone turns serious?

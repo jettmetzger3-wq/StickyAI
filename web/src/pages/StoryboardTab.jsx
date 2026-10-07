@@ -3,6 +3,58 @@ import { api, fileUrl, fmtTime } from "../api.js";
 import { Badge, Button, Card, cx, ErrorBox, Modal, Spinner } from "../ui.jsx";
 import { withApproval } from "./Project.jsx";
 
+const CHECK_LABEL = {
+  narration: "Narration match",
+  history: "History",
+  continuity: "Continuity",
+  characters: "Characters",
+  props: "Props",
+  action: "Action",
+  camera: "Camera",
+  pacing: "Pacing",
+  emotion: "Mood",
+  redundancy: "No repeats",
+  usage: "AI usage",
+};
+
+function ReviewCard({ review, usage }) {
+  if (!review) return null;
+  const open = (review.issues || []).filter((i) => !i.fixed);
+  return (
+    <Card title="Storyboard review" className="mb-3">
+      <p className="text-sm text-stone-600 dark:text-zinc-400">
+        The studio checked every scene before voicing and rendering: <b>{review.fixed}</b> problems fixed automatically
+        {open.length ? <>, <b>{open.length}</b> left for you to look at</> : ", nothing left to fix"}.
+        {usage?.total && (
+          <> This video used <b>{usage.total.calls}</b> AI calls (~{Math.round(usage.total.tokens / 1000)}k tokens){usage.total.cached ? <> and reused <b>{usage.total.cached}</b> saved answers</> : null}.</>
+        )}
+      </p>
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
+        {Object.entries(review.scores || {}).map(([k, v]) => (
+          <div key={k} className="flex items-center gap-2 text-xs">
+            <span className="w-28 shrink-0 text-stone-600 dark:text-zinc-400">{CHECK_LABEL[k] || k}</span>
+            <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-200 dark:bg-zinc-800">
+              <span className={cx("block h-full", v >= 0.8 ? "bg-emerald-500" : v >= 0.5 ? "bg-amber-500" : "bg-red-500")} style={{ width: `${Math.round(v * 100)}%` }} />
+            </span>
+          </div>
+        ))}
+      </div>
+      {(review.issues || []).length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-sm font-medium">All {(review.issues || []).length} findings</summary>
+          <ul className="mt-1 space-y-0.5 text-xs text-stone-600 dark:text-zinc-400">
+            {review.issues.map((i, k) => (
+              <li key={k}>
+                <span className="font-mono text-stone-400">{i.beat >= 0 ? `#${i.beat}` : "all"}</span> {i.msg}{" "}
+                {i.fixed ? <Badge kind="done">fixed</Badge> : <Badge kind="paused">{i.severity}</Badge>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Card>
+  );
+}
 export default function StoryboardTab({ d, slug, reload, running }) {
   const [open, setOpen] = useState(null);
   const beats = d.script?.beats || [];
@@ -15,6 +67,7 @@ export default function StoryboardTab({ d, slug, reload, running }) {
   const world = d.world || {};
   return (
     <>
+      <ReviewCard review={d.review} usage={d.usage} />
       {(world.themes?.length > 0 || world.sheet) && (
         <Card className="mb-3">
           {world.themes?.length > 0 && (
@@ -60,6 +113,7 @@ export default function StoryboardTab({ d, slug, reload, running }) {
               <div className="mb-1 flex items-center gap-2">
                 <Badge kind={beats[s.i]?.mood}>{beats[s.i]?.mood}</Badge>
                 {s.source === "edited" && <Badge kind="paused">edited</Badge>}
+                {s.pattern && s.pattern !== "CUSTOM" && <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-stone-500 dark:bg-zinc-800 dark:text-zinc-400">{s.pattern.replace(/_/g, " ").toLowerCase()}</span>}
               </div>
               <p className="line-clamp-2 text-xs text-stone-600 dark:text-zinc-400">{beats[s.i]?.text}</p>
             </div>

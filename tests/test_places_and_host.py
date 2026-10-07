@@ -217,7 +217,11 @@ def test_host_beats_go_after_the_hook_and_at_the_end():
     assert [b.get("host") for b in again["beats"]].count("intro") == 1 and "Dot" in again["beats"][1]["text"]
     assert not any(b.get("host") == "outro" for b in again["beats"])
     off = M.add_host_beats(s, {"mascot": {"on": False}})
-    assert not any(b.get("host") for b in off["beats"])
+    # no mascot: no greeting, but the video still ends with the like-and-subscribe card (no character)
+    assert [b.get("host") for b in off["beats"] if b.get("host")] == ["end"] and off["beats"][-1]["host"] == "end"
+    assert "like" in off["beats"][-1]["text"].lower() and "subscribe" in off["beats"][-1]["text"].lower()
+    plain = M.add_host_beats(script(), {}, mascot=False)
+    assert [b.get("host") for b in plain["beats"] if b.get("host")] == ["end"]
 
 
 def test_host_scenes_are_valid_and_talk_without_blips():
@@ -284,7 +288,7 @@ def test_storyboard_draws_host_scenes_without_the_ai(monkeypatch):
 
     monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None, task=None: Writer())
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
-    pr = new_project("Host", "topic", topic="Napoleon", options={"minutes": 1})
+    pr = new_project("Host", "topic", topic="Napoleon", options={"minutes": 1, "storyboard_engine": "classic"})
     s = script()
     from studio.pipeline import mascot as M
     M.add_host_beats(s, {})
@@ -304,12 +308,17 @@ def test_task_writer_picks(monkeypatch):
     assert WR.task_writer_id(meta, "storyboard", s) == "gemini"
     assert WR.task_writer_id(meta, "package", s) == "claude_cli"      # unknown ids fall back to the video's writer
     assert WR.task_writer_id(meta, "script", s) == "claude_cli"
-    assert WR.claude_model("package", {"plan_saver": "balanced"}) == "sonnet"
-    assert WR.claude_model("script", {"plan_saver": "balanced"}) is None
-    assert WR.claude_model("package", {"plan_saver": "off"}) is None
-    assert WR.claude_model("package", {"plan_saver": "max"}) == "haiku"
-    assert WR.claude_model("package", {"plan_saver": "max", "claude_task_models": {"package": "opus"}}) == "opus"
-    assert WR.claude_model("package", {"claude_task_models": {"package": "default"}}) is None
+    S = "claude-sonnet-5-5"
+    assert WR.claude_model("script", {"plan_saver": "balanced"}) == S          # Sonnet 5.5 is the main model
+    assert WR.claude_model("storyboard", {"plan_saver": "off"}) == S
+    assert WR.claude_model("package", {"plan_saver": "balanced"}) == S
+    assert WR.claude_model("short", {"plan_saver": "balanced"}) == "claude-haiku-4-5"     # the lightest job
+    assert WR.claude_model("package", {"plan_saver": "max"}) == "claude-haiku-4-5"
+    assert WR.claude_model("package", {"plan_saver": "max", "claude_task_models": {"package": "opus"}}) == "claude-opus-5-5"
+    assert WR.claude_model("package", {"claude_task_models": {"package": "default"}}) == ""   # your Claude Code default
+    assert WR.claude_model("script", {"llm_models": {"claude_cli": "opus"}}) == "claude-opus-5-5"
+    assert WR.claude_model("script", {"llm_models": {"claude_cli": "default"}}) == ""
+    assert WR.main_model({}) == S
 
 
 def test_claude_task_sends_the_model_and_effort(monkeypatch):
@@ -329,9 +338,12 @@ def test_claude_task_sends_the_model_and_effort(monkeypatch):
     t = WR.ClaudeTask(ClaudeCLI(), "package", {"plan_saver": "balanced"})
     t.complete("sys", "Write titles", schema={"type": "object"}, label="package")
     cmd = seen[-1]
-    assert cmd[cmd.index("--model") + 1] == "sonnet" and cmd[cmd.index("--effort") + 1] == "low"
+    assert cmd[cmd.index("--model") + 1] == "claude-sonnet-5-5" and cmd[cmd.index("--effort") + 1] == "low"
     s = WR.ClaudeTask(ClaudeCLI(), "storyboard", {"plan_saver": "balanced"})
-    assert s.batch_beats == 12 and s.warm_first and s.model is None and s.id == "claude_cli"
+    assert s.batch_beats == 12 and s.warm_first and s.model == "claude-sonnet-5-5" and s.id == "claude_cli"
+    d = WR.ClaudeTask(ClaudeCLI(), "storyboard", {"plan_saver": "balanced", "llm_models": {"claude_cli": "default"}})
+    d.complete("sys", "x", label="x")
+    assert "--model" not in seen[-1]                      # "default" = no --model: your own Claude Code default
 
 
 def test_paid_task_writers_are_always_estimated(monkeypatch, tmp_path):

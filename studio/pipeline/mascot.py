@@ -1,9 +1,13 @@
-"""The channel mascot: one recurring host stickman who greets viewers after the hook, signs off at the end, and
-leans in from the right edge to react to the video's biggest moments ("WHAT?!", "Oof.", "Ha!").
+"""The channel mascot: one recurring host stickman who welcomes viewers right after the hook, asks for a like and
+a subscribe at the very end, and leans in from the right edge to react to the video's biggest moments
+("WHAT?!", "Oof.", "Ha!").
 
-The host's look and lines come from Settings (name, hat, colors, beard). Its two speaking beats are ordinary
-beats in the script (marked "host"), so they can be edited or deleted in the Script tab; their scenes are drawn
-here without asking the AI. Cameos are added while rendering, so turning them off needs no new storyboard.
+How every video is framed:  HOOK -> host says hello and names the topic -> the narrator explains what the topic
+IS and how the video will go (written by the script writer) -> the story -> payoff -> the host's like-and-subscribe
+ending. The host's two speaking beats are ordinary beats in the script (marked "host": "intro" / "outro" / "end"),
+so they can be edited or deleted in the Script tab; their scenes are drawn here without asking the AI. "end" is the
+same like-and-subscribe card without the character (mascot switched off). Cameos are added while rendering, so
+turning them off needs no new storyboard.
 """
 import re
 
@@ -11,8 +15,11 @@ from ..engine.pen import resolve_kind
 from ..engine.reactions import triggers
 
 DEFAULTS = dict(on=True, name="Sticky", kind="cap", hat_color="red", coat="", look="", intro=True, outro=True,
-                cameos=True, intro_line="Hey, it's {name}! Today: {title}.",
-                outro_line="And that's the story of {title}! I'm {name}. See you next time!")
+                cameos=True, intro_line="Hey, it's {name}! Today we're talking about {title}.",
+                outro_line="If you liked this video, hit like and subscribe to see more!")
+# the lines earlier versions saved into Settings: treated as "not customised" so the new wording applies
+OLD_LINES = {"Hey, it's {name}! Today: {title}.",
+             "And that's the story of {title}! I'm {name}. See you next time!"}
 QUIPS = {"surprise": ["WHAT?!", "Wait, what?", "No way!"], "angry": ["Rude!", "Seriously?!", "Ugh!"],
          "smug": ["Called it.", "Classic.", "Nailed it."], "laugh": ["Ha!", "LOL", "Hah!"],
          "sad": ["Oof.", "Ouch...", "Oh no."], "scared": ["Yikes!", "Uh oh...", "Eek!"],
@@ -24,6 +31,9 @@ CAMEO_EVERY = 7          # at most one cameo per this many beats
 def settings_of(settings):
     m = dict(DEFAULTS)
     m.update({k: v for k, v in ((settings or {}).get("mascot") or {}).items() if k in DEFAULTS and v is not None})
+    for k in ("intro_line", "outro_line"):
+        if not str(m.get(k) or "").strip() or m.get(k) in OLD_LINES:
+            m[k] = DEFAULTS[k]
     m["kind"] = resolve_kind(m.get("kind") or "cap")
     m["name"] = str(m.get("name") or "Sticky").strip()[:24] or "Sticky"
     return m
@@ -51,45 +61,60 @@ def _line(template, m, title):
 
 
 # ------------------------------------------------------------------ script beats
-def add_host_beats(script, settings):
-    """Put the host's greeting after the hook and its sign-off at the end (or update them). Changes `script`."""
+def add_host_beats(script, settings, mascot=True):
+    """Put the host's hello right after the hook and the like-and-subscribe ending last (or update them).
+    With the mascot off the ending is the same card without the character. Changes `script`."""
     m = settings_of(settings)
     beats = [b for b in script.get("beats") or [] if not b.get("host")]
-    if not m["on"] or not beats:
+    on = bool(mascot and m["on"])
+    if not beats:
         script["beats"] = beats
         return script
     title = script.get("title") or script.get("topic") or ""
-    if m["intro"]:
-        beats.insert(min(1, len(beats)), dict(mood="fun", text=_line(m["intro_line"], m, title), host="intro"))
-    if m["outro"]:
+    if on and m["intro"]:
+        k = 0
+        while k < len(beats) and beats[k].get("part") == "hook":
+            k += 1
+        beats.insert(min(max(k, 1), len(beats)), dict(mood="fun", text=_line(m["intro_line"], m, title), host="intro"))
+    if (on and m["outro"]) or not on:
         last = [b for b in beats if not b.get("host")][-1]
         beats.append(dict(mood="somber" if last.get("mood") == "somber" else "fun",
-                          text=_line(m["outro_line"], m, title), host="outro"))
+                          text=_line(m["outro_line"], m, title), host="outro" if on else "end"))
     script["beats"] = beats
     return script
 
 
 # ------------------------------------------------------------------ the host's own scenes
+def _buttons(cx, y_like, y_sub, bell_x=None):
+    """The like button, the subscribe button and the bell, each popping in on its own word."""
+    return [
+        {"type": "prop", "name": "like_button", "x": cx, "y": y_like, "scale": 1.0, "enter": "pop", "at": "word:like"},
+        {"type": "prop", "name": "subscribe", "x": cx, "y": y_sub, "scale": 1.0, "enter": "pop", "idle": "pulse",
+         "at": "word:subscribe"},
+        {"type": "prop", "name": "notification_bell", "x": bell_x if bell_x is not None else cx + 400, "y": y_sub,
+         "scale": 0.8, "enter": "pop", "idle": "shake", "at": "word:subscribe+0.5"},
+    ]
+
+
 def host_scene(beat, settings, title="", idx=0):
-    """The greeting and the sign-off: the host big on screen, talking with the narrator's voice."""
+    """The greeting and the ending: the host big on screen, talking with the narrator's voice."""
     m = settings_of(settings)
     talk = [{"at": 0.0, "dur": 60}]
     title_txt = re.sub(r"\s+", " ", str(title or "")).strip().upper()[:28]
-    if beat.get("host") == "outro":
+    kind = beat.get("host")
+    if kind in ("outro", "end"):
         somber = beat.get("mood") == "somber"
+        bg = {"type": "dark"} if somber else {"type": "sunburst", "color": "#FFE7A8", "ray": "#FFD36B"}
+        if kind == "end":
+            return {"bg": bg, "elements": _buttons(900, 360, 590, 1360), "camera": {"zoom": [1.0, 1.04]}, "react": False}
         return {
-            "bg": {"type": "dark"} if somber else {"type": "sunburst", "color": "#FFE7A8", "ray": "#FFD36B"},
+            "bg": bg,
             "elements": [
-                host_el(m, x=620, y=900, scale=1.3, narrator=True, talk=talk, pose="wave" if not somber else "down",
+                host_el(m, x=560, y=900, scale=1.3, narrator=True, talk=talk, pose="wave" if not somber else "down",
                         mouth="smile", enter="pop", at=0.0,
-                        do=[] if somber else [{"act": "wave", "at": 0.05, "dur": 1.8}, {"act": "point", "at": 0.6}]),
-                {"type": "shape", "shape": "rect", "x": 1320, "y": 470, "w": 540, "h": 160, "fill": "#E0453A",
-                 "stroke": "#7A1E18", "width": 8, "radius": 36, "enter": "pop", "at": 0.35},
-                {"type": "text", "text": "SUBSCRIBE", "x": 1320, "y": 470, "size": 76, "color": "white",
-                 "enter": "pop", "at": 0.35},
-                {"type": "text", "text": m["name"].upper(), "x": 620, "y": 330, "size": 60, "color": "navy",
-                 "at": 0.1},
-            ],
+                        do=[] if somber else [{"act": "wave", "at": 0.05, "dur": 1.8},
+                                              {"act": "point", "at": "word:subscribe"}]),
+            ] + _buttons(1300, 360, 590, 1700),
             "camera": {"zoom": [1.0, 1.04]}, "react": False,
         }
     return {

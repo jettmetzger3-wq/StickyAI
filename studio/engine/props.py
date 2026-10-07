@@ -93,6 +93,45 @@ def subscribe(p, x, y, s=1):
     p.text("SUBSCRIBE", x, y, 62 * s, WHITE, f="bold")
 
 
+def thumbs_up(p, x, y, s=1, fill=WHITE):
+    """A thumbs-up hand, centered on (x, y), about 150 x 170 wide."""
+    p.rect(x - 70 * s, y - 8 * s, 34 * s, 80 * s, (60, 110, 220), 6 * s, r=6 * s)                 # the cuff
+    p.poly([(x - 30 * s, y - 8 * s), (x - 6 * s, y - 56 * s), (x + 4 * s, y - 82 * s), (x + 22 * s, y - 84 * s),
+            (x + 30 * s, y - 62 * s), (x + 20 * s, y - 28 * s), (x + 62 * s, y - 28 * s), (x + 74 * s, y - 12 * s),
+            (x + 70 * s, y + 4 * s), (x + 76 * s, y + 18 * s), (x + 68 * s, y + 34 * s), (x + 72 * s, y + 48 * s),
+            (x + 60 * s, y + 66 * s), (x - 30 * s, y + 72 * s)], fill, 6 * s, wob=0.8)
+    for dy in (6, 26, 46):
+        p.line([(x + 6 * s, y + dy * s), (x + (60 + (dy == 26) * 6) * s, y + dy * s)], 4 * s, INK, 0.2)
+
+
+def like_button(p, x, y, s=1):
+    p.rect(x - 190 * s, y - 62 * s, 380 * s, 124 * s, (50, 110, 230), 7 * s, r=30 * s)
+    thumbs_up(p, x - 100 * s, y + 4 * s, 0.62 * s)
+    p.text("LIKE", x + 58 * s, y, 70 * s, WHITE, f="bold")
+
+
+def bell(p, x, y, s=1):
+    """A notification bell, ringing."""
+    p.circ(x, y - 82 * s, 9 * s, (225, 170, 40), 5 * s)
+    left, right = [], []
+    n = 14
+    for i in range(n + 1):
+        t = i / n
+        yy = y - 72 * s + t * 104 * s
+        hw = (22 + 40 * (1 - (1 - t) ** 2.4)) * s
+        if t < 0.12:                                    # rounded top
+            hw *= 0.55 + 0.45 * (t / 0.12) ** 0.5
+        left.append((x - hw, yy))
+        right.append((x + hw, yy))
+    lip = [(x + 70 * s, y + 38 * s), (x - 70 * s, y + 38 * s)]
+    p.poly(left + [lip[1]] + [lip[0]] + right[::-1], (250, 200, 60), 6 * s, wob=0.6)
+    p.line([(x - 54 * s, y - 6 * s), (x - 40 * s, y - 40 * s)], 5 * s, (255, 240, 170), 0.2)       # shine
+    p.circ(x, y + 54 * s, 13 * s, (225, 170, 40), 5 * s)
+    for sx in (-1, 1):                                                  # ringing lines
+        p.line([(x + sx * 86 * s, y - 40 * s), (x + sx * 106 * s, y - 60 * s)], 6 * s, INK, 0.3)
+        p.line([(x + sx * 96 * s, y - 8 * s), (x + sx * 120 * s, y - 12 * s)], 6 * s, INK, 0.3)
+
+
 def note(p, x, y, text, size=46, w=300, h=200):
     p.rect(x - w / 2, y - h / 2, w, h, (255, 236, 120), 5)
     p.circ(x, y - h / 2 + 14, 12, RED, 4)

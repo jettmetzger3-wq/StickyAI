@@ -151,7 +151,7 @@ def test_storyboard_splits_batches_for_small_free_limits(monkeypatch):
 
     monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None, task=None: SmallWriter())
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
-    pr = new_project("Small limits", "topic", topic="Napoleon", options={"minutes": 1})
+    pr = new_project("Small limits", "topic", topic="Napoleon", options={"minutes": 1, "storyboard_engine": "classic"})
     pr.save_script({"title": "Small limits", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],
                     "beats": [{"mood": "fun", "text": f"Beat number {i} about Napoleon."} for i in range(4)]})
     stages.stage_storyboard(Ctx(pr, "storyboard"))
@@ -199,7 +199,7 @@ def test_backup_writer_takes_over_when_the_claude_plan_runs_out(monkeypatch):
     monkeypatch.setattr(stages.P, "get", lambda stage, pid: claude if stage == "llm" else None)
     monkeypatch.setattr(stages.P, "backup_for", lambda pid: gem)
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
-    pr = new_project("Backup", "topic", topic="Napoleon", options={"minutes": 1})
+    pr = new_project("Backup", "topic", topic="Napoleon", options={"minutes": 1, "storyboard_engine": "classic"})
     pr.save_script({"title": "Backup", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],
                     "beats": [{"mood": "fun", "text": f"Beat {i} about Napoleon."} for i in range(3)]})
     stages.stage_storyboard(Ctx(pr, "storyboard"))

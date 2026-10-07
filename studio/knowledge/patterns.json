@@ -1,0 +1,1956 @@
+{
+ "version": 1,
+ "patterns": [
+  {
+   "id": "PERSON_INTRODUCTION",
+   "label": "A person appears for the first time",
+   "layout": "intro_person",
+   "when": "a named person is introduced (born, rose to power, 'a man named', first mention of a key figure)",
+   "triggers": {
+    "events": [
+     "intro_person"
+    ],
+    "words": [
+     "born",
+     "named",
+     "known as",
+     "became",
+     "rose",
+     "young",
+     "son of",
+     "daughter of",
+     "meet"
+    ],
+    "docs": [],
+    "needs": [
+     "person_new"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "humor"
+   ],
+   "slots": {
+    "who": "the person (cast name)",
+    "role": "label under the name, max 28 chars (e.g. 'FIRST PRESIDENT')",
+    "place": "where they are",
+    "say": "one short in-character line",
+    "with": "0-2 supporting people"
+   },
+   "sequence": [
+    "Establish the place with a wide background and a place+year banner.",
+    "The person walks or pops in, big, in their signature outfit.",
+    "A name card appears with a role label (this is the only time the label is needed).",
+    "One prop that sums them up sits beside them (quill, sword, lightbulb).",
+    "They do one characteristic action while a short in-character line bubbles up.",
+    "Supporting people react or stand smaller behind."
+   ],
+   "camera": "Start wide, push in slowly on the person while the name card appears.",
+   "timing": "name card on the word that says the name; role label +0.4 s; line on the key verb.",
+   "transitions": [
+    "slide",
+    "auto"
+   ],
+   "characters": "the person large (scale 1.2-1.4), 0-2 smaller supporters",
+   "actions": "enter, nod/wave/point; personality action",
+   "background": "the place where they were at that moment",
+   "props": "one signature prop",
+   "examples": [
+    "George Washington became the first president."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "LEADER_INTRODUCTION",
+   "label": "A head of state or commander appears",
+   "layout": "intro_person",
+   "when": "a king, president, emperor, general or dictator takes the stage (role words: president, king, emperor, general, tsar, chancellor)",
+   "triggers": {
+    "events": [
+     "intro_person"
+    ],
+    "words": [
+     "president",
+     "king",
+     "queen",
+     "emperor",
+     "tsar",
+     "chancellor",
+     "prime minister",
+     "dictator",
+     "general",
+     "premier",
+     "pharaoh",
+     "sultan",
+     "leader"
+    ],
+    "docs": [],
+    "needs": [
+     "person"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "tension"
+   ],
+   "slots": {
+    "who": "the leader",
+    "role": "their title label",
+    "place": "palace, hall, podium or battlefield",
+    "flag": "their country's flag color",
+    "say": "a short boast or worry"
+   },
+   "sequence": [
+    "Wide establishing shot of the seat of power (palace, hall, capitol).",
+    "Leader steps up to the center, larger than anyone else, with the crown/hat that marks the role.",
+    "A flag or banner of their side unfolds behind them.",
+    "Name card + title.",
+    "Advisors or soldiers stand smaller on both sides; one reacts."
+   ],
+   "camera": "Slow zoom 1.0 to 1.08 on the leader; hold.",
+   "timing": "name card on the name word; flag on the country word.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "leader scale 1.3, 2-4 followers scale 0.7",
+   "actions": "point, salute, hands on hips",
+   "background": "palace or interior or field with banners",
+   "props": "flag, throne, podium",
+   "examples": [
+    "Napoleon crowned himself emperor.",
+    "Stalin took over the Soviet Union."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "HISTORICAL_SPEECH",
+   "label": "Someone gives a speech to a crowd",
+   "layout": "speech",
+   "when": "a speech, address, rally, announcement or broadcast to a crowd or to the nation",
+   "triggers": {
+    "events": [
+     "speech"
+    ],
+    "words": [
+     "speech",
+     "speaks",
+     "spoke",
+     "address",
+     "rally",
+     "told the crowd",
+     "promised",
+     "broadcast",
+     "announced",
+     "podium",
+     "declared to"
+    ],
+    "docs": [],
+    "needs": [
+     "person"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "triumph",
+    "tension"
+   ],
+   "slots": {
+    "who": "the speaker",
+    "crowd": "who listens (nation/army/people, cast name)",
+    "quote": "the key line, max 6 words",
+    "place": "where",
+    "sign": "a banner text behind the speaker (optional)"
+   },
+   "sequence": [
+    "Wide: speaker small at the podium, crowd below, banners.",
+    "Cut to a close-up of the speaker on the key phrase.",
+    "Quote appears as a speech bubble or big text.",
+    "Crowd reacts (cheer, boo, silence) on the next clause.",
+    "Pull back out to show the size of the crowd."
+   ],
+   "camera": "Close-up on the speaker exactly on the punchline word; whip or pull back to the crowd after.",
+   "timing": "quote on the word before it is spoken; crowd reaction 0.4 s after.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "speaker scale 1.1 at a podium, crowd 10-24 smaller",
+   "actions": "point, raise_right, cheer (crowd)",
+   "background": "field, street, palace balcony or hall",
+   "props": "podium, microphone, flags, megaphone",
+   "examples": [
+    "Hitler promised the crowd jobs and revenge.",
+    "Lincoln gave a short speech at Gettysburg."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "DOCUMENT_SIGNING",
+   "label": "A document is signed",
+   "layout": "document",
+   "when": "a treaty, law, constitution or declaration is signed or sealed",
+   "triggers": {
+    "events": [
+     "signing"
+    ],
+    "words": [
+     "signed",
+     "signs",
+     "signing",
+     "signature",
+     "ratified",
+     "pen",
+     "sealed",
+     "wrote",
+     "drafted"
+    ],
+    "docs": [
+     "treaty",
+     "law",
+     "declaration",
+     "contract",
+     "letter"
+    ],
+    "needs": [
+     "document"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "triumph",
+    "tension"
+   ],
+   "slots": {
+    "doc_title": "the document's real name, uppercase, max 22 chars",
+    "doc_lines": "2-4 short lines actually written on it",
+    "signer": "who signs",
+    "witnesses": "0-3 people watching",
+    "place": "hall, palace or interior",
+    "stamp": "optional stamp word (SIGNED, RATIFIED, VOID)"
+   },
+   "sequence": [
+    "Establish the room.",
+    "The document slides to the center and grows large enough to read, title first.",
+    "The signer picks up the quill; witnesses stand around and watch.",
+    "Close-up on the pen touching the paper on the word 'signed'.",
+    "A stamp or seal lands; witnesses react.",
+    "Cut to what the signature changed (next beat)."
+   ],
+   "camera": "Push in on the document; close-up on the pen at the verb.",
+   "timing": "document on its name; pen on 'signed'; stamp +0.8 s.",
+   "transitions": [
+    "slide",
+    "paper"
+   ],
+   "characters": "signer scale 1.0 on the left, 1-3 witnesses smaller on the right",
+   "actions": "signer: write/nod; witnesses: cheer or gasp",
+   "background": "palace, parliament or interior",
+   "props": "document or scroll (with title and lines), quill, table",
+   "examples": [
+    "The Treaty of Versailles was signed in 1919.",
+    "Jefferson wrote the Declaration of Independence."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "LAW_BEING_PASSED",
+   "label": "A law is debated and passed",
+   "layout": "chamber",
+   "when": "a legislature votes: congress, parliament, a senate or a convention passes a law, bill or amendment",
+   "triggers": {
+    "events": [
+     "law"
+    ],
+    "words": [
+     "law",
+     "act",
+     "bill",
+     "passed",
+     "congress",
+     "parliament",
+     "senate",
+     "vote",
+     "voted",
+     "legislation",
+     "amendment",
+     "convention",
+     "constitution"
+    ],
+    "docs": [
+     "law"
+    ],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "tension"
+   ],
+   "slots": {
+    "doc_title": "the law's name, uppercase",
+    "doc_lines": "2-3 short lines of what it says",
+    "yes": "votes for (number)",
+    "no": "votes against (number)",
+    "speaker": "who speaks (optional)",
+    "place": "parliament"
+   },
+   "sequence": [
+    "Establish the chamber (benches, flags, columns) and the place+year banner.",
+    "Representatives debate: one stands and speaks, others react.",
+    "The document appears, big, with its real title.",
+    "A vote counter ticks up: YES vs NO.",
+    "Result stamp (PASSED / REJECTED) and the room reacts.",
+    "Transition into the consequences."
+   ],
+   "camera": "Wide first, then slow push toward the speaker; close-up on the counter at the result.",
+   "timing": "document on its name; counter during the verb 'voted'; stamp on the result word.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "speaker at the front, 8-16 delegates in two blocks",
+   "actions": "talk, cheer, shake_head",
+   "background": "parliament",
+   "props": "document, ballot, counter, gavel",
+   "examples": [
+    "Congress passed the Stamp Act in 1765.",
+    "Parliament voted to end the slave trade."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "POLITICAL_DEBATE",
+   "label": "Two sides argue",
+   "layout": "debate",
+   "when": "two people or parties argue, disagree or split into factions",
+   "triggers": {
+    "events": [
+     "debate"
+    ],
+    "words": [
+     "debate",
+     "argued",
+     "disagreed",
+     "opposed",
+     "faction",
+     "rivals",
+     "parties",
+     "clashed over",
+     "split",
+     "federalist",
+     "anti"
+    ],
+    "docs": [],
+    "needs": [
+     "two_people"
+    ]
+   },
+   "tone": [
+    "tension",
+    "humor"
+   ],
+   "slots": {
+    "left": "first side (cast name)",
+    "right": "second side",
+    "left_line": "their argument, max 5 words",
+    "right_line": "their reply, max 5 words",
+    "issue": "what they argue about (a prop or sign)",
+    "place": "hall or interior"
+   },
+   "sequence": [
+    "Two podiums or two groups face each other, the issue symbol (document, coin, flag) between them.",
+    "Left side speaks: bubble.",
+    "Camera whips to the right side: reply bubble.",
+    "Third beat: crowd between them looks left and right.",
+    "End on one side steaming (vein, steam) and the other smug."
+   ],
+   "camera": "Whip between the two sides on each line.",
+   "timing": "left line on the first verb, right line 1.2 s later.",
+   "transitions": [
+    "wipe"
+   ],
+   "characters": "two leaders facing each other scale 1.1, a few followers each",
+   "actions": "point, angry, shrug",
+   "background": "interior or parliament",
+   "props": "issue prop in the middle, podiums",
+   "examples": [
+    "Hamilton wanted a strong bank, Jefferson hated the idea."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "ELECTION",
+   "label": "Voting and a result",
+   "layout": "election",
+   "when": "an election, campaign, voting or a landslide",
+   "triggers": {
+    "events": [
+     "election"
+    ],
+    "words": [
+     "election",
+     "elected",
+     "ballot",
+     "voters",
+     "landslide",
+     "campaign",
+     "polls",
+     "vote",
+     "won the presidency"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "triumph",
+    "humor"
+   ],
+   "slots": {
+    "candidates": "two candidates (cast names)",
+    "winner": "who wins",
+    "votes": "the winning share or count",
+    "place": "street or hall"
+   },
+   "sequence": [
+    "People queue at a ballot box on a street.",
+    "Candidates wave on stages left and right.",
+    "A tally counter runs.",
+    "Winner is lifted; loser slumps.",
+    "Result banner."
+   ],
+   "camera": "Slow pan across the queue, zoom on the counter.",
+   "timing": "counter on 'votes'/'percent'; winner pose on the result verb.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "2 candidates, 6-12 voters",
+   "actions": "cheer, cry, wave",
+   "background": "street or hall",
+   "props": "ballot, counter, trophy, flags",
+   "examples": [
+    "Lincoln won the 1860 election without a single Southern state."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "WAR_DECLARATION",
+   "label": "War is declared",
+   "layout": "war_declaration",
+   "when": "a country declares war, issues an ultimatum, mobilizes or invades",
+   "triggers": {
+    "events": [
+     "war_declaration"
+    ],
+    "words": [
+     "declared war",
+     "ultimatum",
+     "mobilized",
+     "invaded",
+     "war on",
+     "ordered"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension"
+   ],
+   "slots": {
+    "aggressor": "who declares (cast name)",
+    "target": "who is attacked",
+    "message": "the statement or telegram text, max 5 words",
+    "place": "palace or map"
+   },
+   "sequence": [
+    "The aggressor's leader signs or reads a message at a desk or balcony.",
+    "The telegram/declaration appears as a document with a bold red phrase.",
+    "A map of the two countries; the aggressor's color flips toward the target.",
+    "Arrow and units start moving.",
+    "Crowds cheer in one place, go silent in the other."
+   ],
+   "camera": "Close-up on the message, then pull out to the map.",
+   "timing": "message on 'declared'; arrow on the next verb.",
+   "transitions": [
+    "wipe"
+   ],
+   "characters": "leader + messenger; crowds on both sides",
+   "actions": "point, salute",
+   "background": "palace then map",
+   "props": "telegram/envelope, document, flags",
+   "examples": [
+    "Germany declared war on Russia on August 1, 1914."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "PEACE_TREATY",
+   "label": "Peace is made",
+   "layout": "treaty",
+   "when": "peace deal, armistice, surrender, ceasefire or a treaty between sides",
+   "triggers": {
+    "events": [
+     "treaty"
+    ],
+    "words": [
+     "peace",
+     "treaty",
+     "armistice",
+     "surrender",
+     "ceasefire",
+     "truce",
+     "accord",
+     "negotiated",
+     "agreement",
+     "conference"
+    ],
+    "docs": [
+     "treaty"
+    ],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "tragedy",
+    "triumph"
+   ],
+   "slots": {
+    "side_a": "first party",
+    "side_b": "second party",
+    "doc_title": "treaty name",
+    "doc_lines": "2-3 terms",
+    "place": "palace or hall",
+    "dove": "true if peace is the point"
+   },
+   "sequence": [
+    "A long table; side A on the left, side B on the right, the treaty in the middle.",
+    "Side A slumps or gloats; side B too.",
+    "The treaty's terms appear as lines on the document.",
+    "Both sign; a dove or a flag of white shows.",
+    "Crowd outside reacts."
+   ],
+   "camera": "Slow push toward the document; side-to-side whip on the terms.",
+   "timing": "document on its name; terms read one per clause; dove at the end.",
+   "transitions": [
+    "fade",
+    "slide"
+   ],
+   "characters": "two leaders facing each other, 1-2 aides each",
+   "actions": "shake_head, shrug, write",
+   "background": "palace",
+   "props": "scroll or document, table, dove, flags",
+   "examples": [
+    "Germany signed the armistice in a railway car in 1918."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "BATTLE_ESTABLISHING",
+   "label": "The scene before a battle",
+   "layout": "battle_wide",
+   "when": "two armies meet or prepare; a named battle is introduced with its date and place",
+   "triggers": {
+    "events": [
+     "battle"
+    ],
+    "words": [
+     "battle of",
+     "armies",
+     "faced",
+     "outnumbered",
+     "camp",
+     "siege",
+     "stood ready",
+     "prepared",
+     "dawn",
+     "two armies"
+    ],
+    "docs": [],
+    "needs": [
+     "place_or_year"
+    ]
+   },
+   "tone": [
+    "tension",
+    "neutral"
+   ],
+   "slots": {
+    "side_a": "first army (cast name)",
+    "side_b": "second army",
+    "battle": "battle name for the label",
+    "year": "year",
+    "place": "battlefield style river|open|ruins",
+    "sizes": "army sizes if told"
+   },
+   "sequence": [
+    "Wide battlefield with both armies on opposite sides, flags planted.",
+    "A big label: battle name + year.",
+    "Army sizes appear as counters over each side.",
+    "A commander on each side looks across; a tense line from each.",
+    "Wind/dust, silence before the charge."
+   ],
+   "camera": "Slow pan across the line from one army to the other.",
+   "timing": "label on the battle name; counters on the numbers.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "a commander + a block of 12-20 soldiers per side",
+   "actions": "point, salute",
+   "background": "battlefield (river|open|ruins) at dawn or dusk",
+   "props": "flags, cannon, tents, counters",
+   "examples": [
+    "At dawn on June 18, 1815 two armies faced each other near Waterloo."
+   ],
+   "prior": 1.0,
+   "verified": [
+    "OverSimplified 'The Napoleonic Wars' clip recorded by the channel owner (earlier session): the battle is a full-screen battlefield, not a small prop"
+   ],
+   "source": "verified for the full-background rule; sequence otherwise seed"
+  },
+  {
+   "id": "BATTLE_ACTION",
+   "label": "The fighting itself",
+   "layout": "battle_clash",
+   "when": "the fighting: charges, shelling, bombing, storming, the clash",
+   "triggers": {
+    "events": [
+     "battle"
+    ],
+    "words": [
+     "charged",
+     "attack",
+     "attacked",
+     "fought",
+     "fighting",
+     "clash",
+     "slaughter",
+     "bombed",
+     "shelled",
+     "stormed",
+     "artillery",
+     "cannon",
+     "fire",
+     "exploded",
+     "charge"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension",
+    "tragedy"
+   ],
+   "slots": {
+    "side_a": "attacker",
+    "side_b": "defender",
+    "weapon": "cannon|musket|sword|bomb",
+    "result": "who breaks (optional)",
+    "place": "battlefield style"
+   },
+   "sequence": [
+    "The two blocks run at each other (enter + run actions).",
+    "Explosion and smoke at the clash point on the verb.",
+    "Close-up on the commander on the losing side reacting.",
+    "Debris, flag falls.",
+    "Camera shakes once on the biggest word."
+   ],
+   "camera": "Shake on the verb; close-up on a commander on the punchline.",
+   "timing": "clash on the attack verb; flag falls on the result verb.",
+   "transitions": [
+    "wipe",
+    "cut"
+   ],
+   "characters": "two blocks of 10-16 soldiers, a commander each",
+   "actions": "run, slash/fight, faint",
+   "background": "battlefield",
+   "props": "explosion, cannon, smoke, flags",
+   "examples": [
+    "The British cavalry charged straight into the French guns."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "MAP_EXPLANATION",
+   "label": "A map explains where things are",
+   "layout": "map_region",
+   "when": "borders, empires, regions, alliances: who controls what",
+   "triggers": {
+    "events": [
+     "country"
+    ],
+    "words": [
+     "empire",
+     "territory",
+     "border",
+     "borders",
+     "controlled",
+     "region",
+     "continent",
+     "colonies",
+     "map",
+     "alliance",
+     "stretched",
+     "spread"
+    ],
+    "docs": [],
+    "needs": [
+     "country"
+    ]
+   },
+   "tone": [
+    "neutral"
+   ],
+   "slots": {
+    "countries": "country names to color",
+    "focus": "region name to zoom on",
+    "labels": "city names to mark",
+    "year": "the year in a big counter",
+    "side_colors": "who is which color"
+   },
+   "sequence": [
+    "A dark map zooms to the region.",
+    "The relevant countries tint in their color one by one on their names.",
+    "City markers pop in on their names.",
+    "A year counter in the corner; borders change if time passes.",
+    "Zoom into the one place the next beat is about."
+   ],
+   "camera": "Map view moves to fit the countries; mapzoom into the next place.",
+   "timing": "each country on its name; cities on their names.",
+   "transitions": [
+    "zoom",
+    "auto"
+   ],
+   "characters": "none (or a small narrator char in the corner)",
+   "actions": "",
+   "background": "map (dark style)",
+   "props": "city markers, labels, year counter",
+   "examples": [
+    "By 1810 Napoleon controlled most of Europe."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "GEOGRAPHICAL_MOVEMENT",
+   "label": "Something moves across the map",
+   "layout": "map_move",
+   "when": "armies, ships, travelers or people move from one place to another",
+   "triggers": {
+    "events": [
+     "movement"
+    ],
+    "words": [
+     "marched",
+     "sailed",
+     "crossed",
+     "advanced",
+     "retreated",
+     "fled",
+     "traveled",
+     "headed",
+     "voyage",
+     "expedition",
+     "journey",
+     "moved toward"
+    ],
+    "docs": [],
+    "needs": [
+     "two_places"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "tension"
+   ],
+   "slots": {
+    "from": "start place",
+    "to": "destination",
+    "who": "the moving group (cast name)",
+    "units": "hat kind or prop for the little marching figures",
+    "via": "a middle place (optional)"
+   },
+   "sequence": [
+    "Map zoomed on the route.",
+    "Start city marker; the group's color flag there.",
+    "An arrow draws from start to destination, little units walk along it.",
+    "The destination marker pops on its name with a label.",
+    "Camera follows the arrow to the destination."
+   ],
+   "camera": "Pan along the route, zoom to the destination at the end.",
+   "timing": "arrow starts on the verb; destination marker on its name.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "little units on the arrow",
+   "actions": "",
+   "background": "map",
+   "props": "arrow with units, city markers, battle marker",
+   "examples": [
+    "Napoleon marched from Paris to Moscow."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "CITY_ESTABLISHING",
+   "label": "Where are we? A city",
+   "layout": "city_est",
+   "when": "the story arrives in a named city: first mention of a city as the setting",
+   "triggers": {
+    "events": [
+     "city"
+    ],
+    "words": [
+     "capital",
+     "city of",
+     "in the city",
+     "streets of",
+     "harbor",
+     "port",
+     "town"
+    ],
+    "docs": [],
+    "needs": [
+     "city"
+    ]
+   },
+   "tone": [
+    "neutral"
+   ],
+   "slots": {
+    "city": "city name",
+    "year": "year",
+    "skyline": "skyline key if known",
+    "detail": "one prop that sums up the city"
+   },
+   "sequence": [
+    "Wide painted skyline of the city with its landmarks.",
+    "Place + year banner appears.",
+    "One small action in the foreground (people walking, a cart).",
+    "Push in toward the street where the story starts."
+   ],
+   "camera": "Slow pan across the skyline, then zoom 1.1 on the street.",
+   "timing": "banner on the city name.",
+   "transitions": [
+    "slide",
+    "auto"
+   ],
+   "characters": "2-4 small townsfolk",
+   "actions": "walk",
+   "background": "city with skyline key or street",
+   "props": "landmark, carts, flags",
+   "examples": [
+    "In Paris, the crowd was running out of bread."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "COUNTRY_ESTABLISHING",
+   "label": "Where are we? A country",
+   "layout": "country_est",
+   "when": "a country or empire is introduced as the setting, usually with a year",
+   "triggers": {
+    "events": [
+     "country"
+    ],
+    "words": [
+     "country",
+     "nation",
+     "kingdom",
+     "republic",
+     "empire",
+     "at the time",
+     "land of"
+    ],
+    "docs": [],
+    "needs": [
+     "country"
+    ]
+   },
+   "tone": [
+    "neutral"
+   ],
+   "slots": {
+    "country": "country name",
+    "year": "year",
+    "flag": "flag colors",
+    "detail": "1 sentence fact as a label (population, ruler)"
+   },
+   "sequence": [
+    "Map zoom from the world to the country, the country glows.",
+    "The country's name and year appear big.",
+    "A flag or the leader's hat pops in beside it.",
+    "A fact label (population, size, ruler).",
+    "Move into the next beat's city."
+   ],
+   "camera": "Zoom from wide to fit the country.",
+   "timing": "country tints on its name; label +0.5 s.",
+   "transitions": [
+    "zoom"
+   ],
+   "characters": "the country's representative char (cast kind) small in the corner",
+   "actions": "wave",
+   "background": "map",
+   "props": "flag, label, year counter",
+   "examples": [
+    "In 1750 Britain was a small island with a big navy."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "CROWD_REACTION",
+   "label": "A crowd reacts",
+   "layout": "crowd",
+   "when": "the public reacts: cheers, boos, gasps, panic, celebration",
+   "triggers": {
+    "events": [
+     "celebration"
+    ],
+    "words": [
+     "crowd",
+     "cheered",
+     "booed",
+     "gasped",
+     "reacted",
+     "everyone",
+     "citizens",
+     "audience",
+     "public",
+     "people",
+     "panic",
+     "celebrated"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "triumph",
+    "shock",
+    "humor",
+    "tension"
+   ],
+   "slots": {
+    "crowd": "which crowd (cast name)",
+    "reaction": "cheer|boo|gasp|panic|silence",
+    "line": "what they shout, max 4 words",
+    "cause": "what they are reacting to (a prop or a person)",
+    "place": "street or square"
+   },
+   "sequence": [
+    "The cause (a person, a news item, an event) in the corner.",
+    "The crowd faces it; all react in sync on the key word.",
+    "One individual shouts a line.",
+    "Camera cuts to the loudest person for a beat."
+   ],
+   "camera": "Slow zoom into the crowd; cut to a close-up on the shouter.",
+   "timing": "reaction on the key verb; shouted line 0.3 s later.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "crowd of 12-30 plus 1 shouter",
+   "actions": "cheer, tremble, surprise",
+   "background": "street or field",
+   "props": "the cause prop, flags, signs",
+   "examples": [
+    "The crowd went wild when the news arrived."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "PROTEST",
+   "label": "A protest",
+   "layout": "protest",
+   "when": "people demonstrate, strike, boycott or demand change",
+   "triggers": {
+    "events": [
+     "protest"
+    ],
+    "words": [
+     "protest",
+     "protested",
+     "demanded",
+     "strike",
+     "boycott",
+     "petition",
+     "demonstrators",
+     "march on",
+     "rally"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension",
+    "triumph"
+   ],
+   "slots": {
+    "crowd": "who protests",
+    "demand": "the slogan on the main sign, max 4 words",
+    "against": "who they face (soldiers, king, company)",
+    "place": "street"
+   },
+   "sequence": [
+    "Crowd with hand-written signs fills the street.",
+    "The main sign grows and shows the demand in big letters.",
+    "A megaphone voice; the crowd raises fists.",
+    "Opposite side: soldiers or officials stand stiff.",
+    "Standoff beat."
+   ],
+   "camera": "Slow zoom on the main sign; slow pan to the opposing line.",
+   "timing": "sign text on the demand word; fists on the verb.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "crowd 14-26, 1 leader with megaphone, opposing line of 4-8",
+   "actions": "cheer, angry, point",
+   "background": "street or city",
+   "props": "signs, megaphone, flags",
+   "examples": [
+    "Workers marched through the streets demanding an eight hour day."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "RIOT",
+   "label": "Things get violent",
+   "layout": "riot",
+   "when": "a riot, uprising, revolt or revolution turns violent",
+   "triggers": {
+    "events": [
+     "riot"
+    ],
+    "words": [
+     "riot",
+     "rioted",
+     "mob",
+     "uprising",
+     "revolt",
+     "rebellion",
+     "revolution",
+     "burned",
+     "looted",
+     "stormed"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension",
+    "tragedy"
+   ],
+   "slots": {
+    "crowd": "the rioters",
+    "target": "what they attack (building prop)",
+    "against": "who defends",
+    "place": "street"
+   },
+   "sequence": [
+    "Angry crowd with torches and pitchforks rushes in from one side.",
+    "The target building/prop catches fire on the verb.",
+    "Defenders back away or fire; smoke fills the sky.",
+    "A flag drops, another is raised.",
+    "Silence on the aftermath."
+   ],
+   "camera": "Shake on the burn/storm verb; pull back to show the flames.",
+   "timing": "fire on the verb; flag change +1 s.",
+   "transitions": [
+    "wipe",
+    "cut"
+   ],
+   "characters": "crowd 16-28 angry, defenders 4-8",
+   "actions": "run, angry, fight",
+   "background": "street at dusk",
+   "props": "fire, torches, smoke, the target building",
+   "examples": [
+    "The crowd stormed the Bastille."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "STATISTIC_VISUALIZATION",
+   "label": "A number is the story",
+   "layout": "stat",
+   "when": "a big or surprising number: money, casualties, sizes, percentages",
+   "triggers": {
+    "events": [],
+    "words": [
+     "million",
+     "billion",
+     "thousand",
+     "percent",
+     "times",
+     "doubled",
+     "tripled",
+     "half",
+     "number",
+     "total",
+     "cost"
+    ],
+    "docs": [],
+    "needs": [
+     "number"
+    ]
+   },
+   "tone": [
+    "neutral",
+    "tension",
+    "tragedy"
+   ],
+   "slots": {
+    "number": "the number",
+    "unit": "what it counts",
+    "compare": "something familiar to compare to (optional)",
+    "style": "counter|bar|icons"
+   },
+   "sequence": [
+    "A counter spins up to the number on the word that says it.",
+    "Icons or a bar make its size visible (one icon = a group).",
+    "A comparison appears (the size of a known city, 'twice the army of X').",
+    "A small reaction from a character."
+   ],
+   "camera": "Slow zoom on the counter; hold on the comparison.",
+   "timing": "counter starts on the word before the number; comparison +1 s.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "1 small char reacting",
+   "actions": "surprise, shrug",
+   "background": "paper or sunburst, or dark for tragic numbers",
+   "props": "counter, chart, icons, compare",
+   "examples": [
+    "The war killed more than 20 million people."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "TIMELINE",
+   "label": "Years go by",
+   "layout": "timeline",
+   "when": "several dates or a stretch of years: a sequence over time",
+   "triggers": {
+    "events": [],
+    "words": [
+     "years later",
+     "decades",
+     "century",
+     "timeline",
+     "by 1",
+     "from 1",
+     "between",
+     "until",
+     "over the next"
+    ],
+    "docs": [],
+    "needs": [
+     "years2"
+    ]
+   },
+   "tone": [
+    "neutral"
+   ],
+   "slots": {
+    "events": "3-5 {year, label} pairs",
+    "start": "first year",
+    "end": "last year"
+   },
+   "sequence": [
+    "A horizontal line draws across the frame.",
+    "Each event pops on its date as it is spoken.",
+    "The active one grows; earlier ones dim.",
+    "A final marker at 'now' or the end year."
+   ],
+   "camera": "Slow pan along the line following the narration.",
+   "timing": "each event on its year word.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "none",
+   "actions": "",
+   "background": "paper",
+   "props": "timeline element",
+   "examples": [
+    "From 1914 to 1918 Europe tore itself apart."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "CAUSE_AND_EFFECT",
+   "label": "A led to B",
+   "layout": "cause_effect",
+   "when": "cause and consequence: because, led to, as a result, which meant",
+   "triggers": {
+    "events": [
+     "cause"
+    ],
+    "words": [
+     "because",
+     "caused",
+     "led to",
+     "as a result",
+     "which meant",
+     "therefore",
+     "consequence",
+     "triggered",
+     "sparked",
+     "resulted",
+     "so"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "tension"
+   ],
+   "slots": {
+    "cause": "the cause as a prop or short label",
+    "effect": "the effect as a prop or short label",
+    "link": "word on the arrow (so, then, BOOM)"
+   },
+   "sequence": [
+    "Left: the cause as a picture (prop or char) with a 3-word label.",
+    "An arrow draws across the middle.",
+    "Right: the effect appears, bigger or more dramatic.",
+    "A small reaction on the effect."
+   ],
+   "camera": "Slow push toward the effect.",
+   "timing": "cause on its word; arrow on 'so/led to'; effect on its word.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "1-2 chars",
+   "actions": "surprise, facepalm",
+   "background": "paper or sunburst",
+   "props": "two props, arrow, labels",
+   "examples": [
+    "The tax made the colonists angry, so they threw the tea overboard."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "BEFORE_AND_AFTER",
+   "label": "Then and now",
+   "layout": "before_after",
+   "when": "a change over time: how things were vs how they became",
+   "triggers": {
+    "events": [
+     "change"
+    ],
+    "words": [
+     "before",
+     "after",
+     "used to",
+     "no longer",
+     "changed",
+     "transformed",
+     "then",
+     "now",
+     "compared",
+     "today"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "humor"
+   ],
+   "slots": {
+    "left": "label for before (a year or word)",
+    "right": "label for after",
+    "left_items": "what is on the left",
+    "right_items": "what is on the right"
+   },
+   "sequence": [
+    "The screen splits; left labeled BEFORE/year, right AFTER/year.",
+    "Left side shows the old state; a short pause.",
+    "Right side swipes in with the new state.",
+    "One character reacts differently on each side (happy vs sad)."
+   ],
+   "camera": "Static, then a quick push on the right side.",
+   "timing": "left on the first clause; right on the second.",
+   "transitions": [
+    "wipe"
+   ],
+   "characters": "the same character on both sides, different state",
+   "actions": "cheer / cry",
+   "background": "split",
+   "props": "before/after props",
+   "examples": [
+    "London in 1800 had one million people. Fifty years later, it had two and a half."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "ECONOMIC_CRISIS",
+   "label": "The economy breaks",
+   "layout": "economic",
+   "when": "a crash, depression, inflation, debt, famine or ruinous taxes",
+   "triggers": {
+    "events": [
+     "crisis"
+    ],
+    "words": [
+     "crash",
+     "depression",
+     "inflation",
+     "bankrupt",
+     "debt",
+     "recession",
+     "collapsed",
+     "prices",
+     "unemployment",
+     "famine",
+     "tax",
+     "taxes",
+     "poor",
+     "broke",
+     "tariff",
+     "poverty"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension",
+    "tragedy",
+    "humor"
+   ],
+   "slots": {
+    "what": "what collapses (prices, bank, harvest)",
+    "number": "a big number to show",
+    "who": "who suffers",
+    "line": "a complaint, max 4 words"
+   },
+   "sequence": [
+    "A chart or sign with the key figure falls or rockets.",
+    "A character holds an empty bag/pocket or a huge pile of worthless money.",
+    "Crowd in a line (bread line, bank queue).",
+    "One complaint bubble.",
+    "Dark vignette on tragic cases."
+   ],
+   "camera": "Zoom on the chart line at the drop.",
+   "timing": "chart moves on the verb; complaint 0.5 s later.",
+   "transitions": [
+    "fade"
+   ],
+   "characters": "1 main sufferer + 4-10 in a queue",
+   "actions": "cry, shrug, faint",
+   "background": "street or interior, dusk",
+   "props": "chart, moneybag, cash, sign",
+   "examples": [
+    "Prices doubled in a year and bread cost a month's pay."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "TECHNOLOGY_EXPLANATION",
+   "label": "How a machine works",
+   "layout": "invention",
+   "when": "how something works: a machine, engine, process, new weapon or factory",
+   "triggers": {
+    "events": [
+     "technology"
+    ],
+    "words": [
+     "machine",
+     "engine",
+     "works by",
+     "steam",
+     "factory",
+     "telegraph",
+     "railroad",
+     "assembly line",
+     "mill",
+     "process",
+     "technology",
+     "power"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "humor"
+   ],
+   "slots": {
+    "thing": "the machine/prop",
+    "parts": "2-3 labels pointing at parts",
+    "who": "inventor or operator",
+    "effect": "what it produced (a number)"
+   },
+   "sequence": [
+    "The machine appears large in the center.",
+    "Labels with thin arrows point to 2-3 parts as they are explained.",
+    "Something moves (gear turns, smoke rises).",
+    "The output shows (a pile of goods, a number).",
+    "The inventor/operator reacts proudly."
+   ],
+   "camera": "Slow zoom on the machine; follow the labels.",
+   "timing": "each label on its part word.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "inventor on the side, scale 0.9",
+   "actions": "point, nod, hammer",
+   "background": "construction/factory or interior",
+   "props": "the machine, gears, smoke, labels",
+   "examples": [
+    "The spinning jenny let one worker spin eight threads at once."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "INVENTION",
+   "label": "Someone invents or discovers something",
+   "layout": "invention",
+   "when": "an invention, discovery, patent or breakthrough",
+   "triggers": {
+    "events": [
+     "invention"
+    ],
+    "words": [
+     "invented",
+     "inventor",
+     "patent",
+     "discovered",
+     "discovery",
+     "breakthrough",
+     "built the first",
+     "first ever",
+     "new device"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "triumph",
+    "humor"
+   ],
+   "slots": {
+    "who": "inventor/discoverer",
+    "thing": "the invention (prop)",
+    "year": "year",
+    "line": "eureka line, max 4 words"
+   },
+   "sequence": [
+    "The inventor at a workbench; a lightbulb pops above their head.",
+    "The invention is revealed with a pop and a label with its name and year.",
+    "It works (spark, movement) on the verb.",
+    "Onlookers gasp or cheer."
+   ],
+   "camera": "Close-up on the lightbulb, then pull back for the reveal.",
+   "timing": "lightbulb on 'idea/invented'; reveal on the thing's name.",
+   "transitions": [
+    "iris",
+    "auto"
+   ],
+   "characters": "inventor scale 1.1, 2-3 onlookers",
+   "actions": "think, surprise, cheer",
+   "background": "interior or workshop",
+   "props": "lightbulb, the invention, gears, label",
+   "examples": [
+    "Edison tested thousands of materials before one glowed for 13 hours."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "DEATH_OF_HISTORICAL_FIGURE",
+   "label": "A key figure dies",
+   "layout": "death",
+   "when": "a death, assassination, execution or funeral of an important person",
+   "triggers": {
+    "events": [
+     "death"
+    ],
+    "words": [
+     "died",
+     "death",
+     "assassinated",
+     "killed",
+     "executed",
+     "funeral",
+     "buried",
+     "passed away",
+     "murdered",
+     "poisoned",
+     "beheaded"
+    ],
+    "docs": [],
+    "needs": [
+     "person"
+    ]
+   },
+   "tone": [
+    "tragedy"
+   ],
+   "slots": {
+    "who": "the person",
+    "how": "cause (shot, poison, illness, execution)",
+    "place": "where",
+    "mourners": "who mourns",
+    "year": "year"
+   },
+   "sequence": [
+    "Darken the scene; the place and date appear small.",
+    "The person is shown (portrait-like), then falls or lies still. No gore.",
+    "Mourners gather; one looks up; a candle or gravestone with the years.",
+    "Slow fade."
+   ],
+   "camera": "Slow zoom 1.0 to 1.1; fade to black at the end.",
+   "timing": "fall on the verb; gravestone +1.2 s.",
+   "transitions": [
+    "fade"
+   ],
+   "characters": "the person, 3-8 mourners",
+   "actions": "faint, cry, look",
+   "background": "dark or dusk interior/street",
+   "props": "gravestone, candle, flowers",
+   "examples": [
+    "Lincoln was shot at Ford's Theatre on April 14, 1865."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "MIGRATION",
+   "label": "People move",
+   "layout": "migration",
+   "when": "migration, settlers, refugees, colonists crossing to a new land",
+   "triggers": {
+    "events": [
+     "migration"
+    ],
+    "words": [
+     "migrated",
+     "immigrants",
+     "settlers",
+     "refugees",
+     "fled",
+     "emigrated",
+     "moved to",
+     "journey",
+     "exodus",
+     "colonists",
+     "crossed"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "tragedy"
+   ],
+   "slots": {
+    "who": "the migrants",
+    "from": "origin",
+    "to": "destination",
+    "vehicle": "ship|wagon|train|foot",
+    "number": "how many (optional)"
+   },
+   "sequence": [
+    "Map or horizon; the group with bundles walks/sails across the frame.",
+    "The vehicle carries them; the number counter ticks.",
+    "Arrival: land appears, a flag is planted or a house goes up.",
+    "A child or elder looks at the new place."
+   ],
+   "camera": "Slow pan following the group.",
+   "timing": "movement on the verb; counter on the number.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "a group of 8-14 with bundles, 1 leader",
+   "actions": "walk, look",
+   "background": "map, harbor or field",
+   "props": "ship, wagon, bundles, flag, route arrow",
+   "examples": [
+    "Millions of Irish families sailed to America during the famine."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "SOCIAL_CHANGE",
+   "label": "Society changes",
+   "layout": "social_change",
+   "when": "rights, reform, abolition, civil rights, suffrage: a social shift",
+   "triggers": {
+    "events": [
+     "social"
+    ],
+    "words": [
+     "rights",
+     "equality",
+     "freedom",
+     "abolished",
+     "segregation",
+     "slavery",
+     "women",
+     "suffrage",
+     "reform",
+     "movement",
+     "civil rights",
+     "liberation",
+     "vote"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "triumph",
+    "tragedy",
+    "tension"
+   ],
+   "slots": {
+    "who": "who gains or loses",
+    "slogan": "sign text, max 4 words",
+    "old": "the old rule (sign or prop)",
+    "new": "the new rule",
+    "place": "street or hall"
+   },
+   "sequence": [
+    "The old rule shown as a sign or barrier with a stamp.",
+    "A crowd gathers with signs.",
+    "The barrier falls or the sign is replaced on the key verb.",
+    "People celebrate (or one stands alone in somber cases).",
+    "Date label."
+   ],
+   "camera": "Zoom on the sign; pull back as it changes.",
+   "timing": "barrier falls on the verb.",
+   "transitions": [
+    "wipe"
+   ],
+   "characters": "crowd 10-20, 1 leader",
+   "actions": "cheer, raise_right, cry",
+   "background": "street or hall",
+   "props": "signs, barrier, flags",
+   "examples": [
+    "In 1920 women in the United States finally won the right to vote."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "TWO_PEOPLE_TALK",
+   "label": "Two people talk or argue",
+   "layout": "two_talk",
+   "when": "a conversation: someone said, told, asked or replied to someone",
+   "triggers": {
+    "events": [
+     "dialogue"
+    ],
+    "words": [
+     "said",
+     "told",
+     "asked",
+     "replied",
+     "whispered",
+     "shouted",
+     "argued with",
+     "offered",
+     "warned"
+    ],
+    "docs": [],
+    "needs": [
+     "two_people"
+    ]
+   },
+   "tone": [
+    "humor",
+    "tension",
+    "neutral"
+   ],
+   "slots": {
+    "a": "first speaker",
+    "b": "second speaker",
+    "a_line": "max 6 words",
+    "b_line": "max 6 words",
+    "place": "interior or palace",
+    "prop": "the thing between them"
+   },
+   "sequence": [
+    "Two characters face each other, the object of the talk between them.",
+    "A speaks (bubble) on the verb.",
+    "B reacts then replies.",
+    "Close-up on the one who reacts worst."
+   ],
+   "camera": "Cut between the speakers' close-ups on each line.",
+   "timing": "a_line on the speech verb; b_line +1.3 s.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "two characters scale 1.1",
+   "actions": "point, shrug, surprise",
+   "background": "interior or palace",
+   "props": "the thing between them",
+   "examples": [
+    "The king told his advisor he wanted more gold. The advisor said there was none."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "SECRET_PLOT",
+   "label": "A secret plan",
+   "layout": "plot",
+   "when": "spies, coups, conspiracies, secret deals and sabotage",
+   "triggers": {
+    "events": [
+     "plot"
+    ],
+    "words": [
+     "spy",
+     "spies",
+     "secret",
+     "plot",
+     "conspiracy",
+     "coup",
+     "sabotage",
+     "intelligence",
+     "whispered",
+     "assassination plan"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tension",
+    "humor"
+   ],
+   "slots": {
+    "plotters": "who plots",
+    "target": "who/what is targeted",
+    "object": "the secret thing (document, bomb, map)",
+    "place": "dark interior"
+   },
+   "sequence": [
+    "Dark room, a single lamp; plotters lean over the object.",
+    "They look around; one peeks from behind a screen.",
+    "The target is shown unaware in the next panel.",
+    "A magnifier or telegram reveals the detail."
+   ],
+   "camera": "Close-up on the object; slow pull back to show the watcher.",
+   "timing": "reveal on the key noun.",
+   "transitions": [
+    "iris",
+    "fade"
+   ],
+   "characters": "2-3 plotters, 1 watcher/target",
+   "actions": "sneak, look, whisper",
+   "background": "interior at night",
+   "props": "document, folding_screen, magnifier, candle",
+   "examples": [
+    "The conspirators met in secret the night before."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "CELEBRATION_VICTORY",
+   "label": "A win is celebrated",
+   "layout": "celebration",
+   "when": "victory, triumph, a parade or a celebration",
+   "triggers": {
+    "events": [
+     "celebration"
+    ],
+    "words": [
+     "won",
+     "victory",
+     "triumph",
+     "celebrated",
+     "parade",
+     "cheered",
+     "festival",
+     "conquered"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "triumph"
+   ],
+   "slots": {
+    "winner": "who wins",
+    "loser": "who loses (optional)",
+    "trophy": "prop",
+    "place": "street or palace"
+   },
+   "sequence": [
+    "The winner is lifted or raises a trophy/flag.",
+    "Crowd cheers; confetti.",
+    "The loser slumps in the back corner.",
+    "Banner with the result."
+   ],
+   "camera": "Slow zoom on the winner; shake on the cheer.",
+   "timing": "cheer on the victory word.",
+   "transitions": [
+    "slide"
+   ],
+   "characters": "winner scale 1.2, crowd 10-18, loser small",
+   "actions": "cheer, celebrate, cry",
+   "background": "street or field",
+   "props": "trophy, flags, confetti",
+   "examples": [
+    "Britain celebrated the victory with a huge parade."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "DISASTER",
+   "label": "Something goes badly wrong",
+   "layout": "disaster",
+   "when": "fires, floods, plagues, sinkings, crashes, explosions",
+   "triggers": {
+    "events": [
+     "disaster"
+    ],
+    "words": [
+     "earthquake",
+     "flood",
+     "plague",
+     "epidemic",
+     "sank",
+     "crashed",
+     "exploded",
+     "fire",
+     "disaster",
+     "eruption"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "tragedy",
+    "tension"
+   ],
+   "slots": {
+    "what": "the disaster",
+    "where": "place",
+    "number": "casualties or size (optional)",
+    "survivors": "who is left"
+   },
+   "sequence": [
+    "Calm before: the doomed thing appears normal.",
+    "The disaster hits on the verb (explosion, sinking, collapse).",
+    "Smoke/dark; survivors look up.",
+    "Number or date as a somber label."
+   ],
+   "camera": "Hold wide; shake on the hit; slow zoom to the survivors.",
+   "timing": "hit on the verb; label +1.5 s.",
+   "transitions": [
+    "fade"
+   ],
+   "characters": "3-8 onlookers/survivors",
+   "actions": "surprise, faint, cry",
+   "background": "harbor/city/field at dusk",
+   "props": "explosion, fire, ship, smoke",
+   "examples": [
+    "The Titanic hit an iceberg a little before midnight."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "STORY_MOMENT",
+   "label": "An ordinary story moment",
+   "layout": "story_moment",
+   "when": "an ordinary story beat: someone does, says or suffers something and no specific pattern above fits",
+   "triggers": {
+    "events": [],
+    "words": [],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "humor",
+    "tension",
+    "triumph",
+    "tragedy"
+   ],
+   "slots": {
+    "who": "the main character (cast name)",
+    "with": "a second character or group",
+    "object": "the one prop that matters (library name)",
+    "label": "a short on-screen label, max 28 chars",
+    "action": "what the main character does (walk|run|fight|dig|hammer|cheer|cry|think|point)",
+    "place": "the setting",
+    "say": "one short in-character line"
+   },
+   "sequence": [
+    "Establish the setting with the place and year.",
+    "The main character appears with a pose that matches the feeling of the line.",
+    "The one prop that matters pops in on its word.",
+    "A short label or line lands on the key word.",
+    "A second character reacts."
+   ],
+   "camera": "Slow push-in; close-up on the punchline word.",
+   "timing": "object on its name; line on the key verb.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "1-2 characters",
+   "actions": "one action matching the verb",
+   "background": "the setting the line suggests",
+   "props": "one meaningful prop",
+   "examples": [
+    "He kept losing at chess to a pigeon."
+   ],
+   "prior": 0.5,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  }
+ ]
+}

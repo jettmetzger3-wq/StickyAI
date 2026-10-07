@@ -30,7 +30,8 @@ SCRIPT_SCHEMA = {
         "topic": {"type": "string"},
         "beats": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["mood", "text"],
-            "properties": {"mood": {"type": "string", "enum": ["fun", "tense", "somber"]}, "text": {"type": "string"}}}},
+            "properties": {"mood": {"type": "string", "enum": ["fun", "tense", "somber"]}, "text": {"type": "string"},
+                           "part": {"type": "string", "enum": ["hook", "intro", "story", "payoff"]}}}},
         "facts": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["beat", "claim", "confidence", "note"],
             "properties": {"beat": {"type": "integer"}, "claim": {"type": "string"},
@@ -39,18 +40,30 @@ SCRIPT_SCHEMA = {
         "cast": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["name", "kind", "hat_color", "coat", "look"],
             "properties": {"name": {"type": "string"}, "kind": {"type": "string"}, "hat_color": {"type": "string"},
-                           "coat": {"type": "string"}, "look": {"type": "string", "enum": ["", "beard", "mustache"]}}}},
+                           "coat": {"type": "string"}, "look": {"type": "string", "enum": ["", "beard", "mustache"]},
+                           "role": {"type": "string"}}}},
     },
 }
 
-WRITING_RULES = """WRITING RULES
+WRITING_RULES = """STRUCTURE (every beat gets a "part")
+1. HOOK ("hook", exactly one beat, under 15 words): the most surprising thing in the whole story, as a statement or
+   a question the video will answer.
+2. [The channel's host stickman says hello right after the hook ("Hey, it's the host! Today we're talking about
+   <the title>."). Do NOT write that greeting.]
+3. INTRO ("intro", 2 to 4 beats, about 20 to 40 seconds): the viewer arrives knowing nothing, so say plainly what the
+   topic IS or WAS in the first intro beat (start with it: "So what was the Cold War?" / "So what even is a
+   mortgage?"): what it was, who was involved, when and where, and why it still matters. Then tell them how this
+   video will go ("First we'll see how it started, then the three moments it almost went wrong, and how it ended").
+   Anyone who has never heard of the topic should be able to follow everything after this.
+4. STORY ("story"): the main part, told in order or in clear chapters.
+5. PAYOFF ("payoff", the last 1 or 2 beats): land the story and echo the opening hook in a new light. Do NOT write
+   a subscribe or "thanks for watching" line and no recap of the video: the studio adds the like and subscribe
+   ending by itself.
+
+WRITING RULES
 - Output a list of BEATS. Each beat = one or two spoken sentences, roughly 15 to 30 words, plus a mood:
   "fun" (default, jokes allowed), "tense" (stakes rising, lighter jokes), "somber" (tragedy: no jokes).
-- Hook in the first 20 seconds: open with a surprising fact AND the question the video will answer. The very
-  first beat is under 15 words and is the most surprising thing in the whole story.
 - Open 2 to 4 story loops ("remember the oil problem?" style) and close every one of them later with a callback.
-- Link beats with cause and effect ("but", "so", "which meant"), not "and then". Every beat either raises a
-  question, answers one, or raises the stakes; cut any beat that does none of those.
 - Every 5 to 8 beats end a section on a specific mini-cliffhanger (what is about to go wrong, not a vague
   "but that was only the beginning").
 - Change the pattern every 30 to 90 seconds (a map, a "meanwhile", a quick list, a fake quote, a rhetorical question).
@@ -64,8 +77,21 @@ WRITING_RULES = """WRITING RULES
   Never use em dashes or en dashes; use commas, periods or "and".
 - Sensitive history (massacres, bombings, genocide, slavery, famine): switch those beats to "somber", no jokes,
   respectful wording, and casualty numbers that sit inside mainstream historian ranges ("historians estimate...").
-- End with a payoff that echoes the opening hook, then one short subscribe line (last beat).
 - Write numbers as digits for years ("1941") and words or digits for amounts; the voice handles both.
+
+FLOW (the video must feel like ONE story, never a list of facts)
+- Hand off every beat: the next beat starts from where the last one ended. If a beat ends on a question, the next
+  one answers it. If it ends on a person, object, place or number, the next one picks that up in its first words
+  ("That pile of gold?", "Ferdinand, meanwhile, had other plans.").
+- Chain with cause and effect: read each pair of neighbouring beats with "so" or "but" between them. If neither
+  fits, the pair is a jump, so add the missing step or a bridge.
+- Bridge every change of place, time or person with a clause that says so: "Three years later, in Moscow...", "To
+  see why, rewind to 1945.", "Meanwhile, back at the palace...". Years between beats never jump by more than a
+  decade or two without saying how much time passed.
+- Never introduce a new name, place or term without one short phrase saying who or what it is ("Khrushchev, the
+  Soviet leader with a famous temper"). Don't mention something the viewer was never told about.
+- Close every section by naming what happens next or what is at stake, and open the next section by answering it.
+- No "and then" chains and no beat that could be moved elsewhere without anyone noticing.
 
 FACT LIST
 - Alongside the script, list EVERY date, number and factual claim as a checklist item with the beat index it
@@ -87,7 +113,7 @@ def target_beats(minutes):
 
 
 def script_prompt(topic, minutes=10, tone="funny but respectful", style_notes="", source=None, faithfulness="balanced",
-                  extra=""):
+                  extra="", research=""):
     """source: dict(title, channel, description, chapters, transcript_text, visual_notes) for YouTube remakes."""
     n = target_beats(minutes)
     rules = WRITING_RULES.format(avoid=", ".join(AVOID_WORDS), kinds=", ".join(h for h in HATS if h != "none"),
@@ -131,10 +157,12 @@ def script_prompt(topic, minutes=10, tone="funny but respectful", style_notes=""
     parts.append(f"LENGTH (strict): about {minutes} minutes spoken at ~150 words per minute = about {words} words in "
                  f"total, split into about {n} beats (between {int(n * 0.85)} and {int(n * 1.15)}). Beats average about "
                  f"19 words; never more than 30 words in one beat. Count your words. Tone: {tone}.")
+    if research:
+        parts.append(research)
     if extra:
         parts.append("EXTRA INSTRUCTIONS FROM THE USER: " + extra)
     parts.append(rules)
-    parts.append('Answer with JSON only: {"title": working title, "topic": short topic, "beats": [{"mood", "text"}], '
+    parts.append('Answer with JSON only: {"title": working title, "topic": short topic, "beats": [{"mood", "text", "part"}], '
                  '"facts": [{"beat", "claim", "confidence", "note"}], "cast": [{"name", "kind", "hat_color", "coat", "look"}]}')
     return "\n\n".join(parts)
 
@@ -144,10 +172,49 @@ def regen_beat_prompt(beats, index, instruction=""):
     for i in range(max(0, index - 3), min(len(beats), index + 4)):
         mark = ">>>" if i == index else "   "
         ctx.append(f"{mark} [{i}] ({beats[i]['mood']}) {beats[i]['text']}")
-    return ("Rewrite ONLY the beat marked >>> so it flows with its neighbours. Keep it 15-30 words, spoken style, "
+    return ("Rewrite ONLY the beat marked >>> so it flows with its neighbours: it picks up the last idea of the beat "
+            "before it and hands off to the next one, with a bridge for any jump in place or time. Keep it 15-30 words, spoken style, "
             "accurate, no em dashes, no AI filler words. " + (f"User request: {instruction}. " if instruction else "") +
             "\n\n" + "\n".join(ctx) +
             '\n\nAnswer with JSON only: {"mood": "fun|tense|somber", "text": "..."}')
+
+
+SMOOTH_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["rewrites"],
+    "properties": {"rewrites": {"type": "array", "items": {
+        "type": "object", "additionalProperties": False, "required": ["beat", "text"],
+        "properties": {"beat": {"type": "integer"}, "text": {"type": "string"}}}}},
+}
+
+
+def smooth_prompt(script, seams):
+    """Ask for new wording for the beats that don't connect to the one before them. `seams` = [(beat index, why)]."""
+    beats = script.get("beats") or []
+    want = {i for i, _ in seams}
+    show = sorted({j for i in want for j in (i - 2, i - 1, i, i + 1) if 0 <= j < len(beats)})
+    lines, last = [], None
+    for j in show:
+        if last is not None and j != last + 1:
+            lines.append("   ...")
+        tag = ">>>" if j in want else "   "
+        lines.append(f"{tag} [{j}] {beats[j]['text']}")
+        last = j
+    why = "\n".join(f"- beat {i}: {w}" for i, w in seams)
+    return f"""Here is part of a narration script for the video "{script.get('title', '')}". The beats marked >>> don't
+connect well to the beat before them (the viewer is dragged from one point to another).
+
+{chr(10).join(lines)}
+
+WHAT'S WRONG
+{why}
+
+Rewrite ONLY the >>> beats so each one flows out of the beat before it: pick up its last idea, name or question in the
+first words, use a clear cause-and-effect link ("so", "but", "which meant") or a short bridge for a change of place or
+time ("Three years later, in Moscow..."), and say who or what any new name is in a few words. Keep every date, number
+and fact exactly as it is, keep the voice and the jokes, keep it spoken (15 to 30 words, never more than 35), no em
+dashes, no AI filler words. Don't touch beats that aren't marked.
+
+Answer with JSON only: {{"rewrites": [{{"beat": n, "text": "..."}}]}}"""
 
 
 REGEN_BEAT_SCHEMA = {"type": "object", "additionalProperties": False, "required": ["mood", "text"],
@@ -561,6 +628,22 @@ the ground (rest them on y = 100), "center" for floating or held items.
 
 Answer with JSON only: {{"props": [{{"name": "snake_case_name", "anchor": "bottom|center",
 "description": "what it is, a few words", "parts": [...]}}]}}"""
+
+
+def fix_scenes_prompt(items):
+    """ONE request for several scenes that still have problems. items = [(beat index, beat, scene, [problems])]."""
+    blocks = []
+    for i, beat, scene, problems in items:
+        blocks.append(f"[{i}] ({beat['mood']}) {beat['text']}\nPROBLEMS: " + "; ".join(problems[:6])
+                      + "\nSCENE: " + json.dumps(scene, separators=(",", ":"))[:3500])
+    return f"""{scene_language_compact()}
+
+These scenes were checked against their narration and still have problems. Fix each one (keep what is good, change what the
+problems say, keep every element inside the frame).
+
+{chr(10).join(blocks)}
+
+Answer with JSON only: {{"scenes": [{{"beat": <index>, "scene": {{"bg": ..., "elements": [...], "camera": ...}}}}, ...]}}"""
 
 
 def fix_scene_prompt(scene, errors, beat):

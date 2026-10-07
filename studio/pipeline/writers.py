@@ -16,6 +16,7 @@ import subprocess
 
 from .. import providers as P
 from ..config import load_settings
+from ..providers.llm import MAIN_MODEL, MODEL_IDS, main_model, model_id   # noqa: F401  (re-exported)
 
 TASKS = (
     ("script", "Writing the script"),
@@ -27,16 +28,15 @@ TASKS = (
     ("short", "Picking the Short's best moment"),
 )
 TASK_IDS = tuple(t for t, _ in TASKS)
-CLAUDE_MODELS = ("", "opus", "sonnet", "haiku")      # "" = your Claude Code default
+CLAUDE_MODELS = ("", "opus", "sonnet", "haiku")
 
 # plan saver presets: Claude model per task, scenes per request, whether to warm the cache with one batch first,
 # and how many example scenes the storyboard prompt carries
 PLAN_SAVER = {
     "off": dict(models={}, batch=8, warm=False, examples=20, effort={}),
-    "balanced": dict(models={"watch": "sonnet", "props": "sonnet", "package": "sonnet", "short": "sonnet"},
+    "balanced": dict(models={"short": "haiku"},
                      batch=12, warm=True, examples=20, effort={"package": "low", "short": "low"}),
-    "max": dict(models={"watch": "sonnet", "props": "sonnet", "package": "haiku", "short": "haiku",
-                        "factcheck": "sonnet"},
+    "max": dict(models={"props": "haiku", "package": "haiku", "short": "haiku"},
                 batch=16, warm=True, examples=12, effort={"package": "low", "short": "low", "props": "low"}),
 }
 
@@ -60,12 +60,13 @@ def task_writer_id(meta, task, settings=None):
 
 
 def claude_model(task, settings=None):
-    """The Claude Code model for `task`: your pick per task, else the plan saver's, else your default."""
+    """The Claude Code model for `task`: your pick per task, else the plan saver's, else the main model."""
     s = settings or load_settings()
     m = ((s.get("claude_task_models") or {}).get(task) or "") if task else ""
     if m and m != "auto":
-        return None if m == "default" else m
-    return saver(s)["models"].get(task) or None
+        return model_id(m)
+    pick = saver(s)["models"].get(task)
+    return model_id(pick) if pick else main_model(s)
 
 
 @functools.lru_cache(maxsize=4)
@@ -97,7 +98,7 @@ class ClaudeTask:
 
     def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False,
                  **kw):
-        model = model or self.model or load_settings().get("llm_models", {}).get("claude_cli") or None
+        model = self.model if model is None else model
         extra = []
         if self.effort and "--effort" in _cli_flags(tuple(self.inner.command())):
             extra = ["--effort", self.effort]

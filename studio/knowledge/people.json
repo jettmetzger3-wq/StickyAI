@@ -1,0 +1,1382 @@
+[
+ {
+  "id": "washington",
+  "names": [
+   "george washington",
+   "washington",
+   "general washington",
+   "president washington"
+  ],
+  "name": "George Washington",
+  "role": "first US president and Revolutionary War general",
+  "born": 1732,
+  "died": 1799,
+  "kind": "tricorn",
+  "hat_color": "black",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "calm, dignified, reluctant to rule"
+ },
+ {
+  "id": "jefferson",
+  "names": [
+   "thomas jefferson",
+   "jefferson"
+  ],
+  "name": "Thomas Jefferson",
+  "role": "wrote the Declaration of Independence, third US president",
+  "born": 1743,
+  "died": 1826,
+  "kind": "tricorn",
+  "hat_color": "brown",
+  "coat": "#6B3F2A",
+  "look": "",
+  "trait": "thoughtful, writes everything down"
+ },
+ {
+  "id": "franklin",
+  "names": [
+   "benjamin franklin",
+   "franklin",
+   "ben franklin"
+  ],
+  "name": "Benjamin Franklin",
+  "role": "inventor, diplomat and founding father",
+  "born": 1706,
+  "died": 1790,
+  "kind": "glasses",
+  "hat_color": "",
+  "coat": "#7A4B2A",
+  "look": "",
+  "trait": "witty, always scheming"
+ },
+ {
+  "id": "adams",
+  "names": [
+   "john adams",
+   "adams"
+  ],
+  "name": "John Adams",
+  "role": "founding father and second US president",
+  "born": 1735,
+  "died": 1826,
+  "kind": "tricorn",
+  "hat_color": "gray",
+  "coat": "#3A3A4A",
+  "look": "",
+  "trait": "stubborn and loud"
+ },
+ {
+  "id": "hamilton",
+  "names": [
+   "alexander hamilton",
+   "hamilton"
+  ],
+  "name": "Alexander Hamilton",
+  "role": "first US treasury secretary",
+  "born": 1755,
+  "died": 1804,
+  "kind": "tricorn",
+  "hat_color": "black",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "restless, writes non-stop"
+ },
+ {
+  "id": "madison",
+  "names": [
+   "james madison",
+   "madison"
+  ],
+  "name": "James Madison",
+  "role": "father of the US Constitution",
+  "born": 1751,
+  "died": 1836,
+  "kind": "tricorn",
+  "hat_color": "black",
+  "coat": "#222222",
+  "look": "",
+  "trait": "small, quiet, brilliant"
+ },
+ {
+  "id": "king_george_iii",
+  "names": [
+   "king george iii",
+   "king george",
+   "george iii"
+  ],
+  "name": "King George III",
+  "role": "king of Britain during the American Revolution",
+  "born": 1738,
+  "died": 1820,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#9B1C2E",
+  "look": "",
+  "trait": "proud and stubborn"
+ },
+ {
+  "id": "lincoln",
+  "names": [
+   "abraham lincoln",
+   "lincoln",
+   "abe lincoln"
+  ],
+  "name": "Abraham Lincoln",
+  "role": "16th US president who led the Union",
+  "born": 1809,
+  "died": 1865,
+  "kind": "tophat",
+  "hat_color": "black",
+  "coat": "#222222",
+  "look": "beard",
+  "trait": "tall, gloomy, wise"
+ },
+ {
+  "id": "grant",
+  "names": [
+   "ulysses grant",
+   "ulysses s. grant",
+   "grant",
+   "general grant"
+  ],
+  "name": "Ulysses Grant",
+  "role": "Union general and 18th US president",
+  "born": 1822,
+  "died": 1885,
+  "kind": "cap",
+  "hat_color": "",
+  "coat": "#2B3F8C",
+  "look": "beard",
+  "trait": "stubborn and unbothered"
+ },
+ {
+  "id": "robert_e_lee",
+  "names": [
+   "robert e. lee",
+   "robert lee",
+   "general lee",
+   "lee"
+  ],
+  "name": "Robert E. Lee",
+  "role": "Confederate general",
+  "born": 1807,
+  "died": 1870,
+  "kind": "cap",
+  "hat_color": "gray",
+  "coat": "#8A8A8A",
+  "look": "beard",
+  "trait": "gentlemanly and proud"
+ },
+ {
+  "id": "napoleon",
+  "names": [
+   "napoleon bonaparte",
+   "napoleon",
+   "bonaparte"
+  ],
+  "name": "Napoleon Bonaparte",
+  "role": "French general and emperor",
+  "born": 1769,
+  "died": 1821,
+  "kind": "bicorne",
+  "hat_color": "black",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "short, ambitious, hand in his coat"
+ },
+ {
+  "id": "wellington",
+  "names": [
+   "duke of wellington",
+   "wellington",
+   "arthur wellesley"
+  ],
+  "name": "Duke of Wellington",
+  "role": "British general who beat Napoleon at Waterloo",
+  "born": 1769,
+  "died": 1852,
+  "kind": "bicorne",
+  "hat_color": "black",
+  "coat": "#C8302B",
+  "look": "",
+  "trait": "calm and unflappable"
+ },
+ {
+  "id": "nelson",
+  "names": [
+   "admiral nelson",
+   "horatio nelson",
+   "nelson"
+  ],
+  "name": "Admiral Nelson",
+  "role": "British admiral of Trafalgar",
+  "born": 1758,
+  "died": 1805,
+  "kind": "bicorne",
+  "hat_color": "black",
+  "coat": "#1F2A5C",
+  "look": "",
+  "trait": "bold, one eye on the enemy"
+ },
+ {
+  "id": "louis_xiv",
+  "names": [
+   "louis xiv",
+   "sun king"
+  ],
+  "name": "Louis XIV",
+  "role": "the Sun King of France",
+  "born": 1638,
+  "died": 1715,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#5B2A86",
+  "look": "",
+  "trait": "vain and magnificent"
+ },
+ {
+  "id": "louis_xvi",
+  "names": [
+   "louis xvi"
+  ],
+  "name": "Louis XVI",
+  "role": "last king of France before the revolution",
+  "born": 1754,
+  "died": 1793,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "clueless and kind"
+ },
+ {
+  "id": "marie_antoinette",
+  "names": [
+   "marie antoinette"
+  ],
+  "name": "Marie Antoinette",
+  "role": "queen of France",
+  "born": 1755,
+  "died": 1793,
+  "kind": "crown",
+  "hat_color": "#F4A6C0",
+  "coat": "#F4A6C0",
+  "look": "",
+  "trait": "glamorous and out of touch"
+ },
+ {
+  "id": "robespierre",
+  "names": [
+   "maximilien robespierre",
+   "robespierre"
+  ],
+  "name": "Maximilien Robespierre",
+  "role": "leader of the French Revolution's Terror",
+  "born": 1758,
+  "died": 1794,
+  "kind": "tricorn",
+  "hat_color": "#2B3F8C",
+  "coat": "#3F6FA8",
+  "look": "",
+  "trait": "severe and righteous"
+ },
+ {
+  "id": "henry_viii",
+  "names": [
+   "henry viii",
+   "king henry"
+  ],
+  "name": "Henry VIII",
+  "role": "Tudor king with six wives",
+  "born": 1491,
+  "died": 1547,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#8C1B1B",
+  "look": "beard",
+  "trait": "loud, hungry, impatient"
+ },
+ {
+  "id": "elizabeth_i",
+  "names": [
+   "elizabeth i",
+   "queen elizabeth"
+  ],
+  "name": "Elizabeth I",
+  "role": "Tudor queen of England",
+  "born": 1533,
+  "died": 1603,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#F2E6D0",
+  "look": "",
+  "trait": "sharp and unbeatable"
+ },
+ {
+  "id": "victoria",
+  "names": [
+   "queen victoria",
+   "victoria"
+  ],
+  "name": "Queen Victoria",
+  "role": "queen of Britain and empress of India",
+  "born": 1819,
+  "died": 1901,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#222222",
+  "look": "",
+  "trait": "stern, not amused"
+ },
+ {
+  "id": "caesar",
+  "names": [
+   "julius caesar",
+   "caesar"
+  ],
+  "name": "Julius Caesar",
+  "role": "Roman general and dictator",
+  "born": -100,
+  "died": -44,
+  "kind": "laurel",
+  "hat_color": "gold",
+  "coat": "#7A1E5C",
+  "look": "",
+  "trait": "brilliant and too ambitious"
+ },
+ {
+  "id": "augustus",
+  "names": [
+   "augustus",
+   "octavian"
+  ],
+  "name": "Augustus",
+  "role": "first Roman emperor",
+  "born": -63,
+  "died": 14,
+  "kind": "laurel",
+  "hat_color": "gold",
+  "coat": "#7A1E5C",
+  "look": "",
+  "trait": "patient and calculating"
+ },
+ {
+  "id": "cleopatra",
+  "names": [
+   "cleopatra"
+  ],
+  "name": "Cleopatra",
+  "role": "last pharaoh of Egypt",
+  "born": -69,
+  "died": -30,
+  "kind": "pharaoh",
+  "hat_color": "gold",
+  "coat": "#2F6FD0",
+  "look": "",
+  "trait": "clever and dramatic"
+ },
+ {
+  "id": "alexander",
+  "names": [
+   "alexander the great",
+   "alexander"
+  ],
+  "name": "Alexander the Great",
+  "role": "Macedonian king who conquered Persia",
+  "born": -356,
+  "died": -323,
+  "kind": "roman",
+  "hat_color": "gold",
+  "coat": "#B22222",
+  "look": "",
+  "trait": "fearless and restless"
+ },
+ {
+  "id": "hannibal",
+  "names": [
+   "hannibal"
+  ],
+  "name": "Hannibal",
+  "role": "Carthaginian general who crossed the Alps",
+  "born": -247,
+  "died": -183,
+  "kind": "turban",
+  "hat_color": "#8B0000",
+  "coat": "#8B0000",
+  "look": "beard",
+  "trait": "patient and sneaky"
+ },
+ {
+  "id": "genghis_khan",
+  "names": [
+   "genghis khan",
+   "chinggis khan"
+  ],
+  "name": "Genghis Khan",
+  "role": "founder of the Mongol Empire",
+  "born": 1162,
+  "died": 1227,
+  "kind": "furhat",
+  "hat_color": "brown",
+  "coat": "#1F5C3A",
+  "look": "mustache",
+  "trait": "ruthless and organized"
+ },
+ {
+  "id": "charlemagne",
+  "names": [
+   "charlemagne"
+  ],
+  "name": "Charlemagne",
+  "role": "Frankish king and emperor",
+  "born": 742,
+  "died": 814,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#2B3F8C",
+  "look": "beard",
+  "trait": "huge and ambitious"
+ },
+ {
+  "id": "columbus",
+  "names": [
+   "christopher columbus",
+   "columbus"
+  ],
+  "name": "Christopher Columbus",
+  "role": "explorer who sailed west for Spain",
+  "born": 1451,
+  "died": 1506,
+  "kind": "tricorn",
+  "hat_color": "red",
+  "coat": "#8C2F1B",
+  "look": "",
+  "trait": "stubborn and lost"
+ },
+ {
+  "id": "magellan",
+  "names": [
+   "ferdinand magellan",
+   "magellan"
+  ],
+  "name": "Ferdinand Magellan",
+  "role": "explorer whose fleet circled the globe",
+  "born": 1480,
+  "died": 1521,
+  "kind": "tricorn",
+  "hat_color": "black",
+  "coat": "#6B2A1B",
+  "look": "beard",
+  "trait": "determined"
+ },
+ {
+  "id": "cortes",
+  "names": [
+   "hernan cortes",
+   "hernán cortés",
+   "cortes",
+   "cortés"
+  ],
+  "name": "Hernan Cortes",
+  "role": "Spanish conquistador",
+  "born": 1485,
+  "died": 1547,
+  "kind": "knight",
+  "hat_color": "",
+  "coat": "#8C2F1B",
+  "look": "beard",
+  "trait": "greedy and bold"
+ },
+ {
+  "id": "montezuma",
+  "names": [
+   "montezuma",
+   "moctezuma"
+  ],
+  "name": "Montezuma",
+  "role": "Aztec emperor",
+  "born": 1466,
+  "died": 1520,
+  "kind": "crown",
+  "hat_color": "#2F8F5F",
+  "coat": "#C8A030",
+  "look": "",
+  "trait": "dignified and doubtful"
+ },
+ {
+  "id": "bismarck",
+  "names": [
+   "otto von bismarck",
+   "bismarck"
+  ],
+  "name": "Otto von Bismarck",
+  "role": "Prussian chancellor who united Germany",
+  "born": 1815,
+  "died": 1898,
+  "kind": "germany",
+  "hat_color": "gold",
+  "coat": "#2B3F8C",
+  "look": "mustache",
+  "trait": "cunning and blunt"
+ },
+ {
+  "id": "kaiser_wilhelm",
+  "names": [
+   "kaiser wilhelm ii",
+   "kaiser wilhelm",
+   "wilhelm ii",
+   "the kaiser",
+   "kaiser"
+  ],
+  "name": "Kaiser Wilhelm II",
+  "role": "German emperor in World War I",
+  "born": 1859,
+  "died": 1941,
+  "kind": "germany",
+  "hat_color": "gold",
+  "coat": "#808890",
+  "look": "mustache",
+  "trait": "vain and restless"
+ },
+ {
+  "id": "nicholas_ii",
+  "names": [
+   "tsar nicholas ii",
+   "tsar nicholas",
+   "nicholas ii",
+   "the tsar",
+   "tsar"
+  ],
+  "name": "Tsar Nicholas II",
+  "role": "last emperor of Russia",
+  "born": 1868,
+  "died": 1918,
+  "kind": "furhat",
+  "hat_color": "#C0A060",
+  "coat": "#3F5C2A",
+  "look": "beard",
+  "trait": "mild and out of his depth"
+ },
+ {
+  "id": "rasputin",
+  "names": [
+   "grigori rasputin",
+   "rasputin"
+  ],
+  "name": "Grigori Rasputin",
+  "role": "mystic advisor to the Russian tsar",
+  "born": 1869,
+  "died": 1916,
+  "kind": "civ",
+  "hat_color": "black",
+  "coat": "#222222",
+  "look": "beard",
+  "trait": "creepy and unkillable"
+ },
+ {
+  "id": "lenin",
+  "names": [
+   "vladimir lenin",
+   "lenin"
+  ],
+  "name": "Vladimir Lenin",
+  "role": "leader of the Russian Revolution",
+  "born": 1870,
+  "died": 1924,
+  "kind": "cap",
+  "hat_color": "gray",
+  "coat": "#7A7A7A",
+  "look": "beard",
+  "trait": "intense and impatient"
+ },
+ {
+  "id": "stalin",
+  "names": [
+   "joseph stalin",
+   "stalin"
+  ],
+  "name": "Joseph Stalin",
+  "role": "Soviet dictator",
+  "born": 1878,
+  "died": 1953,
+  "kind": "army",
+  "hat_color": "khaki",
+  "coat": "#6B6B3A",
+  "look": "mustache",
+  "trait": "suspicious and cold"
+ },
+ {
+  "id": "khrushchev",
+  "names": [
+   "nikita khrushchev",
+   "khrushchev"
+  ],
+  "name": "Nikita Khrushchev",
+  "role": "Soviet leader during the Cuban Missile Crisis",
+  "born": 1894,
+  "died": 1971,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#555555",
+  "look": "",
+  "trait": "loud and unpredictable"
+ },
+ {
+  "id": "gorbachev",
+  "names": [
+   "mikhail gorbachev",
+   "gorbachev"
+  ],
+  "name": "Mikhail Gorbachev",
+  "role": "last leader of the Soviet Union",
+  "born": 1931,
+  "died": 2022,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#444444",
+  "look": "",
+  "trait": "reformer, trying to fix a sinking ship"
+ },
+ {
+  "id": "hitler",
+  "names": [
+   "adolf hitler",
+   "hitler"
+  ],
+  "name": "Adolf Hitler",
+  "role": "Nazi dictator of Germany",
+  "born": 1889,
+  "died": 1945,
+  "kind": "army",
+  "hat_color": "#4A4A3A",
+  "coat": "#6B5B3A",
+  "look": "mustache",
+  "trait": "ranting and paranoid"
+ },
+ {
+  "id": "mussolini",
+  "names": [
+   "benito mussolini",
+   "mussolini"
+  ],
+  "name": "Benito Mussolini",
+  "role": "fascist dictator of Italy",
+  "born": 1883,
+  "died": 1945,
+  "kind": "italy",
+  "hat_color": "",
+  "coat": "#3A3A3A",
+  "look": "",
+  "trait": "puffed up and loud"
+ },
+ {
+  "id": "franco",
+  "names": [
+   "francisco franco",
+   "franco"
+  ],
+  "name": "Francisco Franco",
+  "role": "Spanish dictator",
+  "born": 1892,
+  "died": 1975,
+  "kind": "army",
+  "hat_color": "khaki",
+  "coat": "#6B6B3A",
+  "look": "mustache",
+  "trait": "cold and patient"
+ },
+ {
+  "id": "hirohito",
+  "names": [
+   "emperor hirohito",
+   "hirohito"
+  ],
+  "name": "Emperor Hirohito",
+  "role": "emperor of Japan in World War II",
+  "born": 1901,
+  "died": 1989,
+  "kind": "japan",
+  "hat_color": "",
+  "coat": "#3A4A2A",
+  "look": "",
+  "trait": "quiet and distant"
+ },
+ {
+  "id": "tojo",
+  "names": [
+   "hideki tojo",
+   "tojo"
+  ],
+  "name": "Hideki Tojo",
+  "role": "Japanese prime minister in World War II",
+  "born": 1884,
+  "died": 1948,
+  "kind": "japan",
+  "hat_color": "",
+  "coat": "#3A4A2A",
+  "look": "",
+  "trait": "stiff and stern"
+ },
+ {
+  "id": "yamamoto",
+  "names": [
+   "admiral yamamoto",
+   "isoroku yamamoto",
+   "yamamoto"
+  ],
+  "name": "Admiral Yamamoto",
+  "role": "Japanese admiral who planned Pearl Harbor",
+  "born": 1884,
+  "died": 1943,
+  "kind": "navy",
+  "hat_color": "",
+  "coat": "#F0F0F0",
+  "look": "",
+  "trait": "calm, doubted the war"
+ },
+ {
+  "id": "churchill",
+  "names": [
+   "winston churchill",
+   "churchill"
+  ],
+  "name": "Winston Churchill",
+  "role": "British prime minister in World War II",
+  "born": 1874,
+  "died": 1965,
+  "kind": "bowler",
+  "hat_color": "black",
+  "coat": "#2B2B2B",
+  "look": "",
+  "trait": "stubborn bulldog with a cigar"
+ },
+ {
+  "id": "fdr",
+  "names": [
+   "franklin d. roosevelt",
+   "franklin roosevelt",
+   "franklin delano roosevelt",
+   "fdr",
+   "roosevelt"
+  ],
+  "name": "Franklin D. Roosevelt",
+  "role": "US president through the Depression and World War II",
+  "born": 1882,
+  "died": 1945,
+  "kind": "tophat_gray",
+  "hat_color": "gray",
+  "coat": "#3A3A4A",
+  "look": "",
+  "trait": "confident and cheerful"
+ },
+ {
+  "id": "teddy_roosevelt",
+  "names": [
+   "theodore roosevelt",
+   "teddy roosevelt",
+   "roosevelt"
+  ],
+  "name": "Theodore Roosevelt",
+  "role": "26th US president",
+  "born": 1858,
+  "died": 1919,
+  "kind": "cowboy",
+  "hat_color": "tan",
+  "coat": "#6B5B3A",
+  "look": "mustache",
+  "trait": "loud and adventurous"
+ },
+ {
+  "id": "truman",
+  "names": [
+   "harry truman",
+   "truman"
+  ],
+  "name": "Harry Truman",
+  "role": "US president who ended World War II",
+  "born": 1884,
+  "died": 1972,
+  "kind": "tophat_gray",
+  "hat_color": "gray",
+  "coat": "#3A3A4A",
+  "look": "",
+  "trait": "plain-spoken and decisive"
+ },
+ {
+  "id": "eisenhower",
+  "names": [
+   "dwight eisenhower",
+   "eisenhower",
+   "ike"
+  ],
+  "name": "Dwight Eisenhower",
+  "role": "general and US president",
+  "born": 1890,
+  "died": 1969,
+  "kind": "army",
+  "hat_color": "khaki",
+  "coat": "#6B6B3A",
+  "look": "",
+  "trait": "friendly and steady"
+ },
+ {
+  "id": "kennedy",
+  "names": [
+   "john f. kennedy",
+   "john kennedy",
+   "jfk",
+   "kennedy"
+  ],
+  "name": "John F. Kennedy",
+  "role": "US president during the Cuban Missile Crisis",
+  "born": 1917,
+  "died": 1963,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "charming and cool"
+ },
+ {
+  "id": "nixon",
+  "names": [
+   "richard nixon",
+   "nixon"
+  ],
+  "name": "Richard Nixon",
+  "role": "US president of Watergate",
+  "born": 1913,
+  "died": 1994,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#444444",
+  "look": "",
+  "trait": "sweaty and suspicious"
+ },
+ {
+  "id": "reagan",
+  "names": [
+   "ronald reagan",
+   "reagan"
+  ],
+  "name": "Ronald Reagan",
+  "role": "US president at the end of the Cold War",
+  "born": 1911,
+  "died": 2004,
+  "kind": "cowboy",
+  "hat_color": "tan",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "smiling and sure"
+ },
+ {
+  "id": "mao",
+  "names": [
+   "mao zedong",
+   "chairman mao",
+   "mao"
+  ],
+  "name": "Mao Zedong",
+  "role": "leader of Communist China",
+  "born": 1893,
+  "died": 1976,
+  "kind": "china",
+  "hat_color": "",
+  "coat": "#4A5A3A",
+  "look": "",
+  "trait": "revolutionary and stubborn"
+ },
+ {
+  "id": "castro",
+  "names": [
+   "fidel castro",
+   "castro"
+  ],
+  "name": "Fidel Castro",
+  "role": "leader of Cuba",
+  "born": 1926,
+  "died": 2016,
+  "kind": "cap",
+  "hat_color": "#4A5A2A",
+  "coat": "#4A5A2A",
+  "look": "beard",
+  "trait": "long speeches, big beard"
+ },
+ {
+  "id": "gandhi",
+  "names": [
+   "mahatma gandhi",
+   "gandhi"
+  ],
+  "name": "Mahatma Gandhi",
+  "role": "led India's nonviolent independence movement",
+  "born": 1869,
+  "died": 1948,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#F5F0E0",
+  "look": "",
+  "trait": "calm and unmovable"
+ },
+ {
+  "id": "mandela",
+  "names": [
+   "nelson mandela",
+   "mandela"
+  ],
+  "name": "Nelson Mandela",
+  "role": "South African anti-apartheid leader and president",
+  "born": 1918,
+  "died": 2013,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#8B5A2B",
+  "look": "",
+  "trait": "patient and forgiving"
+ },
+ {
+  "id": "mlk",
+  "names": [
+   "martin luther king",
+   "dr. king",
+   "mlk"
+  ],
+  "name": "Martin Luther King",
+  "role": "American civil rights leader",
+  "born": 1929,
+  "died": 1968,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#222222",
+  "look": "mustache",
+  "trait": "powerful speaker"
+ },
+ {
+  "id": "einstein",
+  "names": [
+   "albert einstein",
+   "einstein"
+  ],
+  "name": "Albert Einstein",
+  "role": "physicist of relativity",
+  "born": 1879,
+  "died": 1955,
+  "kind": "glasses",
+  "hat_color": "",
+  "coat": "#7A7A7A",
+  "look": "mustache",
+  "trait": "wild hair, curious"
+ },
+ {
+  "id": "newton",
+  "names": [
+   "isaac newton",
+   "newton"
+  ],
+  "name": "Isaac Newton",
+  "role": "physicist who explained gravity",
+  "born": 1643,
+  "died": 1727,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#6B3F2A",
+  "look": "",
+  "trait": "grumpy genius"
+ },
+ {
+  "id": "darwin",
+  "names": [
+   "charles darwin",
+   "darwin"
+  ],
+  "name": "Charles Darwin",
+  "role": "naturalist of evolution",
+  "born": 1809,
+  "died": 1882,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#3A3A3A",
+  "look": "beard",
+  "trait": "patient observer"
+ },
+ {
+  "id": "edison",
+  "names": [
+   "thomas edison",
+   "edison"
+  ],
+  "name": "Thomas Edison",
+  "role": "inventor of the practical light bulb",
+  "born": 1847,
+  "died": 1931,
+  "kind": "bowler",
+  "hat_color": "",
+  "coat": "#444444",
+  "look": "",
+  "trait": "stubborn inventor"
+ },
+ {
+  "id": "tesla",
+  "names": [
+   "nikola tesla",
+   "tesla"
+  ],
+  "name": "Nikola Tesla",
+  "role": "inventor of alternating current",
+  "born": 1856,
+  "died": 1943,
+  "kind": "tophat",
+  "hat_color": "black",
+  "coat": "#222222",
+  "look": "mustache",
+  "trait": "intense dreamer"
+ },
+ {
+  "id": "ford",
+  "names": [
+   "henry ford"
+  ],
+  "name": "Henry Ford",
+  "role": "built the Model T and the assembly line",
+  "born": 1863,
+  "died": 1947,
+  "kind": "cap",
+  "hat_color": "",
+  "coat": "#333333",
+  "look": "",
+  "trait": "practical and stubborn"
+ },
+ {
+  "id": "rockefeller",
+  "names": [
+   "john d. rockefeller",
+   "rockefeller"
+  ],
+  "name": "John D. Rockefeller",
+  "role": "oil tycoon",
+  "born": 1839,
+  "died": 1937,
+  "kind": "tophat",
+  "hat_color": "black",
+  "coat": "#222222",
+  "look": "",
+  "trait": "calculating, counts every dime"
+ },
+ {
+  "id": "marx",
+  "names": [
+   "karl marx"
+  ],
+  "name": "Karl Marx",
+  "role": "wrote the Communist Manifesto",
+  "born": 1818,
+  "died": 1883,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#2A2A2A",
+  "look": "beard",
+  "trait": "angry beard"
+ },
+ {
+  "id": "arkwright",
+  "names": [
+   "richard arkwright",
+   "arkwright"
+  ],
+  "name": "Richard Arkwright",
+  "role": "built the first big cotton mills",
+  "born": 1732,
+  "died": 1792,
+  "kind": "tophat",
+  "hat_color": "brown",
+  "coat": "#6B3F2A",
+  "look": "",
+  "trait": "ambitious mill owner"
+ },
+ {
+  "id": "watt",
+  "names": [
+   "james watt"
+  ],
+  "name": "James Watt",
+  "role": "improved the steam engine",
+  "born": 1736,
+  "died": 1819,
+  "kind": "tricorn",
+  "hat_color": "brown",
+  "coat": "#6B3F2A",
+  "look": "",
+  "trait": "tinkerer"
+ },
+ {
+  "id": "joan_of_arc",
+  "names": [
+   "joan of arc"
+  ],
+  "name": "Joan of Arc",
+  "role": "French peasant girl who led armies",
+  "born": 1412,
+  "died": 1431,
+  "kind": "knight",
+  "hat_color": "",
+  "coat": "#C0C0C8",
+  "look": "",
+  "trait": "fearless and sure"
+ },
+ {
+  "id": "richard_i",
+  "names": [
+   "richard the lionheart",
+   "richard i"
+  ],
+  "name": "Richard the Lionheart",
+  "role": "English king and crusader",
+  "born": 1157,
+  "died": 1199,
+  "kind": "crown",
+  "hat_color": "gold",
+  "coat": "#C8302B",
+  "look": "beard",
+  "trait": "bold and rarely home"
+ },
+ {
+  "id": "saladin",
+  "names": [
+   "saladin"
+  ],
+  "name": "Saladin",
+  "role": "Muslim sultan who retook Jerusalem",
+  "born": 1137,
+  "died": 1193,
+  "kind": "turban",
+  "hat_color": "#2F6F3F",
+  "coat": "#2F6F3F",
+  "look": "beard",
+  "trait": "chivalrous and shrewd"
+ },
+ {
+  "id": "william_conqueror",
+  "names": [
+   "william the conqueror",
+   "duke william"
+  ],
+  "name": "William the Conqueror",
+  "role": "Norman who conquered England in 1066",
+  "born": 1028,
+  "died": 1087,
+  "kind": "knight",
+  "hat_color": "",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "grim and determined"
+ },
+ {
+  "id": "ramses_ii",
+  "names": [
+   "ramses ii",
+   "ramesses ii",
+   "ramses"
+  ],
+  "name": "Ramses II",
+  "role": "great pharaoh of Egypt",
+  "born": -1303,
+  "died": -1213,
+  "kind": "pharaoh",
+  "hat_color": "gold",
+  "coat": "#2F6FD0",
+  "look": "",
+  "trait": "boastful builder"
+ },
+ {
+  "id": "tutankhamun",
+  "names": [
+   "tutankhamun",
+   "king tut"
+  ],
+  "name": "Tutankhamun",
+  "role": "boy pharaoh of Egypt",
+  "born": -1341,
+  "died": -1323,
+  "kind": "pharaoh",
+  "hat_color": "gold",
+  "coat": "#E8C040",
+  "look": "",
+  "trait": "young and famous after death"
+ },
+ {
+  "id": "socrates",
+  "names": [
+   "socrates"
+  ],
+  "name": "Socrates",
+  "role": "Greek philosopher",
+  "born": -470,
+  "died": -399,
+  "kind": "laurel",
+  "hat_color": "",
+  "coat": "#F5F0E0",
+  "look": "beard",
+  "trait": "asks annoying questions"
+ },
+ {
+  "id": "pericles",
+  "names": [
+   "pericles"
+  ],
+  "name": "Pericles",
+  "role": "leader of Athens",
+  "born": -495,
+  "died": -429,
+  "kind": "laurel",
+  "hat_color": "gold",
+  "coat": "#F5F0E0",
+  "look": "beard",
+  "trait": "calm speaker"
+ },
+ {
+  "id": "oda_nobunaga",
+  "names": [
+   "oda nobunaga",
+   "nobunaga"
+  ],
+  "name": "Oda Nobunaga",
+  "role": "Japanese warlord who began unifying Japan",
+  "born": 1534,
+  "died": 1582,
+  "kind": "samurai",
+  "hat_color": "",
+  "coat": "#8B1A1A",
+  "look": "",
+  "trait": "ruthless innovator"
+ },
+ {
+  "id": "perry",
+  "names": [
+   "commodore perry",
+   "matthew perry"
+  ],
+  "name": "Commodore Perry",
+  "role": "US naval officer who opened Japan",
+  "born": 1794,
+  "died": 1858,
+  "kind": "navy",
+  "hat_color": "",
+  "coat": "#1F2A5C",
+  "look": "",
+  "trait": "stern and shiny buttons"
+ },
+ {
+  "id": "garibaldi",
+  "names": [
+   "giuseppe garibaldi",
+   "garibaldi"
+  ],
+  "name": "Giuseppe Garibaldi",
+  "role": "Italian general who united Italy",
+  "born": 1807,
+  "died": 1882,
+  "kind": "cap",
+  "hat_color": "red",
+  "coat": "#C8302B",
+  "look": "beard",
+  "trait": "red shirt, big heart"
+ },
+ {
+  "id": "bolivar",
+  "names": [
+   "simon bolivar",
+   "simón bolívar",
+   "bolivar"
+  ],
+  "name": "Simon Bolívar",
+  "role": "liberator of South America",
+  "born": 1783,
+  "died": 1830,
+  "kind": "bicorne",
+  "hat_color": "black",
+  "coat": "#2B3F8C",
+  "look": "",
+  "trait": "restless liberator"
+ },
+ {
+  "id": "mccarthy",
+  "names": [
+   "joseph mccarthy",
+   "mccarthy"
+  ],
+  "name": "Joseph McCarthy",
+  "role": "senator of the Red Scare",
+  "born": 1908,
+  "died": 1957,
+  "kind": "civ",
+  "hat_color": "",
+  "coat": "#444444",
+  "look": "",
+  "trait": "accusing everyone"
+ },
+ {
+  "id": "macarthur",
+  "names": [
+   "douglas macarthur",
+   "macarthur"
+  ],
+  "name": "Douglas MacArthur",
+  "role": "US general in the Pacific",
+  "born": 1880,
+  "died": 1964,
+  "kind": "army",
+  "hat_color": "khaki",
+  "coat": "#6B6B3A",
+  "look": "",
+  "trait": "dramatic sunglasses"
+ },
+ {
+  "id": "patton",
+  "names": [
+   "george patton",
+   "patton"
+  ],
+  "name": "George Patton",
+  "role": "US tank general",
+  "born": 1885,
+  "died": 1945,
+  "kind": "helmet",
+  "hat_color": "",
+  "coat": "#6B6B3A",
+  "look": "",
+  "trait": "loud and fearless"
+ },
+ {
+  "id": "rommel",
+  "names": [
+   "erwin rommel",
+   "rommel"
+  ],
+  "name": "Erwin Rommel",
+  "role": "German desert general",
+  "born": 1891,
+  "died": 1944,
+  "kind": "germany",
+  "hat_color": "",
+  "coat": "#8A7A55",
+  "look": "",
+  "trait": "fast and clever"
+ },
+ {
+  "id": "de_gaulle",
+  "names": [
+   "charles de gaulle",
+   "de gaulle"
+  ],
+  "name": "Charles de Gaulle",
+  "role": "leader of Free France",
+  "born": 1890,
+  "died": 1970,
+  "kind": "france",
+  "hat_color": "",
+  "coat": "#6B6B3A",
+  "look": "",
+  "trait": "tall and proud"
+ }
+]

@@ -257,11 +257,11 @@ const TASKS = [
   ["package", "Titles, description, thumbnail text", "Short and easy: a lighter model does it just as well."],
   ["short", "Picking the Short's best moment", "Short and easy."],
 ];
-const MODEL_LABEL = { "": "Plan saver decides", default: "My Claude Code default", opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" };
+const MODEL_LABEL = { "": "Studio default", default: "My Claude Code default", opus: "Opus 5.5", sonnet: "Sonnet 5.5", haiku: "Haiku 4.5" };
 const SAVER_MODELS = {
   off: {},
-  balanced: { watch: "sonnet", props: "sonnet", package: "sonnet", short: "sonnet" },
-  max: { watch: "sonnet", props: "sonnet", package: "haiku", short: "haiku", factcheck: "sonnet" },
+  balanced: { short: "haiku" },
+  max: { props: "haiku", package: "haiku", short: "haiku" },
 };
 
 function WriterCard({ s, set, catalog }) {
@@ -270,6 +270,7 @@ function WriterCard({ s, set, catalog }) {
   const tw = s.task_writers || {};
   const tm = s.claude_task_models || {};
   const saver = s.plan_saver || "balanced";
+  const mainModel = s.llm_models?.claude_cli || "sonnet";
   const byId = Object.fromEntries(llms.map((p) => [p.id, p]));
   const label = (p) => `${p.label}${p.paid ? " (paid)" : ""}${p.available ? "" : " (not set up)"}`;
   return (
@@ -319,7 +320,7 @@ function WriterCard({ s, set, catalog }) {
                 <select value={tm[id] || ""} onChange={(e) => set({ claude_task_models: { ...tm, [id]: e.target.value } })}
                   title="Which Claude model Claude Code uses for this job">
                   {Object.entries(MODEL_LABEL).map(([v, l]) => (
-                    <option key={v} value={v}>{v === "" ? `${l}${auto ? ` (${auto})` : " (default)"}` : l}</option>
+                    <option key={v} value={v}>{v === "" ? `${l} (${MODEL_LABEL[auto || mainModel] || "Sonnet 5.5"})` : l}</option>
                   ))}
                 </select>
               ) : (
@@ -332,9 +333,9 @@ function WriterCard({ s, set, catalog }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="Claude plan saver" hint={
-          saver === "off" ? "Every Claude job uses your Claude Code default model, 8 scenes per request." :
-          saver === "max" ? "Stretches your plan furthest: lighter models for side jobs and the fact-check, 16 scenes per request, fewer example scenes. Scenes can get a little plainer." :
-          "Same quality: the script, fact-check and scenes keep your best model; watching, props, titles and the Short pick use Sonnet; scenes go 12 per request and the shared instructions are cached after the first request."
+          saver === "off" ? "Every Claude job uses the main model, 8 scenes per request." :
+          saver === "max" ? "Stretches your plan furthest: the lightest model (Haiku 4.5) for props, titles and the Short pick, bigger batches, fewer example scenes. Scenes can get a little plainer." :
+          "Same quality: everything runs on the main model except the small Short-picking job (Haiku 4.5); scenes that still need the full scene writer go 12 per request and the shared instructions are cached after the first request."
         }>
           <select className="w-full" value={saver} onChange={(e) => set({ plan_saver: e.target.value })}>
             <option value="balanced">Balanced (recommended, same quality)</option>
@@ -342,14 +343,78 @@ function WriterCard({ s, set, catalog }) {
             <option value="off">Off</option>
           </select>
         </Field>
-        <Field label="Claude Code default model (optional)" hint="Used where the table says 'default'. Leave empty for whatever Claude Code normally uses.">
-          <input className="w-full" value={s.llm_models.claude_cli || ""} onChange={(e) => set({ llm_models: { ...s.llm_models, claude_cli: e.target.value } })} />
+        <Field label="Claude model for everything" hint="Sonnet 5.5 is much lighter on your plan and nearly as good as Opus for this. Pick Opus for the very best, or hand a single job to Opus in the table above.">
+          <select className="w-full" value={s.llm_models.claude_cli || ""} onChange={(e) => set({ llm_models: { ...s.llm_models, claude_cli: e.target.value } })}>
+            <option value="">Sonnet 5.5 (recommended)</option>
+            <option value="opus">Opus 5.5 (best quality, uses more)</option>
+            <option value="haiku">Haiku 4.5 (lightest, plainer scenes)</option>
+            <option value="default">Whatever my Claude Code is set to</option>
+          </select>
         </Field>
       </div>
     </Card>
   );
 }
 
+function GenerationCard({ s, set }) {
+  const [cache, setCache] = useState(null);
+  const refresh = () => api.get("/api/modes").then((d) => setCache(d.cache)).catch(() => {});
+  useEffect(() => {
+    refresh();
+  }, []);
+  const mode = s.gen_mode || "normal";
+  return (
+    <Card title="How much AI a video uses">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Default quality mode"
+          hint={
+            mode === "fast"
+              ? "Fast: for drafts and tests. No research, no fact-check, no extra props; the AI only writes the script and a compact scene plan."
+              : mode === "deep"
+              ? "Deep: topic research, web fact-check, richer scene plans and an AI fix for scenes the review could not fix. Uses the most."
+              : "Normal: script, a compact scene plan, the full scene writer only for odd scenes, a local review. Low usage, high quality."
+          }
+        >
+          <select className="w-full" value={mode} onChange={(e) => set({ gen_mode: e.target.value })}>
+            <option value="fast">Fast</option>
+            <option value="normal">Normal (recommended)</option>
+            <option value="deep">Deep</option>
+          </select>
+        </Field>
+        <Field label="How scenes are drawn" hint="Director: the AI picks a scene pattern and details, the studio builds it (far fewer tokens). Classic: the AI writes every scene in full (the old way).">
+          <select className="w-full" value={s.storyboard_engine || "director"} onChange={(e) => set({ storyboard_engine: e.target.value })}>
+            <option value="director">Director (recommended)</option>
+            <option value="classic">Classic (old way, uses a lot more)</option>
+          </select>
+        </Field>
+        <Toggle checked={s.cache_enabled !== false} onChange={(v) => set({ cache_enabled: v })} label="Reuse what the AI already made" hint="Same question, same answer: no second charge to your plan. Topic research and drawn props are reused by later videos." />
+        <div className="text-sm">
+          <div className="font-medium">Saved so far</div>
+          {cache ? (
+            <p className="text-xs text-stone-500 dark:text-zinc-400">
+              {cache.total.entries} items ({(cache.total.kb / 1024).toFixed(1)} MB): {cache.llm.entries} AI answers, {cache.plans.entries} scene plans, {cache.research.entries} topic briefs, {cache.props.entries} props.
+            </p>
+          ) : (
+            <Spinner />
+          )}
+          <Button
+            size="sm"
+            className="mt-1"
+            onClick={async () => {
+              if (confirm("Delete everything the studio saved (AI answers, plans, research, drawn props)? Videos are not touched.")) {
+                await api.del("/api/cache");
+                refresh();
+              }
+            }}
+          >
+            Clear saved answers
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
 const HAT_CHOICES = ["cap", "tophat", "bowler", "beret", "headphones", "glasses", "graduate", "cowboy", "pirate", "wizard", "crown", "chef", "hardhat", "bicorne", "viking", "headband", "none"];
 
 function MascotCard({ s, set }) {
@@ -535,6 +600,8 @@ export default function Settings() {
       </Card>
 
       <WriterCard s={s} set={set} catalog={catalog} />
+
+      <GenerationCard s={s} set={set} />
 
       <Card title="Writer models">
         <div className="grid gap-3 sm:grid-cols-2">

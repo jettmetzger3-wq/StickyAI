@@ -122,6 +122,9 @@ PROPS = {
     "crowd": ("bottom", lambda p, x, y, s, c, k: p.crowd(x - 175 * s, y - 38 * s, int(_f(k, "n", 6)), s), "small crowd of background people. params: n"),
     "mousetrap": ("bottom", lambda p, x, y, s, c, k: P.mousetrap(p, x, y, s), "mousetrap (a trap)"),
     "subscribe": ("center", lambda p, x, y, s, c, k: P.subscribe(p, x, y, s), "red SUBSCRIBE button (end of video)"),
+    "like_button": ("center", lambda p, x, y, s, c, k: P.like_button(p, x, y, s), "blue LIKE button with a thumbs-up (end of video)"),
+    "thumbs_up": ("center", lambda p, x, y, s, c, k: P.thumbs_up(p, x, y, s), "thumbs-up hand (approval, 'like')"),
+    "notification_bell": ("center", lambda p, x, y, s, c, k: P.bell(p, x, y, s), "ringing notification bell (end of video)"),
     "puppet": ("bottom", lambda p, x, y, s, c, k: P.puppet(p, x, y, s, str(k.get("kind", "civ"))), "stickman on strings (puppet state). params: kind"),
     "folding_screen": ("bottom", lambda p, x, y, s, c, k: P.screen(p, x, y, 420 * s, 360 * s), "folding screen (hiding something)"),
     "rewind": ("center", lambda p, x, y, s, c, k: P.rewind(p, x, y, str(k.get("label", ""))[:16]), "rewind button. params: label (e.g. '~1850')"),
@@ -169,10 +172,12 @@ PROP_GROUPS = [
                  "torch", "gravestone", "bell", "briefcase", "atom", "flask", "gear", "chess_piece", "amphora",
                  "pickaxe", "hammer", "table", "railway", "mousetrap", "folding_screen", "puppet", "crowd"]),
     ("Charts & symbols", ["line_chart", "bar_chart", "pie", "gauge", "clock", "calendar", "hourglass", "xmark", "check",
-                          "speed_lines", "rewind", "subscribe"]),
+                          "speed_lines", "rewind", "subscribe", "like_button", "thumbs_up", "notification_bell"]),
 ]
 
 PROP_ALIASES = {
+    "like": "like_button", "thumb": "thumbs_up", "thumbsup": "thumbs_up", "bell_icon": "notification_bell",
+    "youtube_bell": "notification_bell",
     "boat": "rowboat", "galley": "galleon", "pirate_ship": "galleon", "man_o_war": "galleon", "frigate": "galleon",
     "warship": "ship", "battleship": "ship", "destroyer": "ship", "cruiser": "ship", "airplane": "plane",
     "aeroplane": "plane", "boom": "explosion", "bomb_explosion": "explosion", "mushroom": "mushroom_cloud",

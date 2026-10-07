@@ -235,6 +235,8 @@ def main(argv=None):
     ad.add_argument("email")
     ad.add_argument("--password", action="store_true", help="also set a new password")
     ad.set_defaults(fn=cmd_admin)
+    from . import research_cli
+    research_cli.register(sub)
     a = ap.parse_args(argv)
     config.ensure_dirs()
     return a.fn(a)

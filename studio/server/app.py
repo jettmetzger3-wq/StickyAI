@@ -25,6 +25,8 @@ from ..pipeline import (Project, new_project, list_projects, STAGES, STAGE_LABEL
                         is_running, queue_position, cancel, mark_reviewed, mark_stale, costs, recover_all)
 from ..pipeline.events import bus
 from ..pipeline.project import read_json, write_json
+from ..pipeline import estimate as est_mod, modes as modes_mod, flow as flow_mod, characters as chars_mod
+from .. import cache as cache_mod, usage as usage_mod
 from ..pipeline.stages import beat_durations, scene_job, provider as stage_provider, normalize_script, clean_line
 from ..providers.llm import using_model
 from ..hosted import user as current_user, is_admin
@@ -231,7 +233,10 @@ def estimate(b: EstimateBody):
     prov = dict(P.TIERS["free"], **(b.providers or {}))
     opts = dict(b.options or {}, minutes=b.minutes)
     est = costs.estimate_draft(b.mode, prov, opts, b.duration)
-    return dict(estimate=est, unavailable={st: P.get(st, pid).available()[1] for st, pid in prov.items()
+    d = costs.Draft(b.mode, prov, opts, b.duration)
+    usage_est = {m: est_mod.estimate_video(costs.Draft(b.mode, prov, dict(opts, gen_mode=m), b.duration)) for m in modes_mod.MODES}
+    return dict(estimate=est, usage=usage_est[modes_mod.name_of(opts=opts)], usage_by_mode=usage_est,
+                mode=modes_mod.name_of(opts=opts), unavailable={st: P.get(st, pid).available()[1] for st, pid in prov.items()
                                            if not P.get(st, pid).available()[0]})
 
 
@@ -251,6 +256,7 @@ class NewProject(BaseModel):
     share_copy: bool = True
     credit_source: bool = True
     mascot: bool = True           # the channel host greets, signs off and pops in (Settings > Channel mascot)
+    gen_mode: str = ""            # fast | normal | deep ("" = Settings > gen_mode): how much AI this video uses
     providers: dict = {}
     voice: dict = {}
     approve: dict = {}            # {stage: cost dict} the user saw and confirmed
@@ -291,6 +297,7 @@ def _create_hosted(b, u):
                 ("close", "balanced", "loose") else "balanced", style_url=b.style_url[:300], extra=b.extra[:1500],
                 watch=b.watch, autopilot=b.autopilot, share_copy=b.share_copy, credit_source=b.credit_source,
                 mascot=b.mascot, captions=True, voice=_clean_voice(b.voice),
+                gen_mode=b.gen_mode if b.gen_mode in modes_mod.MODES else "normal",
                 watermark=h.get("watermark_text", "") if plan["watermark"] else "")
     with using_model(plan.get("llm_model")):
         est = costs.estimate_draft(b.mode, prov, opts, None)
@@ -348,6 +355,8 @@ def create_project(b: NewProject):
     opts = dict(minutes=b.minutes, tone=b.tone, faithfulness=b.faithfulness, style_url=b.style_url, extra=b.extra,
                 watch=b.watch, autopilot=b.autopilot, share_copy=b.share_copy, credit_source=b.credit_source,
                 mascot=b.mascot, captions=True, voice=b.voice or {})
+    if b.gen_mode in modes_mod.MODES:
+        opts["gen_mode"] = b.gen_mode
     pr = new_project(b.title or (b.topic if b.mode == "topic" else ""), b.mode,
                      source_url=b.url if b.mode == "youtube" else "", topic=b.topic, options=opts, providers=prov)
     if config.hosted():
@@ -430,8 +439,20 @@ def project_detail(slug: str):
                      pick={k: (short.get("pick") or {}).get(k) for k in ("start", "end", "script", "by")},
                      calliope={k: (short.get("calliope") or {}).get(k) for k in ("job_id", "done", "credit_cost")},
                      thumbs=sorted(f for f in os.listdir(pr.p("final")) if f.startswith("calliope_thumb_")))
+    review = read_json(pr.p("review.json"))
+    plan = read_json(pr.p("plan.json"))
+    chars = chars_mod.load(pr)
+    seams = [dict(beat=i, why=w) for i, w in flow_mod.seams((script or {}).get("beats") or [])]
+    for sc_ in scenes:
+        pi = ((plan or {}).get("beats") or {}).get(str(sc_["i"]))
+        sc_["pattern"] = (pi or {}).get("pattern")
+    try:
+        uest = est_mod.estimate_video(pr, m)
+    except Exception:
+        uest = None
     return dict(meta=m, running=is_running(slug), queue_position=queue_position(slug), script=script, scenes=scenes,
-                short=short,
+                short=short, usage=usage_mod.summary(pr), usage_estimate=uest, review=review, characters=chars, seams=seams,
+                mode=modes_mod.name_of(m),
                 source=src, spent_usd=costs.spent(m), budget_usd=costs.budget(m),
                 voice=dict(provider=v.get("provider"), voice=v.get("voice"), total=v.get("total"),
                            beats=[dict(dur=(e or {}).get("dur"), text=(e or {}).get("text")) for e in (v.get("beats") or [])]),
@@ -509,7 +530,8 @@ def approve(slug: str, b: ApproveBody):
 @app.get("/api/projects/{slug}/estimate")
 def project_estimate(slug: str):
     pr = proj(slug)
-    return dict(estimate=costs.estimate_all(pr), balances=costs.balances(pr.meta()))
+    return dict(estimate=costs.estimate_all(pr), balances=costs.balances(pr.meta()), usage=est_mod.estimate_video(pr),
+                spent=usage_mod.summary(pr))
 
 
 @app.put("/api/projects/{slug}/options")
@@ -533,6 +555,27 @@ def put_options(slug: str, body: dict):
         if "title" in body:
             m["title"] = str(body["title"])[:120]
     return dict(meta=pr.update(f))
+
+
+# ------------------------------------------------------------------ modes, cache, usage, flow
+@app.get("/api/modes")
+def modes_catalog():
+    return dict(modes=modes_mod.catalog(), default=modes_mod.name_of(opts={}), cache=cache_mod.stats())
+
+
+@app.delete("/api/cache")
+def clear_cache(ns: str = ""):
+    if hosted_user():
+        raise HTTPException(403, "only the site admin can clear the cache")
+    if ns and ns not in cache_mod.NAMESPACES:
+        raise HTTPException(400, "unknown cache")
+    return dict(removed=cache_mod.clear(ns or None), cache=cache_mod.stats())
+
+
+@app.get("/api/projects/{slug}/usage")
+def project_usage(slug: str):
+    pr = proj(slug)
+    return dict(summary=usage_mod.summary(pr), calls=usage_mod.calls(pr)[-200:], estimate=est_mod.estimate_video(pr))
 
 
 # ------------------------------------------------------------------ script editing
@@ -630,6 +673,33 @@ def regen_beat(slug: str, i: int, b: RegenBeat):
     beat = dict(mood=data.get("mood") if data.get("mood") in ("fun", "tense", "somber") else script["beats"][i]["mood"],
                 text=clean_line(data.get("text") or script["beats"][i]["text"]))
     return dict(beat=beat)
+
+
+@app.post("/api/projects/{slug}/script/smooth")
+def smooth_script(slug: str, b: RegenBeat):
+    """Reword the beats that don't connect to the one before them. Returns the new wording for the Script tab to show;
+    nothing is saved until the user presses Save."""
+    pr = proj(slug)
+    script = pr.script()
+    if not script:
+        raise HTTPException(404, "no script yet")
+    seams = flow_mod.seams(script["beats"])
+    if not seams:
+        return dict(rewrites=[], seams=[])
+    prompt = PR.smooth_prompt(script, seams[:16])
+    llm = _paid_guard(pr, "smooth the flow", len(prompt), 900, b.approved)
+    if isinstance(llm, JSONResponse):
+        return llm
+    from ..pipeline.costs import record
+    with using_model(pr.meta().get("llm_model")):
+        text, usage = llm.complete(PR.SCRIPT_SYSTEM, prompt, schema=PR.SMOOTH_SCHEMA, label="flow")
+    if usage.get("billed_usd"):
+        record(pr, "script", llm.id, usd=usage["billed_usd"], note="smooth the flow")
+    data = P.extract_json(text)
+    beats = [dict(x) for x in script["beats"]]
+    wanted = {i for i, _ in seams[:16]}
+    done = flow_mod.apply_rewrites(beats, (data or {}).get("rewrites") if isinstance(data, dict) else None, wanted, clean_line)
+    return dict(rewrites=[dict(beat=i, text=beats[i]["text"]) for i in done], seams=[dict(beat=i, why=w) for i, w in seams])
 
 
 # ------------------------------------------------------------------ storyboard editing

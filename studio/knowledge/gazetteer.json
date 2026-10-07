@@ -1,0 +1,879 @@
+[
+{
+"name": "Philadelphia",
+"lon": -75.17,
+"lat": 39.95,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "New York",
+"lon": -74.0,
+"lat": 40.71,
+"country": "United States of America",
+"aliases": [
+"new amsterdam"
+]
+},
+{
+"name": "Boston",
+"lon": -71.06,
+"lat": 42.36,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Yorktown",
+"lon": -76.5,
+"lat": 37.24,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Lexington",
+"lon": -71.23,
+"lat": 42.45,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Concord",
+"lon": -71.35,
+"lat": 42.46,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Saratoga",
+"lon": -73.78,
+"lat": 43.08,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Valley Forge",
+"lon": -75.44,
+"lat": 40.1,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Trenton",
+"lon": -74.76,
+"lat": 40.22,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Washington D.C.",
+"lon": -77.04,
+"lat": 38.9,
+"country": "United States of America",
+"aliases": [
+"washington dc",
+"washington d.c."
+]
+},
+{
+"name": "Jamestown",
+"lon": -76.78,
+"lat": 37.21,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Plymouth",
+"lon": -70.67,
+"lat": 41.96,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Gettysburg",
+"lon": -77.23,
+"lat": 39.83,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Richmond",
+"lon": -77.44,
+"lat": 37.54,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Charleston",
+"lon": -79.93,
+"lat": 32.78,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "New Orleans",
+"lon": -90.07,
+"lat": 29.95,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Chicago",
+"lon": -87.63,
+"lat": 41.88,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "San Francisco",
+"lon": -122.42,
+"lat": 37.77,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Los Angeles",
+"lon": -118.24,
+"lat": 34.05,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Detroit",
+"lon": -83.05,
+"lat": 42.33,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Pearl Harbor",
+"lon": -157.97,
+"lat": 21.37,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Dallas",
+"lon": -96.8,
+"lat": 32.78,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Montgomery",
+"lon": -86.3,
+"lat": 32.37,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Havana",
+"lon": -82.37,
+"lat": 23.13,
+"country": "Cuba",
+"aliases": []
+},
+{
+"name": "Mexico City",
+"lon": -99.13,
+"lat": 19.43,
+"country": "Mexico",
+"aliases": [
+"tenochtitlan"
+]
+},
+{
+"name": "Ottawa",
+"lon": -75.7,
+"lat": 45.42,
+"country": "Canada",
+"aliases": []
+},
+{
+"name": "Quebec",
+"lon": -71.21,
+"lat": 46.81,
+"country": "Canada",
+"aliases": []
+},
+{
+"name": "London",
+"lon": -0.12,
+"lat": 51.5,
+"country": "United Kingdom",
+"aliases": []
+},
+{
+"name": "Edinburgh",
+"lon": -3.19,
+"lat": 55.95,
+"country": "United Kingdom",
+"aliases": []
+},
+{
+"name": "Liverpool",
+"lon": -2.99,
+"lat": 53.41,
+"country": "United Kingdom",
+"aliases": []
+},
+{
+"name": "Manchester",
+"lon": -2.24,
+"lat": 53.48,
+"country": "United Kingdom",
+"aliases": []
+},
+{
+"name": "Birmingham",
+"lon": -1.9,
+"lat": 52.48,
+"country": "United Kingdom",
+"aliases": []
+},
+{
+"name": "Dublin",
+"lon": -6.26,
+"lat": 53.35,
+"country": "Ireland",
+"aliases": []
+},
+{
+"name": "Paris",
+"lon": 2.35,
+"lat": 48.86,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Versailles",
+"lon": 2.13,
+"lat": 48.8,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Marseille",
+"lon": 5.37,
+"lat": 43.3,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Lyon",
+"lon": 4.83,
+"lat": 45.76,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Normandy",
+"lon": -0.9,
+"lat": 49.3,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Dunkirk",
+"lon": 2.37,
+"lat": 51.03,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Waterloo",
+"lon": 4.4,
+"lat": 50.68,
+"country": "Belgium",
+"aliases": []
+},
+{
+"name": "Brussels",
+"lon": 4.35,
+"lat": 50.85,
+"country": "Belgium",
+"aliases": []
+},
+{
+"name": "Amsterdam",
+"lon": 4.9,
+"lat": 52.37,
+"country": "Netherlands",
+"aliases": []
+},
+{
+"name": "Berlin",
+"lon": 13.4,
+"lat": 52.52,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Munich",
+"lon": 11.58,
+"lat": 48.14,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Hamburg",
+"lon": 9.99,
+"lat": 53.55,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Dresden",
+"lon": 13.74,
+"lat": 51.05,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Potsdam",
+"lon": 13.06,
+"lat": 52.4,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Nuremberg",
+"lon": 11.08,
+"lat": 49.45,
+"country": "Germany",
+"aliases": []
+},
+{
+"name": "Vienna",
+"lon": 16.37,
+"lat": 48.2,
+"country": "Austria",
+"aliases": []
+},
+{
+"name": "Prague",
+"lon": 14.42,
+"lat": 50.08,
+"country": "Czechia",
+"aliases": []
+},
+{
+"name": "Budapest",
+"lon": 19.04,
+"lat": 47.5,
+"country": "Hungary",
+"aliases": []
+},
+{
+"name": "Warsaw",
+"lon": 21.0,
+"lat": 52.23,
+"country": "Poland",
+"aliases": []
+},
+{
+"name": "Krakow",
+"lon": 19.94,
+"lat": 50.06,
+"country": "Poland",
+"aliases": []
+},
+{
+"name": "Moscow",
+"lon": 37.62,
+"lat": 55.75,
+"country": "Russia",
+"aliases": []
+},
+{
+"name": "St. Petersburg",
+"lon": 30.3,
+"lat": 59.93,
+"country": "Russia",
+"aliases": [
+"saint petersburg",
+"petrograd",
+"leningrad"
+]
+},
+{
+"name": "Stalingrad",
+"lon": 44.5,
+"lat": 48.7,
+"country": "Russia",
+"aliases": [
+"volgograd"
+]
+},
+{
+"name": "Borodino",
+"lon": 35.8,
+"lat": 55.5,
+"country": "Russia",
+"aliases": []
+},
+{
+"name": "Kiev",
+"lon": 30.52,
+"lat": 50.45,
+"country": "Ukraine",
+"aliases": [
+"kyiv"
+]
+},
+{
+"name": "Yalta",
+"lon": 34.17,
+"lat": 44.5,
+"country": "Ukraine",
+"aliases": []
+},
+{
+"name": "Stockholm",
+"lon": 18.07,
+"lat": 59.33,
+"country": "Sweden",
+"aliases": []
+},
+{
+"name": "Oslo",
+"lon": 10.75,
+"lat": 59.91,
+"country": "Norway",
+"aliases": []
+},
+{
+"name": "Copenhagen",
+"lon": 12.57,
+"lat": 55.68,
+"country": "Denmark",
+"aliases": []
+},
+{
+"name": "Rome",
+"lon": 12.5,
+"lat": 41.9,
+"country": "Italy",
+"aliases": []
+},
+{
+"name": "Venice",
+"lon": 12.33,
+"lat": 45.44,
+"country": "Italy",
+"aliases": []
+},
+{
+"name": "Florence",
+"lon": 11.25,
+"lat": 43.77,
+"country": "Italy",
+"aliases": []
+},
+{
+"name": "Milan",
+"lon": 9.19,
+"lat": 45.46,
+"country": "Italy",
+"aliases": []
+},
+{
+"name": "Naples",
+"lon": 14.27,
+"lat": 40.85,
+"country": "Italy",
+"aliases": []
+},
+{
+"name": "Madrid",
+"lon": -3.7,
+"lat": 40.42,
+"country": "Spain",
+"aliases": []
+},
+{
+"name": "Barcelona",
+"lon": 2.17,
+"lat": 41.39,
+"country": "Spain",
+"aliases": []
+},
+{
+"name": "Trafalgar",
+"lon": -6.03,
+"lat": 36.18,
+"country": "Spain",
+"aliases": []
+},
+{
+"name": "Lisbon",
+"lon": -9.14,
+"lat": 38.72,
+"country": "Portugal",
+"aliases": []
+},
+{
+"name": "Athens",
+"lon": 23.73,
+"lat": 37.98,
+"country": "Greece",
+"aliases": []
+},
+{
+"name": "Sparta",
+"lon": 22.43,
+"lat": 37.07,
+"country": "Greece",
+"aliases": []
+},
+{
+"name": "Troy",
+"lon": 26.24,
+"lat": 39.96,
+"country": "Turkey",
+"aliases": []
+},
+{
+"name": "Constantinople",
+"lon": 28.98,
+"lat": 41.01,
+"country": "Turkey",
+"aliases": [
+"istanbul",
+"byzantium"
+]
+},
+{
+"name": "Ankara",
+"lon": 32.85,
+"lat": 39.93,
+"country": "Turkey",
+"aliases": []
+},
+{
+"name": "Cairo",
+"lon": 31.24,
+"lat": 30.04,
+"country": "Egypt",
+"aliases": []
+},
+{
+"name": "Alexandria",
+"lon": 29.92,
+"lat": 31.2,
+"country": "Egypt",
+"aliases": []
+},
+{
+"name": "Giza",
+"lon": 31.13,
+"lat": 29.98,
+"country": "Egypt",
+"aliases": []
+},
+{
+"name": "Suez",
+"lon": 32.55,
+"lat": 29.97,
+"country": "Egypt",
+"aliases": []
+},
+{
+"name": "Jerusalem",
+"lon": 35.2,
+"lat": 31.77,
+"country": "Israel",
+"aliases": []
+},
+{
+"name": "Baghdad",
+"lon": 44.36,
+"lat": 33.31,
+"country": "Iraq",
+"aliases": []
+},
+{
+"name": "Babylon",
+"lon": 44.42,
+"lat": 32.54,
+"country": "Iraq",
+"aliases": []
+},
+{
+"name": "Tehran",
+"lon": 51.4,
+"lat": 35.69,
+"country": "Iran",
+"aliases": []
+},
+{
+"name": "Mecca",
+"lon": 39.83,
+"lat": 21.42,
+"country": "Saudi Arabia",
+"aliases": []
+},
+{
+"name": "Carthage",
+"lon": 10.32,
+"lat": 36.85,
+"country": "Tunisia",
+"aliases": []
+},
+{
+"name": "Timbuktu",
+"lon": -3.0,
+"lat": 16.77,
+"country": "Mali",
+"aliases": []
+},
+{
+"name": "Cape Town",
+"lon": 18.42,
+"lat": -33.92,
+"country": "South Africa",
+"aliases": []
+},
+{
+"name": "Delhi",
+"lon": 77.2,
+"lat": 28.6,
+"country": "India",
+"aliases": []
+},
+{
+"name": "Calcutta",
+"lon": 88.36,
+"lat": 22.57,
+"country": "India",
+"aliases": []
+},
+{
+"name": "Mumbai",
+"lon": 72.88,
+"lat": 19.08,
+"country": "India",
+"aliases": [
+"bombay"
+]
+},
+{
+"name": "Beijing",
+"lon": 116.4,
+"lat": 39.9,
+"country": "China",
+"aliases": [
+"peking"
+]
+},
+{
+"name": "Nanjing",
+"lon": 118.8,
+"lat": 32.06,
+"country": "China",
+"aliases": [
+"nanking"
+]
+},
+{
+"name": "Shanghai",
+"lon": 121.47,
+"lat": 31.23,
+"country": "China",
+"aliases": []
+},
+{
+"name": "Hong Kong",
+"lon": 114.17,
+"lat": 22.32,
+"country": "China",
+"aliases": []
+},
+{
+"name": "Tokyo",
+"lon": 139.69,
+"lat": 35.69,
+"country": "Japan",
+"aliases": [
+"edo"
+]
+},
+{
+"name": "Hiroshima",
+"lon": 132.45,
+"lat": 34.39,
+"country": "Japan",
+"aliases": []
+},
+{
+"name": "Nagasaki",
+"lon": 129.87,
+"lat": 32.75,
+"country": "Japan",
+"aliases": []
+},
+{
+"name": "Kyoto",
+"lon": 135.77,
+"lat": 35.01,
+"country": "Japan",
+"aliases": []
+},
+{
+"name": "Seoul",
+"lon": 126.98,
+"lat": 37.57,
+"country": "South Korea",
+"aliases": []
+},
+{
+"name": "Pyongyang",
+"lon": 125.75,
+"lat": 39.02,
+"country": "North Korea",
+"aliases": []
+},
+{
+"name": "Hanoi",
+"lon": 105.85,
+"lat": 21.03,
+"country": "Vietnam",
+"aliases": []
+},
+{
+"name": "Saigon",
+"lon": 106.7,
+"lat": 10.78,
+"country": "Vietnam",
+"aliases": [
+"ho chi minh city"
+]
+},
+{
+"name": "Singapore",
+"lon": 103.82,
+"lat": 1.35,
+"country": "Singapore",
+"aliases": []
+},
+{
+"name": "Manila",
+"lon": 120.98,
+"lat": 14.6,
+"country": "Philippines",
+"aliases": []
+},
+{
+"name": "Sydney",
+"lon": 151.2,
+"lat": -33.87,
+"country": "Australia",
+"aliases": []
+},
+{
+"name": "Rio de Janeiro",
+"lon": -43.17,
+"lat": -22.9,
+"country": "Brazil",
+"aliases": []
+},
+{
+"name": "Buenos Aires",
+"lon": -58.38,
+"lat": -34.6,
+"country": "Argentina",
+"aliases": []
+},
+{
+"name": "Lima",
+"lon": -77.04,
+"lat": -12.05,
+"country": "Peru",
+"aliases": []
+},
+{
+"name": "Cusco",
+"lon": -71.97,
+"lat": -13.52,
+"country": "Peru",
+"aliases": []
+},
+{
+"name": "Panama",
+"lon": -79.52,
+"lat": 8.98,
+"country": "Panama",
+"aliases": []
+},
+{
+"name": "Vladivostok",
+"lon": 131.9,
+"lat": 43.12,
+"country": "Russia",
+"aliases": []
+},
+{
+"name": "Kremlin",
+"lon": 37.62,
+"lat": 55.75,
+"country": "Russia",
+"aliases": []
+},
+{
+"name": "Pentagon",
+"lon": -77.06,
+"lat": 38.87,
+"country": "United States of America",
+"aliases": []
+},
+{
+"name": "Normandy Beaches",
+"lon": -0.9,
+"lat": 49.3,
+"country": "France",
+"aliases": [
+"omaha beach"
+]
+},
+{
+"name": "Gallipoli",
+"lon": 26.3,
+"lat": 40.4,
+"country": "Turkey",
+"aliases": []
+},
+{
+"name": "Verdun",
+"lon": 5.38,
+"lat": 49.16,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Somme",
+"lon": 2.7,
+"lat": 49.9,
+"country": "France",
+"aliases": []
+},
+{
+"name": "Sarajevo",
+"lon": 18.41,
+"lat": 43.86,
+"country": "Bosnia and Herz.",
+"aliases": []
+},
+{
+"name": "Belgrade",
+"lon": 20.46,
+"lat": 44.82,
+"country": "Serbia",
+"aliases": []
+},
+{
+"name": "Berlin Wall",
+"lon": 13.4,
+"lat": 52.52,
+"country": "Germany",
+"aliases": []
+}
+]

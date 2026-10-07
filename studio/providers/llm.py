@@ -69,6 +69,29 @@ def extract_json(text):
 
 
 # ------------------------------------------------------------------ Claude Code CLI
+# The studio's main Claude model is Sonnet 5.5: close to Opus on writing and scene drawing, and it uses much less of
+# the plan. Opus stays one click away (Settings: for everything, or for one job).
+MAIN_MODEL = "claude-sonnet-5-5"
+MODEL_IDS = {"opus": "claude-opus-5-5", "sonnet": "claude-sonnet-5-5", "haiku": "claude-haiku-4-5"}
+MODEL_ALIASES = {v: k for k, v in MODEL_IDS.items()}      # the short names every Claude Code version understands
+
+
+def model_id(m):
+    """opus | sonnet | haiku -> the full model name; "default" -> "" (no --model: your own Claude Code default)."""
+    m = str(m or "").strip()
+    if m == "default":
+        return ""
+    return MODEL_IDS.get(m.lower(), m) or MAIN_MODEL
+
+
+def main_model(settings=None):
+    """The Claude Code model used for everything unless a job picks its own: Settings > Claude model
+    ("" = Sonnet 5.5, "default" = whatever your Claude Code is set to, opus | sonnet | haiku, or a model name)."""
+    s = settings or load_settings()
+    m = str((s.get("llm_models") or {}).get("claude_cli") or "").strip()
+    return MAIN_MODEL if m in ("", "auto") else model_id(m)
+
+
 class ClaudeCLI(LLMBackend):
     id = "claude_cli"
     short = "Claude"
@@ -109,9 +132,21 @@ class ClaudeCLI(LLMBackend):
 
     def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False,
                  extra_args=()):
+        model = main_model() if model is None else model        # "" = your Claude Code's own default
+        try:
+            return self._complete(system, prompt, schema, images, max_tokens, model, label, web, extra_args)
+        except ProviderError as e:
+            from .backup import PlanLimit
+            # an older Claude Code may not know the full model name yet: say it the short way (sonnet, opus...)
+            if model in MODEL_ALIASES and re.search(r"model|not.found|invalid|unknown|issue with", str(e), re.I) \
+                    and not isinstance(e, PlanLimit):
+                return self._complete(system, prompt, schema, images, max_tokens, MODEL_ALIASES[model], label, web,
+                                      extra_args)
+            raise
+
+    def _complete(self, system, prompt, schema, images, max_tokens, model, label, web, extra_args):
         if not self.path():
             raise ProviderError("claude CLI not found")
-        model = model or load_settings().get("llm_models", {}).get("claude_cli") or None
         env = dict(os.environ)
         # Make sure the CLI bills your subscription, never an API key that happens to be in .env
         for k in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN"):
@@ -163,6 +198,11 @@ class ClaudeCLI(LLMBackend):
             text = json.dumps(data["structured_output"])
         usage = dict(provider=self.id, api_equivalent_usd=data.get("total_cost_usd"), billed_usd=0.0,
                      num_turns=data.get("num_turns"))
+        u = data.get("usage") or {}
+        if isinstance(u, dict) and (u.get("input_tokens") is not None or u.get("output_tokens") is not None):
+            read = int(u.get("cache_read_input_tokens") or 0)
+            usage.update(in_tok=int(u.get("input_tokens") or 0) + int(u.get("cache_creation_input_tokens") or 0) + read,
+                         out_tok=int(u.get("output_tokens") or 0), cache_read_tok=read, measured=True)
         return text, usage
 
 
@@ -172,7 +212,7 @@ PRICES = {  # USD per million tokens (input, output)
     "claude-sonnet-5-5": (2.0, 10.0),
     "claude-haiku-4-5": (1.0, 5.0),
 }
-FALLBACK_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5")
+FALLBACK_MODELS = ("claude-sonnet-5-5", "claude-opus-5-5")
 
 # Per-run model choice (hosted mode: each plan can pick its Anthropic model). Set by the runner for one run.
 MODEL_OVERRIDE = contextvars.ContextVar("studio_llm_model", default=None)
@@ -200,11 +240,11 @@ class AnthropicAPI(LLMBackend):
     needs_modules = ("anthropic",)
 
     def model(self, model=None):
-        return model or MODEL_OVERRIDE.get() or load_settings().get("llm_models", {}).get("anthropic") or "claude-opus-5-5"
+        return model or MODEL_OVERRIDE.get() or load_settings().get("llm_models", {}).get("anthropic") or "claude-sonnet-5-5"
 
     def estimate_tokens(self, in_chars, out_tokens, model=None):
         m = self.model(model)
-        pin, pout = PRICES.get(m, PRICES["claude-opus-5-5"])
+        pin, pout = PRICES.get(m, PRICES[MAIN_MODEL])
         tin = in_chars / 3.5
         tout = out_tokens * 1.6  # thinking tokens are billed as output too; add headroom
         usd = tin / 1e6 * pin + tout / 1e6 * pout
@@ -253,7 +293,7 @@ class AnthropicAPI(LLMBackend):
             raise ProviderError("the model declined this request")
         text = "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
         u = msg.usage
-        pin, pout = PRICES.get(m, PRICES["claude-opus-5-5"])
+        pin, pout = PRICES.get(m, PRICES[MAIN_MODEL])
         tin = (u.input_tokens or 0) + (getattr(u, "cache_creation_input_tokens", 0) or 0) * 1.25 \
             + (getattr(u, "cache_read_input_tokens", 0) or 0) * 0.1
         billed = tin / 1e6 * pin + (u.output_tokens or 0) / 1e6 * pout

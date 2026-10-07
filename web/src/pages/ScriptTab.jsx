@@ -16,6 +16,7 @@ export default function ScriptTab({ d, slug, reload, running }) {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
   const [busyBeat, setBusyBeat] = useState(null);
+  const [smoothing, setSmoothing] = useState(false);
 
   useEffect(() => {
     if (!script || dirty) return;
@@ -78,6 +79,28 @@ export default function ScriptTab({ d, slug, reload, running }) {
     }
   }
 
+  const seamAt = Object.fromEntries((d.seams || []).map((x) => [x.beat, x.why]));
+  async function smooth() {
+    setSmoothing(true);
+    setErr(null);
+    try {
+      const r = await withApproval((approved) => api.post(`/api/projects/${encodeURIComponent(slug)}/script/smooth`, { approved }));
+      if (r?.rewrites?.length) {
+        setBeats((bs) => bs.map((b, i) => {
+          const rw = r.rewrites.find((x) => x.beat === i);
+          return rw ? { ...b, text: rw.text } : b;
+        }));
+        setDirty(true);
+      } else {
+        setErr("Nothing to change: the beats already connect, or the writer kept them as they were.");
+      }
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSmoothing(false);
+    }
+  }
+
   async function toggleFact(k) {
     const nf = facts.map((f, j) => (j === k ? { ...f, checked: !f.checked } : f));
     setFacts(nf);
@@ -95,6 +118,11 @@ export default function ScriptTab({ d, slug, reload, running }) {
         }
         actions={
           <>
+            {(d.seams || []).length > 0 && (
+              <Button disabled={smoothing || running} onClick={smooth} title="Reword only the beats that don't connect to the one before">
+                {smoothing ? <Spinner /> : null} Smooth the flow ({d.seams.length})
+              </Button>
+            )}
             {dirty && <span className="text-xs text-amber-600">unsaved changes</span>}
             <Button variant="primary" disabled={!dirty || saving || running} onClick={save}>
               {saving ? <Spinner /> : null} Save script
@@ -115,9 +143,12 @@ export default function ScriptTab({ d, slug, reload, running }) {
           {beats.map((b, i) => {
             const n = b.text.split(/\s+/).filter(Boolean).length;
             return (
-              <div key={i} className="group flex gap-2 rounded-xl border border-stone-200 p-2 dark:border-zinc-800">
+              <div key={i} className={cx("group flex gap-2 rounded-xl border p-2", seamAt[i] ? "border-amber-400 dark:border-amber-600" : "border-stone-200 dark:border-zinc-800")}
+                title={seamAt[i] ? `This beat ${seamAt[i]}` : undefined}>
                 <div className="flex w-20 shrink-0 flex-col items-center gap-1 pt-1 text-xs text-stone-400">
                   <span className="font-mono">#{i}</span>
+                  {b.part && <span className="text-[10px] uppercase tracking-wide text-stone-400">{b.part}</span>}
+                  {b.host && <span className="text-[10px] uppercase tracking-wide text-amber-600">host</span>}
                   <select
                     value={b.mood}
                     onChange={(e) => edit(i, { mood: e.target.value })}

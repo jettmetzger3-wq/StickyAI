@@ -1,9 +1,31 @@
 """History, military, vehicles and everyday objects, plus detailed versions of the first, simpler props."""
 import math
+import re
 
 from .palette import color as C, INK, RED, WHITE, darker, lighter
 from .props_kit import (Sk, arc_pts, ellipse, rounded, star_pts, arch, WOOD, WOOD_D, WOOD_L, IRON, IRON_D, STEEL,
                         GOLD, GOLD_D, GLASS, CREAM, LEAF, LEAF_D, DARKWIN, FLAME, FLAME_Y, SNOW, STONE)
+
+
+def _text_lines(k, *keys, limit=6):
+    """Short lines of text for a prop: a list, or one string split on | or newlines."""
+    for key in keys:
+        v = k.get(key)
+        if isinstance(v, (list, tuple)):
+            out = [str(x).strip() for x in v if str(x).strip()]
+        elif isinstance(v, str) and v.strip():
+            out = [t.strip() for t in re.split(r"[|\n]", v) if t.strip()]
+        else:
+            continue
+        return out[:limit]
+    return []
+
+
+def _fit(g, text, cx, cy, size, max_w, col=INK, f="bold"):
+    """Draw `text` centered, shrinking it until it fits `max_w` (in the prop's own units)."""
+    text = str(text)
+    size = min(size, max_w / ((0.68 if f == "bold" else 0.5) * max(1, len(text))))
+    g.text(text, cx, cy, size, col, f=f)
 
 
 def _c(c, default):
@@ -318,16 +340,33 @@ def envelope(p, x, y, s, c, k):
 
 
 def newspaper(p, x, y, s, c, k):
+    """A newspaper. params: title (the paper's name), label (the headline, up to two lines), sub (a smaller line)."""
     g = Sk(p, x, y, s, rot=-4, wob=0.3)
     g.rect(-130, -100, 130, 100, (246, 244, 236), 6)
-    g.text(str(k.get("title", "THE DAILY NEWS"))[:18].upper(), 0, -80, 18, (60, 60, 70))
+    _fit(g, str(k.get("title", "THE DAILY NEWS"))[:22].upper(), 0, -80, 18, 236, (60, 60, 70))
     g.line([(-120, -66), (120, -66)], 3)
-    g.text(str(k.get("label", "EXTRA!"))[:12].upper(), 0, -38, 40, INK)
-    g.rect(-118, -12, -10, 70, (200, 200, 208), 3)
-    g.circ(-64, 24, 18, (160, 160, 170), 0)
-    for i in range(6):
-        g.line([(4, -6 + i * 14), (116 - (i % 2) * 20, -6 + i * 14)], 3, (150, 150, 160))
-    g.line([(-118, 86), (116, 86)], 3, (150, 150, 160))
+    head = str(k.get("label", "EXTRA!")).upper().strip()
+    words, lines, cur = head.split(), [], ""
+    for w_ in words:                                        # up to two headline lines of ~13 characters
+        if len((cur + " " + w_).strip()) <= 13 or not cur:
+            cur = (cur + " " + w_).strip()
+        else:
+            lines.append(cur)
+            cur = w_
+    lines = (lines + [cur])[:2] if cur else lines[:2]
+    for i, ln in enumerate(lines or ["EXTRA!"]):
+        yy = -38 + i * 34 if len(lines) > 1 else -30
+        _fit(g, ln[:16], 0, yy, 36 if len(lines) > 1 else 42, 224, INK)
+    top = 4 if len(lines) > 1 else -2
+    g.rect(-118, top + 10, -10, 72, (200, 200, 208), 3)
+    g.circ(-64, top + 40, 17, (160, 160, 170), 0)
+    sub = str(k.get("sub", "")).strip()
+    for i in range(5):
+        g.line([(4, top + 14 + i * 13), (116 - (i % 2) * 20, top + 14 + i * 13)], 3, (150, 150, 160))
+    if sub:
+        _fit(g, sub[:30], 0, 86, 13, 226, (70, 70, 80), f="hand")
+    else:
+        g.line([(-118, 86), (116, 86)], 3, (150, 150, 160))
 
 
 def gold_bars(p, x, y, s, c, k):
@@ -714,10 +753,17 @@ def coin(p, x, y, s, c, k):
 
 
 def scroll(p, x, y, s, c, k):
+    """A parchment scroll with a seal (treaty, decree, law). params: title, text (up to 4 short lines)."""
     g = Sk(p, x, y, s, wob=0.35)
     g.rect(-100, -80, 100, 90, PARCH, 5)
-    for i in range(5):
-        g.line([(-70, -44 + i * 24), (70 - (i % 2) * 30, -44 + i * 24)], 3.5, (150, 130, 100))
+    title, body = str(k.get("title", "")).strip(), _text_lines(k, "text", "lines_text", limit=4)
+    if title or body:
+        _fit(g, title[:22].upper(), 0, -56, 15, 168, (90, 50, 30)) if title else None
+        for i, ln in enumerate(body):
+            _fit(g, ln[:26], 0, -28 + i * 22, 11, 168, (90, 70, 50), f="hand")
+    else:
+        for i in range(5):
+            g.line([(-70, -44 + i * 24), (70 - (i % 2) * 30, -44 + i * 24)], 3.5, (150, 130, 100))
     for yy in (-86, 92):
         g.rect(-116, yy - 16, 116, yy + 16, darker(PARCH, 0.9), 5, r=16)
         g.circ(-116, yy, 12, (170, 120, 70), 4)
@@ -727,16 +773,32 @@ def scroll(p, x, y, s, c, k):
 
 
 def document(p, x, y, s, c, k):
+    """A sheet of paper (law, letter, contract). params: title, text (up to 5 short lines written on it), stamp
+    (red stamp word like APPROVED), wide (true = a broader sheet), lines (how many gray lines when it has no text)."""
     n = int(_num(k, "lines", 5))
+    w = 100 if k.get("wide") else 74
     g = Sk(p, x, y, s, wob=0.3)
-    g.rect(-74, -98, 74, 98, (255, 255, 250), 5)
-    g.poly([(40, -98), (74, -64), (40, -64)], (226, 226, 232), 4)
-    g.line([(-52, -70), (20, -70)], 6, (90, 90, 110))
-    for i in range(max(1, min(n, 7))):
-        yy = -42 + i * 18
-        g.line([(-52, yy), (52 - (i % 3) * 16, yy)], 3, (160, 160, 172))
-    g.line([(-50, 72), (-30, 60), (-14, 76), (6, 62)], 3, (40, 60, 140))
-    g.circ(40, 70, 14, (190, 40, 50), 3)
+    g.rect(-w, -98, w, 98, (255, 255, 250), 5)
+    g.poly([(w - 34, -98), (w, -64), (w - 34, -64)], (226, 226, 232), 4)
+    title, body = str(k.get("title", "")).strip(), _text_lines(k, "text", "lines_text", limit=5)
+    stamp = str(k.get("stamp", "")).strip().upper()[:10]
+    if title or body:
+        if title:
+            _fit(g, title[:24].upper(), -14, -74, 13, 2 * w - 54, (50, 50, 80))
+            g.line([(-w + 14, -60), (w - 14, -60)], 3, (90, 90, 110))
+        for i, ln in enumerate(body):
+            _fit(g, ln[:30], 0, -38 + i * 21, 10.5, 2 * w - 20, (70, 70, 90), f="hand")
+    else:
+        g.line([(-52, -70), (20, -70)], 6, (90, 90, 110))
+        for i in range(max(1, min(n, 7))):
+            yy = -42 + i * 18
+            g.line([(-52, yy), (52 - (i % 3) * 16, yy)], 3, (160, 160, 172))
+    if stamp:
+        _fit(g, stamp, 0, 70, 15, 2 * w - 40, (190, 40, 50))
+        g.rect(-w + 14, 52, w - 14, 88, None, 3, (190, 40, 50))
+    else:
+        g.line([(-w + 24, 72), (-w + 44, 60), (-w + 60, 76), (-w + 80, 62)], 3, (40, 60, 140))
+        g.circ(w - 34, 70, 14, (190, 40, 50), 3)
 
 
 def crown(p, x, y, s, c, k):
@@ -876,7 +938,7 @@ THINGS = {
     "satellite": ("center", satellite, "Sputnik satellite (Space Race). params: style ('modern' for solar panels)"),
     "quill": ("center", quill, "quill pen in an inkpot (writing laws, letters, signing)"),
     "envelope": ("center", envelope, "sealed letter envelope (messages, telegrams, secret letters)"),
-    "newspaper": ("center", newspaper, "newspaper. params: label (headline, e.g. 'WAR!'), title"),
+    "newspaper": ("center", newspaper, "newspaper. params: label (headline, up to 2 lines, e.g. 'WAR DECLARED'), title (paper name), sub (small line)"),
     "gold_bars": ("bottom", gold_bars, "stack of gold bars (wealth, reserves, treasure)"),
     "torch": ("center", torch, "burning torch (exploring, angry mobs, light). params: angle"),
     "telescope": ("bottom", telescope, "brass telescope on a tripod (astronomy, Galileo, lookouts). color"),
@@ -913,8 +975,8 @@ UPGRADES = {
     "cannon": ("bottom", cannon, "old cannon on a wheel with cannonballs. params: flip"),
     "candle": ("bottom", candle, "memorial candle (somber)"),
     "coin": ("bottom", coin, "gold coin standing on its edge. params: label (1-2 characters like $)"),
-    "scroll": ("center", scroll, "rolled parchment scroll with a wax seal (treaty, decree, law)"),
-    "document": ("center", document, "signed sheet of paper (law, letter, contract). params: lines"),
+    "scroll": ("center", scroll, "rolled parchment scroll with a wax seal (treaty, decree, law). params: title, text (up to 4 short lines written on it)"),
+    "document": ("center", document, "signed sheet of paper (law, letter, contract). params: title, text (up to 5 short lines written on it), stamp (a red word like APPROVED), wide (bool)"),
     "crown": ("bottom", crown, "jeweled crown (power, monarchy). color"),
     "fire": ("bottom", campfire, "campfire / big fire with logs"),
     "island": ("bottom", island, "small tropical island with palm trees. color = grass"),

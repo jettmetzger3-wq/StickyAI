@@ -93,7 +93,8 @@ def pick_clip(ctx):
         return old["pick"], durs
     llm = st.provider(meta, "llm", ctx, task="short")
     pick = None
-    if llm.id != "offline" and llm.available()[0]:
+    from . import modes as MD
+    if llm.id != "offline" and llm.available()[0] and MD.profile(meta)["short_ai"]:
         try:
             ctx.progress(0.03, "choosing the best moment for the Short")
             pick = st.call_llm(ctx, llm, "You edit YouTube Shorts for a stickman history channel. JSON only.",

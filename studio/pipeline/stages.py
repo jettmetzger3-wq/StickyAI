@@ -21,9 +21,12 @@ from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind, m
 from ..engine.render import ENGINE_VERSION, pick_transition
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
+from .. import cache as CA, usage as UG
+from . import flow as FL, research as RS, director as DR, characters as CH, continuity as CT, review as RV, modes as MD
 from . import rules, costs, themes as TH, mascot as MA, writers as WR
 from .project import read_json, write_json
 from ..engine.custom_props import clean_kit, kit_sheet
+from ..knowledge import props_intel as PI
 from ..engine.registry import PROPS
 from .source import (fetch_meta, transcript_text, download_lowres, extract_frames, thumbnail_frames, contact_sheets,
                      hints_for_beats)
@@ -83,27 +86,66 @@ SAYING = {"script": "{who} is writing the script", "storyboard": "{who} is drawi
           "props": "{who} is designing props for this video", "facts": "{who} is fact-checking the script"}
 
 
-def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None, web=False):
+def _model_of(llm):
+    m = getattr(llm, "model", None)
+    if callable(m):
+        try:
+            m = m()
+        except Exception:
+            m = None
+    return str(m or "")
+
+
+def call_llm(ctx, llm, system, prompt, schema=None, images=(), label="", parse=True, tries=2, until=None, web=False,
+             cache=True):
+    """One AI request, with the cache in front and the usage ledger behind it.
+
+    An identical request (same writer + model + instructions + prompt + schema + images) is answered from the cache
+    and costs nothing; `cache=False` forces a fresh answer (the "redraw this scene" buttons). Every call, cached or
+    not, is written to the video's usage ledger."""
     last = None
     kind = label.split()[0] if label else ""
+    task = {"facts": "factcheck", "fix": "storyboard", "plan": "storyboard", "flow": "script"}.get(kind, kind)
     for attempt in range(tries):
         ctx.check_cancel()
         who = getattr(llm, "short", "The AI")
-        with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working").format(who=who),
-                         expect=EXPECT.get(kind, 45), until=until):
-            text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label,
-                                       **({"web": True} if web and getattr(llm, "supports_web", False) else {}))
+        t0 = time.time()
+        use_web = bool(web and getattr(llm, "supports_web", False))
+        k = CA.key("llm", getattr(llm, "id", ""), _model_of(llm), system, prompt, schema, [CA.file_key(i) for i in images],
+                   use_web)
+        text = CA.get("llm", k) if cache else None
+        usage = {}
+        cached = text is not None
+        if cached:
+            ctx.log(f"{label}: answered from the cache (no AI call)")
+        else:
+            with ctx.working(ctx.msg if ctx.msg and kind not in SAYING else SAYING.get(kind, ctx.msg or "working").format(who=who),
+                             expect=EXPECT.get(kind, 45), until=until):
+                text, usage = llm.complete(system, prompt, schema=schema, images=images, label=label,
+                                           **({"web": True} if use_web else {}))
         if usage.get("billed_usd"):
             costs.record(ctx.project, ctx.stage, llm.id, usd=usage["billed_usd"],
                          note=f"{label}: {usage.get('input_tokens', 0)} in / {usage.get('output_tokens', 0)} out tokens")
+        in_est = UG.tokens(len(system or "") + len(prompt)) + 700 * len(images)
+        UG.record(ctx.project, dict(
+            stage=ctx.stage, task=task, label=label, provider=getattr(llm, "id", ""), model=_model_of(llm),
+            cached=cached, secs=round(time.time() - t0, 1),
+            in_tok=int(usage.get("in_tok") or in_est), out_tok=int(usage.get("out_tok") or UG.tokens(len(str(text or "")))),
+            measured=bool(usage.get("measured"))))
         if not parse:
+            if not cached:
+                CA.put("llm", k, text, dict(label=label, provider=getattr(llm, "id", "")))
             return text
         try:
-            return P.extract_json(text)
+            data = P.extract_json(text)
         except Exception as e:
             last = e
             ctx.log(f"{label}: reply was not valid JSON, retrying ({e})")
             prompt = prompt + "\n\nIMPORTANT: your previous answer was not valid JSON. Reply with valid JSON only."
+            continue
+        if not cached:
+            CA.put("llm", k, text, dict(label=label, provider=getattr(llm, "id", "")))
+        return data
     raise P.ProviderError(f"{label}: no valid JSON after {tries} tries ({last})")
 
 
@@ -192,8 +234,10 @@ def normalize_script(data, fallback_title=""):
             continue
         mood = b.get("mood") if b.get("mood") in ("fun", "tense", "somber") else "fun"
         beat = {"mood": mood, "text": t}
-        if b.get("host") in ("intro", "outro"):          # the channel host's own lines (see mascot.py)
+        if b.get("host") in ("intro", "outro", "end"):          # the channel host's own lines (see mascot.py)
             beat["host"] = b["host"]
+        if b.get("part") in ("hook", "intro", "story", "payoff"):
+            beat["part"] = b["part"]
         beats.append(beat)
     if not beats:
         raise P.ProviderError("the script came back empty")
@@ -206,7 +250,13 @@ def normalize_script(data, fallback_title=""):
     cast = []
     for c in data.get("cast") or []:
         if isinstance(c, dict) and c.get("name"):
-            cast.append(dict(name=str(c["name"])[:40], kind=resolve_kind(c.get("kind")), hat_color=c.get("hat_color") or ""))
+            ent = dict(name=str(c["name"])[:40], kind=resolve_kind(c.get("kind")), hat_color=c.get("hat_color") or "")
+            for k in ("coat", "look", "role", "period", "trait"):      # the look and role survive (they used to be dropped)
+                if c.get(k):
+                    ent[k] = str(c[k])[:80]
+            if ent.get("look") not in (None, "beard", "mustache"):
+                ent.pop("look")
+            cast.append(ent)
     return dict(title=clean_line(data.get("title") or fallback_title), topic=clean_line(data.get("topic") or fallback_title),
                 beats=beats, facts=facts, cast=cast)
 
@@ -240,14 +290,26 @@ def stage_script(ctx):
             vn = src.get("visual_notes") or {}
             style_notes = f"Reference video: {src['title']} by {src['channel']}. Visual style: {vn.get('style', '')}. " \
                           f"Copy the pacing and humor style only, not the content."
+        brief_notes = ""
+        if MD.profile(meta)["research"] and meta.get("topic"):
+            try:
+                brief, _ = RS.get_brief(ctx, llm, meta["topic"], minutes,
+                                        lambda l, sy, pr_, lb, web: call_llm(ctx, l, sy, pr_, label=lb, web=web, tries=1))
+                if brief:
+                    write_json(pr.p("research.json"), brief)
+                    brief_notes = RS.notes_for_script(brief)
+            except P.ProviderError as e:
+                ctx.warn(f"couldn't research the topic first (the script is written from the model's own knowledge): {str(e)[:160]}")
         prompt = PR.script_prompt(meta.get("topic") or "", minutes, opts.get("tone") or "funny but respectful",
                                   style_notes, src if youtube else None, opts.get("faithfulness") or "balanced",
-                                  opts.get("extra") or "")
-        data = call_llm(ctx, llm, PR.SCRIPT_SYSTEM, prompt, schema=PR.SCRIPT_SCHEMA, label="script")
+                                  opts.get("extra") or "", research=brief_notes)
+        redo = os.path.exists(pr.p("script.json"))          # pressing "redo the script" must give a new one, not the saved answer
+        data = call_llm(ctx, llm, PR.SCRIPT_SYSTEM, prompt, schema=PR.SCRIPT_SCHEMA, label="script", cache=not redo)
         script = normalize_script(data, meta.get("topic") or (src or {}).get("title", ""))
     script["generated_by"] = llm.id
     script["created"] = time.time()
-    if llm.id != "offline" and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
+    profile = MD.profile(meta)
+    if llm.id != "offline" and profile["factcheck"] and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
         ctx.progress(0.6, "fact-checking")
         try:
             fc = provider(meta, "llm", ctx, task="factcheck")
@@ -256,14 +318,52 @@ def stage_script(ctx):
             fact_check(ctx, fc, script)
         except P.ProviderError as e:
             ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
-    if opts.get("mascot", True) is not False:
-        MA.add_host_beats(script, load_settings())
+    if llm.id != "offline" and profile["smooth"] and opts.get("smooth_flow", True) is not False:
+        smooth_flow(ctx, llm, script)
+    MA.add_host_beats(script, load_settings(), mascot=opts.get("mascot", True) is not False)
+    brief = read_json(pr.p("research.json"))
+    if brief:                                        # people the research found that the script's cast doesn't list
+        have = {c["name"].lower() for c in script.get("cast") or []}
+        script.setdefault("cast", []).extend(c for c in RS.cast_from_brief(brief) if c["name"].lower() not in have and not any(
+            c["name"].lower() in h_ or h_ in c["name"].lower() for h_ in have))
+    registry = CH.build(script)                      # who is who, defined once for the whole video
+    CH.merge_into_script(script, registry)
+    CH.save(pr, registry)
     pr.save_script(script)
     if not meta.get("title") or meta.get("title") in (meta.get("source_url"), meta.get("topic")):
         pr.update(title=script.get("title") or meta.get("title"))
     words = sum(len(b["text"].split()) for b in script["beats"])
     ctx.log(f"script: {len(script['beats'])} beats, {words} words (~{words / 150:.1f} min), {len(script.get('facts', []))} facts")
     ctx.progress(1.0, f"{len(script['beats'])} beats")
+
+
+def smooth_flow(ctx, llm, script, force=False):
+    """Find the beats that don't connect to the one before them (free, local check), and when there are several ask
+    the writer to reword just those so the story flows. Only for writers that cost nothing extra (your Claude plan,
+    Gemini, Groq, Ollama): a paid writer is left alone and the Script tab offers a "Smooth the flow" button that shows
+    its price first. Changes `script` in place; returns the beats that were reworded."""
+    beats = script.get("beats") or []
+    seams = FL.seams(beats)
+    ctx.log(f"flow: {len(seams)} beat(s) that don't connect to the one before")
+    if not seams or (not force and (len(seams) < 3 or len(seams) < 0.1 * len(beats))):
+        return []
+    if getattr(llm, "paid", False) and not force:
+        ctx.warn(f"{len(seams)} beats jump from one point to another. Use 'Smooth the flow' in the Script tab "
+                 f"to reword them (it shows the price first).")
+        return []
+    ctx.progress(0.85, "smoothing the flow between beats")
+    todo = seams[:16]
+    try:
+        data = call_llm(ctx, llm, PR.SCRIPT_SYSTEM, PR.smooth_prompt(script, todo), schema=PR.SMOOTH_SCHEMA,
+                        label="flow", tries=1, until=0.95)
+    except P.ProviderError as e:
+        ctx.warn(f"couldn't smooth the flow (the script was kept as written): {str(e)[:200]}")
+        return []
+    fixed = FL.apply_rewrites(beats, (data or {}).get("rewrites") if isinstance(data, dict) else None,
+                              {i for i, _ in todo}, clean_line)
+    script["flow"] = dict(at=time.time(), before=len(seams), fixed=fixed)
+    ctx.log(f"flow: reworded {len(fixed)} beat(s) so they connect")
+    return fixed
 
 
 def fact_check(ctx, llm, script):
@@ -318,10 +418,16 @@ def beat_durations(pr, beats):
 
 
 def stage_storyboard(ctx, only=None, force=False, instruction=""):
+    """The storyboard. Default ("director"): the AI plans each scene as a pattern plus a few details, the local composer
+    builds the scene, and only the beats no pattern fits go to the full storyboard writer. "classic" (Settings >
+    storyboard_engine) asks the writer for every scene as before. Either way the result is checked and repaired
+    locally, kept continuous from scene to scene, and reviewed before anything is voiced or rendered."""
     pr, meta = ctx.project, ctx.project.meta()
     script = pr.script()
-    beats, cast = script["beats"], script.get("cast") or []
+    beats = script["beats"]
     n = len(beats)
+    settings = load_settings()
+    profile = MD.profile(meta, settings=settings)
     info = read_json(pr.p("storyboard.json"), {}) or {}
     made = info.get("scenes") or {}
     todo = []
@@ -330,6 +436,8 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         if force or not os.path.exists(pr.scene_path(i)) or made.get(str(i), {}).get("key") != key:
             todo.append(i)
     llm = provider(meta, "llm", ctx, task="storyboard")
+    ai_ok = llm.id != "offline" and llm.available()[0]
+    engine = (meta.get("options") or {}).get("storyboard_engine") or settings.get("storyboard_engine") or "director"
     hints = {}
     if meta.get("mode") == "youtube":
         vn = read_json(pr.p("source", "visual_notes.json"))
@@ -339,8 +447,32 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
     vthemes = TH.detect(script.get("title", ""), script.get("topic", ""), beats)
     kit_text = TH.kit_block(vthemes)
     custom = pr.prop_kit()
+    registry = CH.load(pr) or CH.build(script)
+    if not CH.load(pr):
+        CH.save(pr, registry)
+    cast = CH.as_cast(registry) or script.get("cast") or []
+    analyses = DR.analyses_for(beats, cast)
+    tracker = CT.Tracker(pr)
     host_beats = {i for i in todo if beats[i].get("host")}
     ai_todo = [i for i in todo if i not in host_beats]
+    plan_info = {}
+    composed = set()
+    if todo and engine == "director":
+        # 1. plan every scene (AI: one compact request per ~16 scenes, cached per beat) and build it locally
+        if ai_ok:
+            ctx.progress(0.02, f"planning {len(ai_todo)} scenes")
+        who = getattr(llm, "short", "The AI")
+        with ctx.working(f"{who} is planning {len(ai_todo)} scenes" if ai_ok else f"building {len(ai_todo)} scenes", expect=40, until=0.3), \
+                PI.docs_scope(RS.docs_from_brief(read_json(pr.p("research.json")))):
+            scenes, custom_idx, plan_info = DR.build(
+                ctx, llm if ai_ok else None, script, ai_todo, registry, analyses, tracker, profile,
+                lambda l, system, prompt, label: call_llm(ctx, l, system, prompt, label=label, cache=not force and not instruction),
+                hints, parallel=max(1, int(getattr(llm, "parallel", 3) or 3)), force=force)
+        raw.update(scenes)
+        composed = set(scenes)
+        ai_todo = custom_idx if (profile["custom_ai"] and ai_ok) else []
+        ctx.log(f"storyboard: {len(composed)} scenes composed from patterns, {len(custom_idx)} need the full scene writer"
+                + ("" if ai_todo else " (drawn with simple rules: AI is off for that in this mode)" if custom_idx else ""))
     if ai_todo and llm.id != "offline":
         ok, why = llm.available()
         if not ok:
@@ -348,7 +480,8 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         props_llm = provider(meta, "llm", ctx, task="props")
         if props_llm.id == "offline" or not props_llm.available()[0]:
             props_llm = llm
-        custom = design_props(ctx, props_llm, script, beats, vthemes, kit_text, custom)
+        if profile["props_ai"]:
+            custom = design_props(ctx, props_llm, script, beats, vthemes, kit_text, custom)
         # free API writers have small per-minute limits: they get fewer scenes (and examples) per request
         size = max(1, int(getattr(llm, "batch_beats", 8) or 8))
         n_ex = int(getattr(llm, "examples", 20))
@@ -373,13 +506,14 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
 
         def ask_batch(idx, n_ex):
             # the active writer can change mid-way (backup writer), so size the request for the one answering now
-            n_ex = min(n_ex, int(getattr(llm, "examples", 20)))
-            prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, cast, script.get("title", ""), hints,
+            n_ex = min(n_ex, int(getattr(llm, "examples", 20)), 6 if composed else 20)   # fewer examples for the odd scenes
+            prompt = PR.storyboard_prompt([(i, beats[i]) for i in idx], beats, script.get("cast") or cast, script.get("title", ""), hints,
                                           kit_text=kit_text, custom=custom, examples=n_ex,
                                           compact=compact or bool(getattr(llm, "compact", False)))
             if instruction:
                 prompt += f"\n\nEXTRA DIRECTION FROM THE USER: {instruction}"
-            data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, prompt, label=f"storyboard {idx[0]}-{idx[-1]}")
+            data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, prompt, label=f"storyboard {idx[0]}-{idx[-1]}",
+                            cache=not force and not instruction)
             out = {}
             items = data.get("scenes") if isinstance(data, dict) else data
             for k, it in enumerate(items or []):
@@ -393,7 +527,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                     out[bi] = sc
             return out
 
-        ctx.progress(0.02, f"drawing {len(ai_todo)} scenes")
+        ctx.progress(0.3 if composed else 0.02, f"drawing {len(ai_todo)} scenes")
         par = max(1, int(getattr(llm, "parallel", 3) or 3))
         rounds = (len(batches) + par - 1) // par
         with ctx.working(f"{who} is drawing up {len(ai_todo)} scenes", expect=75 * rounds, until=0.64), \
@@ -407,7 +541,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 except Exception as e:
                     ctx.warn(f"storyboard batch {b0[0]}-{b0[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b0)
-                ctx.progress(0.05 + 0.6 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
+                ctx.progress(0.3 + 0.35 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
             futs = {ex.submit(run_batch, b): b for b in batches}
             for fut in cf.as_completed(futs):
                 b = futs[fut]
@@ -416,7 +550,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 except Exception as e:
                     ctx.warn(f"storyboard batch {b[0]}-{b[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b)
-                ctx.progress(0.05 + 0.6 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
+                ctx.progress(0.3 + 0.35 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
     finished = {}
     for i in todo:
         ctx.check_cancel()
@@ -433,7 +567,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"], custom, cast) if sc else (None, [], ["missing"])
         if talk:
             fixes = ["gave the speaker a line"] + fixes
-        if (errs or not (fixed or {}).get("elements")) and llm.id != "offline" and sc is not None:
+        if (errs or not (fixed or {}).get("elements")) and llm.id != "offline" and sc is not None and i not in composed and ai_ok:
             try:
                 data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, PR.fix_scene_prompt(sc, errs or ["no elements"], beat),
                                 label=f"fix scene {i}")
@@ -442,30 +576,106 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
             except Exception as e:
                 errs = [str(e)]
         source = llm.id
+        if i in composed:
+            source = "pattern:" + str((plan_info.get(i) or {}).get("pattern", ""))
         if fixed is None or errs or not fixed.get("elements"):
             fixed, fixes3, _ = check_scene(rules.rule_scene(beat, i, cast, vthemes), beat["mood"], beat["text"], custom, cast)
             fixes = fixes + ["used a simple rule-based scene"] + fixes3
             source = "rules"
         finished[i] = fixed
-        made[str(i)] = dict(key=h(beat["text"], beat["mood"]), fixes=fixes, source=source, at=time.time())
+        made[str(i)] = dict(key=h(beat["text"], beat["mood"]), fixes=fixes, source=source, at=time.time(),
+                            pattern=(plan_info.get(i) or {}).get("pattern"))
     # two scenes in a row shouldn't look the same: nudge colors / time of day of the new ones
+    everything = {i: finished.get(i) or read_json(pr.scene_path(i)) for i in range(n)}
     if finished:
-        everything = {i: finished.get(i) or read_json(pr.scene_path(i)) for i in range(n)}
         for i, what in TH.vary(everything, list(range(n)), set(finished)):
             made[str(i)]["fixes"] = made[str(i)]["fixes"] + [f"varied the background ({what})"]
+    # the storyboard review: check narration match, history, continuity, props, action, camera, pacing, mood, repeats
+    if finished:
+        ctx.progress(0.66, "reviewing the storyboard")
+        durs = [d for d, _ in beat_durations(pr, beats)]
+        report = RV.run({i: sc for i, sc in everything.items() if sc}, beats, analyses, registry, durs,
+                        usage=UG.summarize(UG.calls(pr)), only=set(finished))
+        if profile["review_ai"] and ai_ok:
+            ai_fix_open(ctx, llm, report, finished, beats, custom, cast)
+        for iss in report["issues"]:
+            if iss["fixed"] and iss["beat"] in made:
+                made[str(iss["beat"])]["fixes"] = made[str(iss["beat"])]["fixes"] + ["review: " + iss["msg"]]
+        report["mode"] = profile["name"]
+        report["at"] = time.time()
+        write_json(pr.p("review.json"), report)
+        ctx.log(f"review: {report['fixed']} problems fixed automatically, {report['open']} left for you to look at")
     for i, fixed in finished.items():
         pr.save_scene(i, fixed)
     info["scenes"] = made
     info["themes"] = vthemes
+    info["engine"] = engine
+    info["mode"] = profile["name"]
     write_json(pr.p("storyboard.json"), info)
+    if plan_info:
+        old = (read_json(pr.p("plan.json"), {}) or {}).get("beats") or {}
+        old.update({str(i): v for i, v in plan_info.items()})
+        write_json(pr.p("plan.json"), dict(beats=old, engine=engine, patterns_version=DR.PT.version(), at=time.time()))
+    tracker.save((read_json(pr.p("review.json"), {}) or {}).get("issues") if finished else None)
     ctx.progress(0.7, "rendering previews")
     render_previews(ctx, [i for i in range(n) if i in todo or not os.path.exists(pr.preview_path(i))], 0.7, 1.0)
     ctx.progress(1.0, f"{n} scenes")
 
 
+def ai_fix_open(ctx, llm, report, finished, beats, custom, cast, limit=8):
+    """Deep mode: hand the writer, in ONE request, only the scenes the local review could not fix (at most `limit`)."""
+    open_by_beat = {}
+    for iss in report["issues"]:
+        if not iss["fixed"] and iss["severity"] in ("medium", "high") and iss["beat"] in finished:
+            open_by_beat.setdefault(iss["beat"], []).append(iss["msg"])
+    items = [(i, beats[i], finished[i], msgs) for i, msgs in list(open_by_beat.items())[:limit]]
+    if not items:
+        return
+    try:
+        data = call_llm(ctx, llm, PR.STORYBOARD_SYSTEM, PR.fix_scenes_prompt(items), label=f"fix scenes {items[0][0]}-{items[-1][0]}")
+    except Exception as e:
+        ctx.log(f"couldn't ask the writer to fix {len(items)} scenes: {str(e)[:100]}")
+        return
+    for it in (data.get("scenes") if isinstance(data, dict) else data) or []:
+        i = it.get("beat") if isinstance(it, dict) else None
+        if i not in finished:
+            continue
+        fixed, _, errs = check_scene(it.get("scene"), beats[i]["mood"], beats[i]["text"], custom, cast)
+        if fixed and not errs and fixed.get("elements"):
+            n = len(open_by_beat.get(i, []))
+            finished[i] = fixed
+            report["fixed"] += n
+            report["open"] = max(0, report["open"] - n)
+
+
+def cached_props(text):
+    """Custom props an earlier video already had drawn (the Rosetta Stone, a Spitfire) whose names appear in `text`."""
+    idx = CA.get("props", "_index") or {}
+    low = str(text or "").lower()
+    out = []
+    for name, k in idx.items():
+        words = [w for w in name.split("_") if len(w) >= 4] or name.split("_")
+        if words and all(w in low for w in words):
+            d = CA.get("props", k)
+            if d:
+                out.append(d)
+    return out
+
+
+def remember_props(kit):
+    idx = CA.get("props", "_index") or {}
+    for d in kit or []:
+        k = CA.key("prop", d.get("name"))
+        CA.put("props", k, d, dict(name=d.get("name")))
+        idx[d["name"]] = k
+    if kit:
+        CA.put("props", "_index", idx)
+
+
 def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
     """Ask the writer once per script for a few props this story needs that the library doesn't have.
-    Saved in props.json; reused until the script changes. A failure here never stops the storyboard."""
+    Saved in props.json; reused until the script changes. Props drawn for earlier videos are reused from the cache
+    (and the AI isn't asked at all when the cache already covers the story). A failure here never stops the storyboard."""
     pr = ctx.project
     key = h(script.get("title", ""), script.get("topic", ""), [b["text"] for b in beats])
     saved = read_json(pr.p("props.json"), {}) or {}
@@ -473,6 +683,11 @@ def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
         return saved.get("props") or []
     if not (load_settings().get("custom_props", True)):
         return current or []
+    have = cached_props(" ".join(b.get("text", "") for b in beats))
+    if len(have) >= 4:
+        ctx.log("props: reused " + ", ".join(d["name"] for d in have) + " from earlier videos (no AI call)")
+        write_json(pr.p("props.json"), dict(key=key, props=have, themes=vthemes, at=time.time(), cached=True))
+        return have
     try:
         data = call_llm(ctx, llm, PR.PROP_DESIGN_SYSTEM,
                         PR.prop_design_prompt(script.get("title", ""), script.get("topic", ""), beats, kit_text),
@@ -480,7 +695,10 @@ def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
         kit = clean_kit(data, PROPS)
     except Exception as e:
         ctx.warn(f"couldn't design custom props, using the library only: {str(e)[:160]}")
-        return current or []
+        return have or current or []
+    names = {d["name"] for d in kit}
+    kit = kit + [d for d in have if d["name"] not in names]
+    remember_props(kit)
     write_json(pr.p("props.json"), dict(key=key, props=kit, themes=vthemes, at=time.time()))
     if kit:
         ctx.log("designed props: " + ", ".join(d["name"] for d in kit))
@@ -852,7 +1070,7 @@ def stage_package(ctx):
     llm = provider(meta, "llm", ctx, task="package")
     ctx.progress(0.05, "writing title, description and tags")
     data = None
-    if llm.id != "offline" and llm.available()[0]:
+    if llm.id != "offline" and llm.available()[0] and MD.profile(meta)["package_ai"]:
         try:
             data = call_llm(ctx, llm, "You are a YouTube growth expert for history channels. JSON only.",
                             PR.package_prompt(script, total / 60), schema=PR.PACKAGE_SCHEMA, label="package")

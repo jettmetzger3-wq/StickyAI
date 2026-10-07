@@ -80,6 +80,51 @@ function PlanPicker({ cfg, tier, setTier, minutes }) {
   );
 }
 
+const MODE_BLURB = {
+  fast: "Quick drafts and tests. Fewest AI calls, everything reused.",
+  normal: "Everyday quality with low usage. AI only where it matters.",
+  deep: "Best quality: research, web fact-check, AI polish. Uses the most.",
+};
+const kfmt = (n) => (n >= 1000 ? `${Math.round(n / 1000)}k` : `${n}`);
+
+function UsageCard({ u }) {
+  return (
+    <Card title="AI usage (your Claude plan)">
+      <div className="flex items-baseline justify-between">
+        <span className="text-2xl font-bold">~{kfmt(u.total.tokens)} tokens</span>
+        <span className="text-sm text-stone-500 dark:text-zinc-400">{u.total.calls} AI calls</span>
+      </div>
+      {u.saved_pct > 0 && (
+        <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">
+          About {u.saved_pct}% less than the old way (~{kfmt(u.old_way.tokens)} tokens, {u.old_way.calls} calls).
+        </p>
+      )}
+      {u.total.cached > 0 && <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">{u.total.cached} steps are already saved from earlier work and cost nothing.</p>}
+      {u.warnings?.map((w, i) => (
+        <p key={i} className="mt-2 rounded-lg bg-amber-100 p-2 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
+          {w}
+        </p>
+      ))}
+      <details className="mt-2">
+        <summary className="cursor-pointer text-xs font-medium text-stone-600 dark:text-zinc-400">What each step uses</summary>
+        <div className="mt-1 space-y-0.5 text-xs text-stone-600 dark:text-zinc-400">
+          {u.items.map((it, i) => (
+            <div key={i} className="flex justify-between gap-2">
+              <span>
+                {it.label}
+                {it.cached ? ` (${it.cached} saved)` : ""}
+              </span>
+              <span className="whitespace-nowrap">
+                {it.calls} × ~{kfmt(it.in_tok + it.out_tok)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </details>
+      <p className="mt-2 text-xs text-stone-400">An estimate: it moves a little once the real script exists.</p>
+    </Card>
+  );
+}
 export default function NewVideo() {
   const cfg = useConfig();
   const planMode = cfg.mode === "hosted" && !cfg.user?.is_admin;
@@ -98,6 +143,8 @@ export default function NewVideo() {
   const [autopilot, setAutopilot] = useState(true);
   const [shareCopy, setShareCopy] = useState(true);
   const [mascot, setMascot] = useState(true);
+  const [genMode, setGenMode] = useState("normal");
+  const [usageByMode, setUsageByMode] = useState(null);
   const [credit, setCredit] = useState(true);
   const [tier, setTier] = useState(planMode && cfg.user?.usage?.plan === "pro" ? "pro" : "free");
   const [aiShort, setAiShort] = useState(false);
@@ -125,6 +172,7 @@ export default function NewVideo() {
       setAutopilot(d.settings.autopilot !== false);
       setShareCopy(d.settings.share_copy !== false);
       setMascot(d.settings.mascot?.on !== false);
+      setGenMode(d.settings.gen_mode || "normal");
       // "Custom" starts from your default tools (Settings > Tools)
       setCustom((c) => ({ ...(c || {}), ...d.settings.providers }));
     });
@@ -186,6 +234,7 @@ export default function NewVideo() {
         })
         .then((d) => {
           setEstimate(d.estimate);
+          setUsageByMode(d.usage_by_mode || null);
           setUnavailable(d.unavailable || {});
         })
         .catch(() => {});
@@ -219,6 +268,7 @@ export default function NewVideo() {
         share_copy: shareCopy,
         credit_source: credit,
         mascot,
+        gen_mode: genMode,
         providers,
         voice,
         approve,
@@ -419,6 +469,38 @@ export default function NewVideo() {
           {providers && settings && <VoicePicker provider={providers.voice} settings={settings} value={voice} onChange={setVoice} />}
         </Card>
 
+        {!planMode && (
+          <Card title="Quality mode">
+            <div className="grid gap-2 sm:grid-cols-3">
+              {["fast", "normal", "deep"].map((m) => {
+                const u = usageByMode?.[m]?.total;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setGenMode(m)}
+                    className={cx(
+                      "rounded-xl border p-3 text-left text-sm transition",
+                      genMode === m ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20" : "border-stone-200 hover:border-stone-300 dark:border-zinc-700"
+                    )}
+                  >
+                    <div className="font-semibold capitalize">{m}</div>
+                    <div className="mt-0.5 text-xs text-stone-500 dark:text-zinc-400">{MODE_BLURB[m]}</div>
+                    {u && (
+                      <div className="mt-1.5 text-xs font-medium">
+                        ~{kfmt(u.tokens)} tokens · {u.calls} AI calls
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-xs text-stone-500 dark:text-zinc-400">
+              The studio keeps what it already knows (answers, research, drawn props), so repeat topics cost less every time. Change the default in Settings.
+            </p>
+          </Card>
+        )}
+
         <Card title="Workflow">
           <div className="space-y-3">
             <Toggle
@@ -439,6 +521,7 @@ export default function NewVideo() {
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-20 lg:self-start">
+        {!planMode && usageByMode?.[genMode] && <UsageCard u={usageByMode[genMode]} />}
         {planMode ? (
           <Card title="Your plan">
             {tier === "free" ? (

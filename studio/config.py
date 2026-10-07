@@ -84,7 +84,7 @@ DEFAULT_SETTINGS = {
         "image": "local",
         "shorts": "stickman",
     },
-    "llm_models": {"claude_cli": "", "anthropic": "claude-opus-5-5", "ollama": "llama3.1",
+    "llm_models": {"claude_cli": "", "anthropic": "claude-sonnet-5-5", "ollama": "llama3.1",
                    "gemini": "gemini-flash-latest", "groq": "openai/gpt-oss-120b"},
     "ollama_url": "http://localhost:11434",
     "claude_cli_path": "",
@@ -93,13 +93,20 @@ DEFAULT_SETTINGS = {
     # package (titles, description), short (picking the Short's moment)
     "task_writers": {"script": "", "factcheck": "", "watch": "", "props": "", "storyboard": "", "package": "",
                      "short": ""},
-    # Claude Code model per job when Claude Code does it: "" = the plan saver decides, "default" = your Claude Code
-    # default, or opus | sonnet | haiku (or a full model name)
+    # Claude Code model per job when Claude Code does it: "" = the plan saver decides (everything runs on the main
+    # model, Sonnet 5.5, unless Settings says otherwise), "default" = your own Claude Code default, or
+    # opus | sonnet | haiku (or a full model name)
     "claude_task_models": {"script": "", "factcheck": "", "watch": "", "props": "", "storyboard": "", "package": "",
                            "short": ""},
     # Claude plan saver: off | balanced (same quality: lighter model for side jobs, bigger batches, cached
     # instructions) | max (stretches the plan furthest)
     "plan_saver": "balanced",
+    # How much AI a video uses: fast (drafts and tests) | normal | deep (research + web fact-check + AI polish)
+    "gen_mode": "normal",
+    # director = the AI plans each scene as a pattern + details and the studio builds it (far fewer tokens);
+    # classic = the AI writes every scene in full
+    "storyboard_engine": "director",
+    "cache_enabled": True,             # reuse AI answers, topic research and drawn props instead of asking again
     "voice": {
         "kokoro_voice": "am_michael",
         "kokoro_speed": 1.2,
@@ -167,14 +174,14 @@ DEFAULT_SETTINGS = {
                 "watermark": True, "shorts": ["stickman"],
                 "providers": {"transcript": "youtube_captions", "llm": "anthropic", "voice": "kokoro",
                               "music": "synth", "image": "local", "shorts": "stickman"},
-                "llm_model": "claude-opus-5-5",
+                "llm_model": "claude-sonnet-5-5",
             },
             "pro": {
                 "name": "Pro", "price_usd": 19.99, "videos_per_month": 0, "max_minutes": 15, "pro_minutes": 30,
                 "watermark": False, "shorts": ["stickman", "calliope"],
                 "providers": {"transcript": "youtube_captions", "llm": "anthropic", "voice": "elevenlabs",
                               "music": "elevenlabs_music", "image": "elevenlabs_image", "shorts": "stickman"},
-                "llm_model": "claude-opus-5-5",
+                "llm_model": "claude-sonnet-5-5",
             },
         },
         "pack": {"name": "+10 Pro minutes", "price_usd": 5.99, "minutes": 10},

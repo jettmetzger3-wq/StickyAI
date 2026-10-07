@@ -76,15 +76,20 @@ def offline_script(topic, minutes, source=None):
         title = source.get("title") or topic or "Untitled"
     else:
         title = topic or "History"
-        beats = [f"Today we're talking about {title}, and trust me, it's a wild story with a twist nobody expected.",
-                 f"So how did {title} actually happen? Let's start at the very beginning.",
+        beats = [f"{title} sounds boring, until you hear what actually happened.",
+                 f"So what was {title}? Short version: a big chapter of history where rivals, mistakes and a few lucky breaks changed the world.",
+                 "In this video we'll see how it started, how it got out of hand, and how it ended.",
                  f"First, picture the world before {title}. Kingdoms, rivals, and a lot of people with big plans.",
                  "Then things start to change, slowly at first, and then all at once.",
                  "Rivals notice, alliances shift, and suddenly everyone is watching the same map.",
-                 f"And that's {title} in a nutshell. If you liked this one, subscribe for more history!"]
+                 f"And that's why {title} still matters today."]
     beats = [dict(mood=mood_for(b), text=b) for b in beats if b.strip()]
     if beats:
         beats[-1]["mood"] = "fun"
+    if not (source and source.get("segments")) and len(beats) >= 3:
+        beats[0]["part"] = "hook"
+        beats[1]["part"] = beats[2]["part"] = "intro"
+        beats[-1]["part"] = "payoff"
     return dict(title=title, topic=topic or title, beats=beats, facts=[], cast=[], generated_by="offline")
 
 

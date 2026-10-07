@@ -265,7 +265,7 @@ def test_storyboard_stage_uses_kit_custom_props_and_dialogue(monkeypatch):
 
     monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None, task=None: FakeLLM())
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
-    pr = new_project("Napoleon in Egypt", "topic", topic="Napoleon in Egypt", options={"minutes": 1})
+    pr = new_project("Napoleon in Egypt", "topic", topic="Napoleon in Egypt", options={"minutes": 1, "storyboard_engine": "classic"})
     pr.save_script({"title": "Napoleon in Egypt", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],
                     "beats": [{"mood": "fun", "text": "Napoleon motivated his men under the pyramids."},
                               {"mood": "fun", "text": "His scholars found the Rosetta Stone near the Nile."},
