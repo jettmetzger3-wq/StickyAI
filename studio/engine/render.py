@@ -218,25 +218,22 @@ def concat_segments(paths, out_path, audio_path=None):
     return out_path
 
 
-def share_copy(src, out_path, max_mb=30.0, duration=None):
-    """2-pass x264 copy under max_mb (flat doodle art looks fine around 230 kbps)."""
+def share_copy(src, out_path, max_mb=30.0, duration=None, height=720):
+    """A small copy of the video under max_mb for chats and phones. One capped x264 pass at `height` pixels tall
+    (flat doodle art stays cleaner at 720p than at 1080p for the same few hundred kbps, and the encode takes about
+    half as long as the old two-pass 1080p one). The video bitrate is capped (maxrate), so the size never goes over."""
     if duration is None:
         duration = probe_duration(src)
     audio_kbps = 96
     total_kbps = max_mb * 8 * 1024 / max(duration, 1) * 0.94
     v_kbps = int(max(120, min(300, total_kbps - audio_kbps)))
-    passlog = out_path + ".passlog"
-    null = "NUL" if os.name == "nt" else "/dev/null"
-    base = ["ffmpeg", "-y", "-loglevel", "error", "-i", src, "-c:v", "libx264", "-preset", "medium",
-            "-b:v", f"{v_kbps}k", "-passlogfile", passlog]
-    subprocess.run(base + ["-pass", "1", "-an", "-f", "mp4", null], check=True)
-    subprocess.run(base + ["-pass", "2", "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-movflags", "+faststart", out_path],
-                   check=True)
-    for ext in ("-0.log", "-0.log.mbtree"):
-        try:
-            os.remove(passlog + ext)
-        except OSError:
-            pass
+    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-i", src]
+    if height and int(height) > 0:
+        cmd += ["-vf", f"scale=-2:min({int(height)}\\,ih)"]          # never upscale a smaller source
+    cmd += ["-c:v", "libx264", "-preset", "medium", "-tune", "animation", "-b:v", f"{v_kbps}k",
+            "-maxrate", f"{v_kbps}k", "-bufsize", f"{v_kbps * 2}k", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", f"{audio_kbps}k", "-movflags", "+faststart", out_path]
+    subprocess.run(cmd, check=True)
     return out_path, v_kbps
 
 

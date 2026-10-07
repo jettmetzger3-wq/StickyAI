@@ -360,8 +360,11 @@ the Kokoro model in `data/models/`.
 - **Fallback scenes** (Basic mode, or when an AI scene can't be repaired) now use maps with territories and
   invasion arrows when countries are mentioned, timelines for several dates, counters for big numbers ("600,000
   men", "£2 billion") and action moments (ships sinking, forts collapsing, cannons firing).
-- **Speed**: rendering is about 2.5x faster than before (the camera crops and scales instead of warping the whole
-  frame, and redrawn characters use a cheaper, equally clean downscale).
+- **Speed**: rendering is about 2.5x faster than the first version (the camera crops and scales instead of warping the whole
+  frame, and redrawn characters use a cheaper, equally clean downscale), scene setup takes half as long (layers are cut to
+  what was drawn before they are converted) and the small share copy is made in about half the time (720p, one capped
+  pass; Settings → "Share copy picture size"). `python scripts/bench_render.py` measures it and proves a change did not alter
+  the picture; what was tried and rejected is in `docs/performance.md`.
 - **Music and narration**: the free synth picks the music from the story (epic drums for battles, mystery for
   secrets, a fanfare for victories, sad strings for sad moments), adds a musical hit on big moments (a victory, a
   twist, a war breaking out, a flop), and the narrator slows down with a pause for sad parts and speeds up a little

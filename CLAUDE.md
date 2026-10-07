@@ -52,4 +52,5 @@ file conversion. AI: the script, fact-check (needs web), choosing patterns + jok
 ## Tests
 `python -m pytest -q tests` (about 460 tests, ~2.5 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
 Rendering checks: `python -m studio research build-docs` regenerates `research/scene-patterns.md` after editing patterns.json.
+Speed work: measure first with `python scripts/bench_render.py` (`--profile frames|build`), prove the picture is unchanged with `--save`/`--check`, and read `docs/performance.md` for what was already tried. Only speed-ups that leave the picture unchanged keep `ENGINE_VERSION` as is.
 When you change how scenes look, bump `ENGINE_VERSION` in `studio/engine/render.py` (it is part of the render cache key).

@@ -72,6 +72,43 @@ def gradient(size, top, bottom):
     return ImageOps.colorize(g, top, bottom)
 
 
+_GRAIN = []
+
+
+def paper_grain():
+    """The faint paper grain every background gets (gaussian noise around mid-grey, sigma 12). Made once per process
+    from a fixed seed instead of once per scene: it took ~100 ms each time, and now two renders of the same scene
+    match pixel for pixel (the old noise was different on every run)."""
+    if not _GRAIN:
+        rng = np.random.default_rng(1234)
+        a = np.clip(rng.normal(128.0, 12.0, (H, W)), 0, 255).astype(np.uint8)
+        _GRAIN.append(Image.fromarray(a, "L").convert("RGB"))
+    return _GRAIN[0]
+
+
+LAYER_MARGIN = 3 * SS + 2       # source pixels around a drawing that the LANCZOS filter can still reach
+
+
+def finish_layer(im):
+    """A 2x supersampled RGBA drawing (the whole screen's size) -> (the layer's RGBA image cropped to what was drawn,
+    its top-left on screen), or (None, (0, 0)) when nothing was drawn. Only the part of the canvas that has ink is
+    converted and downsampled (a small prop no longer pays for a 4K canvas); the pixels are the same as converting
+    the whole canvas, because the cut leaves a margin wider than the filter reaches."""
+    box = im.getchannel("A").getbbox()
+    if not box:
+        return None, (0, 0)
+    x0 = max(0, (box[0] - LAYER_MARGIN) // SS * SS)
+    y0 = max(0, (box[1] - LAYER_MARGIN) // SS * SS)
+    x1 = min(W * SS, -(-(box[2] + LAYER_MARGIN) // SS) * SS)
+    y1 = min(H * SS, -(-(box[3] + LAYER_MARGIN) // SS) * SS)
+    part = im.crop((x0, y0, x1, y1)).convert("RGBa").resize(((x1 - x0) // SS, (y1 - y0) // SS), Image.LANCZOS)
+    part = part.convert("RGBA")
+    bb = part.getchannel("A").getbbox()
+    if not bb:
+        return None, (0, 0)
+    return part.crop(bb), (x0 // SS + bb[0], y0 // SS + bb[1])
+
+
 class Scene:
     def __init__(self, idx, dur, mood, text, timer=None, lead=LEAD, tail=TAIL):
         self.idx, self.dur, self.mood, self.text = idx, float(dur), mood, text
@@ -104,8 +141,7 @@ class Scene:
         yield p
         im = p.im.resize((W, H), Image.LANCZOS)
         if noise:
-            n = Image.effect_noise((W, H), 12).convert("RGB")
-            im = Image.blend(im, n, 0.03)
+            im = Image.blend(im, paper_grain(), 0.03)
         self.bg = im
 
     def bg_paper(self, col=PAPER):
@@ -295,11 +331,7 @@ class Scene:
 
     # ---------------- layers ----------------
     def _finish(self, p):
-        im = p.im.convert("RGBa").resize((W, H), Image.LANCZOS).convert("RGBA")
-        bb = im.getchannel("A").getbbox()
-        if not bb:
-            return None, (0, 0)
-        return im.crop(bb), (bb[0], bb[1])
+        return finish_layer(p.im)
 
     @contextmanager
     def layer(self, enter="pop", at=0.0, edur=0.38, idle=None, anchor="center", exit_at=None,

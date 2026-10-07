@@ -996,7 +996,8 @@ def stage_mix(ctx):
         ctx.progress(0.8, "making the small share copy")
         with ctx.working("making the small share copy", expect=15 + total / 4, until=0.98):
             _, kbps = share_copy(pr.p("final", "video.mp4"), pr.p("final", "video_share.mp4"),
-                                 float(settings.get("share_max_mb") or 30), total)
+                                 float(settings.get("share_max_mb") or 30), total,
+                                 height=int(settings.get("share_height", 720) or 0))
         ctx.log(f"share copy at {kbps} kbps")
     ctx.progress(1.0, "final video ready")
 

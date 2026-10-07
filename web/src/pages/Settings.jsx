@@ -772,6 +772,13 @@ export default function Settings() {
           <Field label="Share copy max size (MB)">
             <input type="number" className="w-full" value={s.share_max_mb} onChange={(e) => set({ share_max_mb: Number(e.target.value) })} />
           </Field>
+          <Field label="Share copy picture size" hint="720p is about twice as fast to make and looks cleaner at a few hundred kbps.">
+            <select className="w-full" value={s.share_height ?? 720} onChange={(e) => set({ share_height: Number(e.target.value) })}>
+              <option value={720}>720p (recommended)</option>
+              <option value={480}>480p (smallest)</option>
+              <option value={0}>Same as the video (1080p)</option>
+            </select>
+          </Field>
           <Field label="Render workers (0 = CPU cores minus one)">
             <input type="number" min="0" className="w-full" value={s.render_workers} onChange={(e) => set({ render_workers: Number(e.target.value) })} />
           </Field>

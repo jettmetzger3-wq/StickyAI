@@ -141,6 +141,7 @@ DEFAULT_SETTINGS = {
                "outro_line": "And that's the story of {title}! I'm {name}. See you next time!"},
     "share_copy": True,
     "share_max_mb": 30,
+    "share_height": 720,            # the small share copy is this many pixels tall (0 = same size as the video)
     "render_workers": 0,
     # Local mode safety net: the run pauses and asks again before one video's spending goes over this.
     "max_usd_per_video": 15.0,
