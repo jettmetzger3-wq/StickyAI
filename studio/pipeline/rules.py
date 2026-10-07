@@ -136,7 +136,13 @@ def rule_scene(beat, idx=0, cast=None, themes=()):
                                "pose": "point_right" if mood != "somber" else "down", "at": 0.02})
         return sc
     els = []
-    bg = _theme_bg(ths, idx, mood, rnd)
+    from ..engine.schema import activity_place
+    bg = activity_place(text)                     # "he built a factory" -> the construction site, full screen
+    if bg is not None and mood == "somber" and bg["type"] not in ("prison", "courtroom", "parliament", "mine",
+                                                                    "classroom", "lab"):
+        bg["time"] = "dusk"
+    if bg is None:
+        bg = _theme_bg(ths, idx, mood, rnd)
     if bg is None:
         if mood == "somber":
             bg = rnd.choice([{"type": "dark"}, {"type": "field", "time": "dusk"}, {"type": "snow", "time": "storm"}])
@@ -204,6 +210,11 @@ def rule_scene(beat, idx=0, cast=None, themes=()):
         els.append({"type": "prop", "name": name, "x": x, "y": 520 if center else 860,
                     "scale": 0.8 if name not in ("line_chart",) else 1.0, "params": params,
                     "at": f"word:{word.split()[0]}" if word else 0.3})
+    work = {"mine": "dig", "farm": "dig"}.get(bg.get("type"))
+    if work and mood != "somber":
+        main = next(e for e in els if e["type"] == "char")
+        main["do"] = [{"act": work, "at": 0.15, "dur": 2.4}]
+        main["prop"] = "pickaxe" if bg["type"] == "mine" else "shovel"
     line = line_for(text, mood, ths, idx)
     if line is None and mood != "somber" and rnd.random() < 0.55:
         line = rnd.choice(REACTIONS[mood])

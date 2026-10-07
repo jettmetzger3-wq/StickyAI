@@ -588,6 +588,29 @@ def make_ambience(kind, seconds=16.0):
     elif kind == "night":
         crick = (np.sin(2 * np.pi * 4500 * t) * (np.sin(2 * np.pi * 30 * t) > 0.3) * (np.sin(2 * np.pi * 0.7 * t) > 0))
         out += crick * 0.25 + _noise(n, 150, 600) * 0.15
+    elif kind == "construction":             # hammers on steel, a distant engine
+        out += _noise(n, 40, 220) * 0.25 * (0.7 + 0.3 * slow(1 / 4.0))
+
+        def hammering():
+            hits = []
+            for k in range(int(rng.integers(3, 7))):
+                d = 0.12
+                tt = np.arange(int(d * SR)) / SR
+                f0 = rng.uniform(1700, 2600)
+                hits.append((k * 0.5, (np.sin(2 * np.pi * f0 * tt) * np.exp(-tt * 40) + noise_hit(d, 3500)[:len(tt)])
+                             * 0.35))
+            return _mixed(hits)
+        _events(out, hammering, 2.6, 0.6)
+    elif kind == "factory":                  # machine hum, the press thumping, clanks
+        out += (np.sin(2 * np.pi * 60 * t) + 0.6 * np.sin(2 * np.pi * 120 * t)) * 0.18 + _noise(n, 90, 500) * 0.25
+        k0 = 0.0
+        while k0 < seconds:
+            place(out, sfx("thud") * 0.45, k0)
+            k0 += 1.6
+        _events(out, lambda: noise_hit(0.02, 3000) * 0.3, 0.9, 0.7)
+    elif kind == "cave":                     # rumble and dripping water
+        out += _noise(n, 30, 140) * 0.35
+        _events(out, lambda: _chirp(rng.uniform(1100, 1600), rng.uniform(500, 800), 0.05) * 0.35, 1.4, 0.8)
     elif kind == "storm":
         out += _noise(n, 1500, 9000) * 0.5 + _noise(n, 60, 300) * 0.3
         _events(out, lambda: sfx("boom") * 0.6, 6.0)
@@ -609,7 +632,9 @@ def make_ambience(kind, seconds=16.0):
 AMBIENCE_FOR = {"sea": "waves", "beach": "waves", "harbor": "harbor", "underwater": "underwater", "street": "street",
                 "city": "city", "palace": "room", "interior": "room", "field": "birds", "hills": "birds",
                 "mountains": "wind", "snow": "wind", "desert": "wind", "jungle": "jungle", "battlefield": "battle",
-                "trench": "battle", "space": "space", "night": "night"}
+                "trench": "battle", "space": "space", "night": "night", "construction": "construction",
+                "factory": "factory", "farm": "birds", "mine": "cave", "classroom": "room", "lab": "room",
+                "parliament": "crowd", "courtroom": "room", "prison": "cave", "market": "crowd", "camp": "fire"}
 
 
 WEATHER_AMBIENCE = {"rain": "rain", "storm": "storm", "snow": "wind", "blizzard": "wind", "fog": "wind",
@@ -628,7 +653,10 @@ def ambience_kind(scene):
         if wk:
             return wk
     kind = AMBIENCE_FOR.get(t)
-    if bg.get("time") == "storm" and t not in ("interior", "palace", "space", "underwater"):
+    if t == "factory" and bg.get("style") != "inside":
+        kind = "city"
+    if bg.get("time") == "storm" and t not in ("interior", "palace", "space", "underwater", "mine", "classroom", "lab",
+                                                 "parliament", "courtroom", "prison"):
         return "storm"
     if bg.get("time") == "night" and kind in ("birds", "wind"):
         return "night"

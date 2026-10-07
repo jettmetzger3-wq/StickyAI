@@ -88,7 +88,18 @@ DEFAULT_SETTINGS = {
                    "gemini": "gemini-flash-latest", "groq": "openai/gpt-oss-120b"},
     "ollama_url": "http://localhost:11434",
     "claude_cli_path": "",
-    "backup_writer": "auto",           # when the Claude plan's limit is hit mid-video: auto (Gemini, else Groq) | gemini | groq | off
+    "backup_writer": "auto",           # when the Claude plan's limit is hit mid-video: auto (Gemini, else Groq) | gemini | groq | ollama | off
+    # Who does what: a writer per job ("" = the video's writer). script, factcheck, watch, props, storyboard,
+    # package (titles, description), short (picking the Short's moment)
+    "task_writers": {"script": "", "factcheck": "", "watch": "", "props": "", "storyboard": "", "package": "",
+                     "short": ""},
+    # Claude Code model per job when Claude Code does it: "" = the plan saver decides, "default" = your Claude Code
+    # default, or opus | sonnet | haiku (or a full model name)
+    "claude_task_models": {"script": "", "factcheck": "", "watch": "", "props": "", "storyboard": "", "package": "",
+                           "short": ""},
+    # Claude plan saver: off | balanced (same quality: lighter model for side jobs, bigger batches, cached
+    # instructions) | max (stretches the plan furthest)
+    "plan_saver": "balanced",
     "voice": {
         "kokoro_voice": "am_michael",
         "kokoro_speed": 1.2,
@@ -114,6 +125,13 @@ DEFAULT_SETTINGS = {
     "music_stings": True,              # short musical hits on big moments (a victory, a twist, a flop)
     "mood_narration": True,            # the narrator slows down and pauses for sad parts, speeds up for jokes
     "voice_polish": True,              # clean up the narration: no rumble, clearer words, an even level
+    "auto_reactions": True,            # faces react to the words ("suddenly" = shocked, "betrayed" = furious...)
+    "auto_camera": True,               # close-ups land on the punchline word, slow pans across wide places
+    # the channel's host stickman: greets after the hook, signs off at the end, pops in at big moments
+    "mascot": {"on": True, "name": "Sticky", "kind": "cap", "hat_color": "red", "coat": "", "look": "",
+               "intro": True, "outro": True, "cameos": True,
+               "intro_line": "Hey, it's {name}! Today: {title}.",
+               "outro_line": "And that's the story of {title}! I'm {name}. See you next time!"},
     "share_copy": True,
     "share_max_mb": 30,
     "render_workers": 0,

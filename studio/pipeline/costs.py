@@ -39,6 +39,12 @@ def _prov(meta, stage):
     return P.get(stage, pid)
 
 
+def _writer(meta, task):
+    """The writer that does `task` (Settings > Who does what), so paid jobs are always estimated and approved."""
+    from .writers import task_writer_id
+    return P.get("llm", task_writer_id(meta, task))
+
+
 def _minutes(meta):
     return float((meta.get("options") or {}).get("minutes") or 10)
 
@@ -48,7 +54,6 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
     meta = meta or project.meta()
     opts = meta.get("options") or {}
     lines = []
-    llm = _prov(meta, "llm")
     script = project.script() or {}
     beats = script.get("beats") or []
     n = len(beats) or target_beats(_minutes(meta))
@@ -62,21 +67,29 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
             tp = _prov(meta, "transcript")
             if tp.paid:
                 lines.append((tp.label, tp.estimate(duration=duration)))
-            if opts.get("watch", True) and llm.supports_images and llm.paid:
-                lines.append((llm.label + " (watching frames)", llm.estimate_tokens(4 * 1700 * 3.5 + 3000, 3000)))
-    elif stage == "script" and llm.paid:
-        tchars = 0
-        if meta.get("mode") == "youtube":
-            tr = read_json(project.p("source", "transcript.json"), []) or []
-            tchars = sum(len(s.get("text", "")) + 8 for s in tr) or duration * 16
-        lines.append((llm.label, llm.estimate_tokens(min(tchars, 120000) + 9000, n * 70 + 1500)))
-        if opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
-            lines.append((llm.label + " (fact-check)", llm.estimate_tokens(n * 260 + 4000, 4000)))
-    elif stage == "storyboard" and llm.paid:
-        batches = max(1, (n + 7) // 8)
-        lines.append((llm.label, llm.estimate_tokens(batches * 28000, n * 700)))
-        if load_settings().get("custom_props", True) and not os.path.exists(project.p("props.json")):
-            lines.append((llm.label + " (designing props)", llm.estimate_tokens(n * 40 + 9000, 5000)))
+            w = _writer(meta, "watch")
+            if opts.get("watch", True) and w.supports_images and w.paid:
+                lines.append((w.label + " (watching frames)", w.estimate_tokens(4 * 1700 * 3.5 + 3000, 3000)))
+    elif stage == "script":
+        w = _writer(meta, "script")
+        if w.paid:
+            tchars = 0
+            if meta.get("mode") == "youtube":
+                tr = read_json(project.p("source", "transcript.json"), []) or []
+                tchars = sum(len(s.get("text", "")) + 8 for s in tr) or duration * 16
+            lines.append((w.label, w.estimate_tokens(min(tchars, 120000) + 9000, n * 70 + 1500)))
+        fc = _writer(meta, "factcheck")
+        if fc.paid and w.id != "offline" and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
+            lines.append((fc.label + " (fact-check)", fc.estimate_tokens(n * 260 + 4000, 4000)))
+    elif stage == "storyboard":
+        w = _writer(meta, "storyboard")
+        if w.paid:
+            batches = max(1, (n + 7) // 8)
+            lines.append((w.label, w.estimate_tokens(batches * 28000, n * 700)))
+        pw = _writer(meta, "props")
+        if pw.paid and w.id != "offline" and load_settings().get("custom_props", True) and \
+                not os.path.exists(project.p("props.json")):
+            lines.append((pw.label + " (designing props)", pw.estimate_tokens(n * 40 + 9000, 5000)))
     elif stage == "voice":
         vp = _prov(meta, "voice")
         if vp.paid:
@@ -93,12 +106,16 @@ def stage_estimate(project, stage, meta=None, only=None, for_check=False):
             moods = {b.get("mood", "fun") for b in beats} or {"fun", "tense"}
             lines.append((mp.label, mp.estimate(moods=moods)))
     elif stage == "package":
-        if llm.paid:
-            lines.append((llm.label, llm.estimate_tokens(n * 160 + 3000, 1500)))
+        w = _writer(meta, "package")
+        if w.paid:
+            lines.append((w.label, w.estimate_tokens(n * 160 + 3000, 1500)))
         ip = _prov(meta, "image")
         if ip.paid:
             lines.append((ip.label, ip.estimate()))
     elif stage == "shorts":
+        w = _writer(meta, "short")
+        if w.paid and not os.path.exists(project.p("final", "short.json")):
+            lines.append((w.label + " (picking the moment)", w.estimate_tokens(n * 120 + 2500, 800)))
         sp = _prov(meta, "shorts")
         if sp.paid:
             q = meta.get("calliope_quote")

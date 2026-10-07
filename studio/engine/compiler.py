@@ -11,13 +11,17 @@ from .pen import ARMS, LEGS, MOUNTS, resolve_kind
 from .puppet import ACTIONS, resolve_action
 from . import props as P
 from .registry import PROPS, ANIMATED, resolve_prop, prop_bounds, prop_anchor
-from .places import PAINTERS
+from .places import PAINTERS as _PLACE_PAINTERS
+from .places_work import WORK_PAINTERS
 from . import warmap as WM
 from . import weather as WX
 from . import action_fx as FX
 from . import livemap as LM
 from . import charts as CH
+from . import reactions as RX
 import random
+
+PAINTERS = {**_PLACE_PAINTERS, **WORK_PAINTERS}
 
 NO_NORMALIZE = {"wall", "bar_chart", "line_chart", "railway", "skyline", "table", "crowd"}
 TEXTISH = ("text", "bubble", "note", "sign", "board")
@@ -298,9 +302,8 @@ def build_background(sc, bg):
         from .places import skyline_key
         time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else "day"
         sc.bg_city(time, skyline=skyline_key(bg.get("skyline")))
-    elif t in ("field", "hills", "desert", "snow", "battlefield"):
-        time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else \
-            ("storm" if t == "battlefield" else "day")
+    elif t in ("field", "hills", "desert", "snow"):
+        time = bg.get("time") if bg.get("time") in ("day", "dawn", "dusk", "night", "storm") else "day"
         getattr(sc, f"bg_{t}")(time)
     elif t in PAINTERS:
         PAINTERS[t](sc, bg)
@@ -362,6 +365,9 @@ def char_actions(el, sc, x, y, s, at_frac):
             d["dir"] = -1 if a.get("dir") in ("left", -1, "-1") else 1
         if act == "lean":
             d["amount"] = num(a.get("amount"), 28)
+        if act == "react":
+            from .puppet import EXPRESSIONS
+            d["expr"] = a.get("expr") if a.get("expr") in EXPRESSIONS else "surprise"
         out.append(d)
         t_default = d["t0"] + d["dur"] + 0.2
     return out
@@ -429,10 +435,13 @@ def build_char(sc, el, k, talk=()):
     acts = char_actions(el, sc, x, y, s, a["at"]) if el.get("do") else []
     if not el.get("do") and el.get("auto", True) is not False:
         acts = auto_actions(el, sc, sc.T(a["at"]), k)
+    acts = RX.merge(acts, getattr(sc, "reacts", {}).get(k, []), sc.T(a["at"]),
+                    sc.T(a["exit_at"]) if a["exit_at"] is not None else None, sc.dur)
     talk = list(talk) + [(sc.T(sc.timer.resolve(w.get("at"), 0.0)), sc.T(sc.timer.resolve(w.get("at"), 0.0)) + num(w.get("dur"), 2.0))
                          for w in (el.get("talk") or []) if isinstance(w, dict)]
     action_sounds(sc, acts)
-    talk_sounds(sc, talk, el.get("kind"), s, k)
+    if not el.get("narrator"):               # the host talks with the narrator's voice, not in blips
+        talk_sounds(sc, talk, el.get("kind"), s, k)
     for act in acts:
         if act["act"] == "slash" or (act["act"] == "fight" and el.get("prop") in ("sword", "spear")):
             if not hasattr(sc, "fighters"):
@@ -440,10 +449,10 @@ def build_char(sc, el, k, talk=()):
             sc.fighters.append(dict(x=x, y=y, s=s, t0=act["t0"], dur=act["dur"]))
     return sc.char(x, y, s, enter=a["enter"], at=a["at"], idle=idle, exit_at=a["exit_at"], move=a["move"],
                    z=int(num(el.get("z"), 1)), sfx=a["sfx"], actions=acts, talk=talk,
-                   life=el.get("life", True) is not False, **char_pose(el))
+                   life=el.get("life", True) is not False, peek=bool(el.get("peek")), **char_pose(el))
 
 
-def build_crowd(sc, el):
+def build_crowd(sc, el, k=0):
     """Rows of the same character with depth (back rows smaller and higher), all alive, sharing actions."""
     a = anim(el, sc, "pop")
     x, y = pos(el, sc, (960, 920))
@@ -465,6 +474,8 @@ def build_crowd(sc, el):
             xx = min(max(xx, 130 * s), W - 130 * s)
             sub = dict(el, x=xx, y=yy, scale=s, type="char", auto=False)
             acts = char_actions(sub, sc, xx, yy, s, a["at"]) if el.get("do") else []
+            acts = RX.merge(acts, getattr(sc, "reacts", {}).get(k, []), sc.T(a["at"]),
+                            sc.T(a["exit_at"]) if a["exit_at"] is not None else None, sc.dur)
             for ac in acts:
                 ac["t0"] += r.uniform(0, 0.25)       # a ripple, not perfect unison
             if row == rows - 1 and i == 0:
@@ -513,7 +524,7 @@ def build_element(sc, el, mood, k=0, talk=()):
         build_char(sc, el, k, talk)
         return
     if t == "crowd":
-        build_crowd(sc, el)
+        build_crowd(sc, el, k)
         return
     if t == "pointer":
         build_pointer(sc, el)
@@ -1168,6 +1179,8 @@ def build_shots(sc, cam, elements, talk):
     z_end = num(z[-1] if isinstance(z, (list, tuple)) and z else z, 1.0)
     if cam.get("auto_shots") is False or sc.dur < 4.5 or z_end > 1.08:
         return
+    if punch_shot(sc, elements):
+        return
     chars = [(i, e) for i, e in enumerate(elements) if e.get("type") == "char"]
     if len(chars) >= 2 and talk:
         i, wins = next(iter(sorted(talk.items(), key=lambda kv: kv[1][0][0])))
@@ -1178,7 +1191,7 @@ def build_shots(sc, cam, elements, talk):
             s = max(0.15, num(e.get("scale"), 1.0))
             sc.shot(t0, 1.5, (x, y - 260 * s), "cut")
             if sc.dur - t1 > 1.0:
-                sc.shot(t1 + 0.2, 1.0, None, "cut")
+                sc.shot(t1 + 0.2, 1.0, None, "cut", base=True)
         return
     if sc.view is not None:
         arrows = [e for e in elements if e.get("type") == "arrow"]
@@ -1193,6 +1206,82 @@ def build_shots(sc, cam, elements, talk):
                     z = safe_zoom(sc, elements, target)
                     if z:
                         sc.shot(t, z, target, "pan")
+
+
+PUNCH = ("surprise", "angry", "smug", "laugh", "sad", "scared", "confused", "happy")
+PAN_BGS = ("field", "hills", "desert", "snow", "city", "battlefield", "street", "harbor", "beach", "jungle",
+           "mountains", "trench", "palace", "construction", "factory", "farm", "mine", "classroom", "lab",
+           "parliament", "courtroom", "prison", "market", "camp", "sea")
+
+
+def punch_shot(sc, elements):
+    """A close-up that cuts in exactly on the punchline word (the latest word a single character reacts to:
+    "...and Francis was FURIOUS"), holds while the face reacts, then cuts back to the scene's own camera."""
+    reacts = getattr(sc, "reacts", {}) or {}
+    by_time = {}
+    for k, lst in reacts.items():
+        for t0, expr in lst:
+            by_time.setdefault(round(t0, 2), []).append((k, expr))
+    best = None
+    for t0, who in sorted(by_time.items()):
+        if len(who) != 1 or who[0][1] not in PUNCH:
+            continue                           # everybody gasping is a wide shot, not a close-up
+        k, expr = who[0]
+        e = elements[k] if k < len(elements) else None
+        if not e or e.get("type") != "char" or e.get("lon") is not None:
+            continue
+        if t0 < 1.0 or sc.dur - t0 < 0.6:
+            continue
+        best = (t0, k, expr)                   # the last one wins: punchlines come at the end
+    if best is None:
+        return False
+    t0, k, expr = best
+    e = elements[k]
+    x, y = pos(e, sc, (960, 900))
+    s = max(0.15, num(e.get("scale"), 1.0))
+    talking = bool(e.get("say")) or any(isinstance(o, dict) and o.get("type") == "bubble" for o in elements)
+    zoom = max(1.25, min(1.9, (1.45 if talking else 1.75) / max(0.6, s)))   # leave room for a speech bubble
+    if sc.mood == "somber":
+        sc.shot(t0 - 0.3, min(zoom, 1.3), (x, y - 280 * s), "pan")      # a slow push, never a snap
+    else:
+        sc.shot(t0 - 0.04, zoom, (x, y - 290 * s), "cut")
+    back = min(sc.dur - 0.5, t0 + 1.7)
+    if sc.dur - back > 0.6:
+        sc.shot(back, 1.0, None, "cut", base=True)
+    return True
+
+
+def slow_pan(sc, scene):
+    """Wide painted places get a slow sideways pan instead of a plain push-in, when every character and label
+    still fits in the frame from start to end."""
+    bg = scene.get("bg") or {}
+    cam = scene.get("camera") or {}
+    if bg.get("type") not in PAN_BGS or cam.get("center") or cam.get("to") or cam.get("pan") is False:
+        return False
+    z = cam.get("zoom")
+    if z is not None:
+        zz = z if isinstance(z, (list, tuple)) else [1.0, z]
+        if num(zz[0], 1.0) > 1.01 or num(zz[-1], 1.0) > 1.06:
+            return False                       # the storyboard asked for its own zoom
+    if sc.idx % 5 in (1, 4) or sc.dur < 3.5:
+        return False                           # keep some plain push-ins for variety
+    xs = []
+    for e in scene.get("elements") or []:
+        if e.get("type") in ("char", "crowd", "text", "bubble", "note", "sign", "board", "prop", "counter"):
+            x, _ = pos(e, sc, (960, 900))
+            half = 150 * num(e.get("scale"), 1.0) if e.get("type") == "char" else \
+                num(e.get("width"), 300) / 2 if e.get("type") == "crowd" else 170
+            xs += [x - half, x + half]
+    zoom = 1.12
+    hw = W / (2 * zoom)
+    lo, hi = hw, W - hw
+    if xs:
+        lo, hi = max(lo, max(xs) - hw + 20), min(hi, min(xs) + hw - 20)
+    if hi - lo < 50:
+        return False
+    a, b = (lo, hi) if sc.idx % 2 == 0 else (hi, lo)
+    sc.camera(zoom, zoom + 0.025, (a, H / 2 + 20), (b, H / 2 + 20))
+    return True
 
 
 def region_focus(sc, spec):
@@ -1227,8 +1316,9 @@ def safe_zoom(sc, elements, center, zooms=(1.22, 1.18, 1.14, 1.1)):
 
 # ------------------------------------------------------------------ weather and light (see weather.py)
 NIGHT_SKY = ("field", "hills", "desert", "snow", "city", "battlefield", "street", "harbor", "beach", "jungle",
-             "mountains", "trench")
-HORIZON = {"field": 640, "hills": 700, "desert": 700, "snow": 700, "city": 820, "battlefield": 700, "sea": 520}
+             "mountains", "trench", "construction", "factory", "farm", "market", "camp")
+HORIZON = {"field": 640, "hills": 700, "desert": 700, "snow": 700, "city": 820, "battlefield": 620, "sea": 520,
+           "construction": 730, "factory": 520, "farm": 600, "market": 520, "camp": 600}
 
 
 def _when(sc, v, default):
@@ -1247,7 +1337,8 @@ def build_weather(sc, scene):
                             _when(sc, w.get("at"), 0.0) or 0.0, _when(sc, w.get("until"), 1.0), sc.dur)
             sc.overlay(wx.apply, WX.WEATHER_Z)
             sc.sfx.extend(wx.sounds())
-    if (bg.get("time") == "night" and bg.get("type") in NIGHT_SKY) or bg.get("type") in ("night", "space"):
+    if (bg.get("time") == "night" and bg.get("type") in NIGHT_SKY and bg.get("style") != "inside") or \
+            bg.get("type") in ("night", "space"):
         tw = WX.Twinkle(sc.seed, HORIZON.get(bg.get("type"), 600), sc.dur, sc.bg)
         sc.overlay(tw.apply, z=-0.5)
     light = scene.get("light")
@@ -1267,6 +1358,11 @@ def build_scene(scene, idx, dur, mood, text, timer=None):
     build_background(sc, scene.get("bg"))
     elements = scene.get("elements") or []
     talk = talk_windows(sc, elements)
+    try:
+        sc.reacts = RX.plan(scene, sc.timer, mood)       # faces that react to the narration's words
+    except Exception as e:
+        sc.reacts = {}
+        sc.warn(f"reactions failed: {e}")
     for k, el in enumerate(elements):
         try:
             build_element(sc, el, mood, k, talk.get(k, ()))
@@ -1288,6 +1384,11 @@ def build_scene(scene, idx, dur, mood, text, timer=None):
     c1 = cam.get("to")
     sc.camera(max(1.0, num(z[0], 1.0)), max(1.0, num(z[-1], 1.035)),
               point(c0, sc) if c0 else None, point(c1, sc) if c1 else None)
+    if not cam.get("shots"):
+        try:
+            slow_pan(sc, scene)
+        except Exception as e:
+            sc.warn(f"slow pan failed: {e}")
     try:
         build_shots(sc, cam, elements, talk)
     except Exception as e:

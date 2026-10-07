@@ -242,7 +242,24 @@ BACKGROUNDS ("bg"): type is one of {", ".join(BG_TYPES)}.
     harbor (quay, moored sailing ships: ports, trade, navies, explorers leaving) | beach (sand, palms, waves) |
     underwater (light rays, seaweed, fish: submarines, shipwrecks, sea life) | space (stars, Earth, moon) |
     jungle | mountains (snowy peaks, pines: Alps, Himalayas, crossings) | trench (WW1 trench, sandbags, wire) |
-    battlefield (smoke, mud; default stormy) | interior {{wall, floor}} (rooms, offices, small halls) |
+    battlefield {{style: river|open|ruins}} (a real battlefield: village, church tower, river and wooden bridge,
+      trampled ground, craters, black smoke rising; ruins = WW1/WW2 shell holes and wire) |
+    interior {{wall, floor}} (rooms, offices, small halls) |
+  PLACES WHERE THINGS HAPPEN (full backgrounds with moving parts; add "time" for outdoor ones):
+    construction {{what: factory|house|tower|castle|wall|ship, progress: [from, to] (0-1, how built it is at the
+      start and end of the scene; default [0.3, 0.85]) | "done"}} (a construction site: the frame stands, a tower
+      crane lowers steel, workers hammer on scaffolding and the walls rise WHILE the scene plays; ship = shipyard) |
+    factory {{style: outside|inside}} (outside: brick halls, chimneys pouring smoke, a railway with wagons;
+      inside: a running conveyor belt with crates, turning gears, a stamping press) |
+    farm (wheat field, plowed field, barn, silo, haystacks, windmill) | mine (timbered tunnel, rails into the dark,
+    an ore cart, lanterns) | classroom (blackboard, teacher's desk, globe) | lab (flasks bubbling, shelves of jars,
+    microscope) | parliament (tiers of benches full of members, the Speaker's chair) | courtroom (judge's bench,
+    witness stand, jury) | prison (a cell: stone walls, barred window, bunk, tally marks, bars) |
+    market {{style: {"|".join(STREET_STYLES)}}} (stalls with striped awnings and goods, bunting) |
+    camp (army tents, the general's striped tent, stacked muskets, a crackling campfire)
+  THE PLACE IS THE BACKGROUND: when the narration says where something happens or what someone does ("he built a
+    factory", "they fought at Austerlitz", "she was thrown in prison", "peasants farmed", "parliament debated"),
+    use that place as the full bg. Never show it as a small prop on a plain page.
   sea {{sky, sea, horizon (default 520)}} | night | dark {{color}} (use for somber beats) |
   map {{center: [lon, lat], width: degrees of longitude across the frame (Europe ~40, a country ~15-25, Pacific ~110),
        territories: [{{countries: [...] | region: preset, color, clip?: [[lon,lat],...], box?: [lon0,lat0,lon1,lat1]}}],
@@ -355,7 +372,10 @@ CAMERA: {{zoom: [start, end] (1.0-1.12, a slow push-in like [1.0, 1.05]), center
   the first) zoom into it automatically, like Google Earth; a wider one zooms out.
   shots make a scene feel edited: start wide, then cut to a close-up of a face (zoom 1.6-2) when the joke lands,
   pan across a map to the next place, whip (fast blurred pan) to something surprising. Every shot slowly pushes in.
-  Without shots the camera adds a close-up on whoever talks and zooms toward where a map arrow lands.
+  Land the close-up EXACTLY on the punchline or reveal word ("at": "word:furious"), and cut back wide after.
+  Without shots the camera does it for you: characters' faces react on words like "suddenly" (shocked),
+  "betrayed" (furious), "won" (smug), "lost" (crushed), and the camera cuts in on the last such face; painted places
+  get a slow sideways pan. Set "react": false on a character (or the scene) to keep its face as you wrote it.
 
 COLORS: ink, red, darkred, navy, blue, lightblue, green, darkgreen, olive, gray, dgray, orange, yellow, gold, brown,
   white, purple, pink, teal, cream, maroon, khaki, silver, black, paper, sea, land, or "#rrggbb".
@@ -398,7 +418,11 @@ def scene_language_compact():
     return f"""SCENE LANGUAGE (1920x1080, x right, y down; y > 900 is for captions: no text there; feet at y 860-930)
 A scene: {{"bg": {{...}}, "elements": [...], "camera": {{...}}, "weather"?, "light"?, "transition"?}}
 
-BG types: {", ".join(BG_TYPES)}. Painted places take "time": day|dawn|dusk|night|storm. city {{skyline: one of
+BG types: {", ".join(BG_TYPES)}. Painted places take "time": day|dawn|dusk|night|storm.
+THE PLACE IS THE BACKGROUND: "he built a factory" = bg construction {{what: factory}} (walls rise during the scene),
+a battle = battlefield, a trial = courtroom, jail = prison, farming = farm. Never a small prop on a plain page.
+construction {{what: factory|house|tower|castle|wall|ship, progress: [0.3, 0.85] | "done"}}. factory {{style: outside|inside}}.
+battlefield {{style: river|open|ruins}}. market {{style: like street}}. city {{skyline: one of
 {", ".join(sorted(SKYLINES))}}}. street {{style: {"|".join(STREET_STYLES)}}}. map {{center: [lon, lat], width (degrees across:
 Europe 40, a country 15-25), style: paper|dark, territories: [{{countries: [...] | region, color}}], labels: [{{text, lon,
 lat, size}}]}}. dark {{color}} for sad beats. Region presets: {", ".join(sorted(REGIONS))}.
@@ -426,6 +450,8 @@ ANIMATION (any element): enter: {", ".join(ENTERS)}; at: 0-1 or "word:X" (pops i
   exit; idle: {", ".join(IDLES)}; move {{dx, dy, from, to}}; z.
 WEATHER: "weather": {"|".join(WEATHERS)}. LIGHT: "light": {{to: {"|".join(LIGHTS)}, at}}.
 CAMERA: {{zoom: [1.0, 1.05], shots: [{{at, zoom (1-2.2), focus: [x, y] | {{lon, lat}}, region, move: cut|pan|whip}}]}}
+  Close-ups land on the punchline word ("at": "word:X"). Faces react to "suddenly", "betrayed", "won", "lost" by
+  themselves.
 COLORS: red, darkred, navy, blue, green, darkgreen, olive, gray, orange, yellow, gold, brown, white, purple, black,
   "#rrggbb".
 RULES: one idea per scene, 3-8 elements, big labels. Put the story in its world (places, specific props, coats).
@@ -441,7 +467,7 @@ def load_examples():
 
 
 # the most instructive examples first, for writers that only get a few
-KEY_EXAMPLES = ("army_speech", "invasion_map", "pirates_harbor", "broke_king", "paris_bread")
+KEY_EXAMPLES = ("army_speech", "invasion_map", "factory_goes_up", "pirates_harbor", "broke_king", "paris_bread")
 
 
 def examples_block(limit=20):

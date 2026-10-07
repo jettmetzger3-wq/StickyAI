@@ -381,10 +381,11 @@ class Scene:
         self.layers.append(dict(overlay=fn, z=z, at=0.0))
 
     def char(self, x, y, s=1.0, kind="japan", enter="pop", at=0.0, idle="bob", exit_at=None, move=None, z=1,
-             sfx="auto", actions=(), talk=(), life=True, **pose):
-        """An animated stickman (see puppet.py): it breathes, blinks, glances, talks and does `actions`."""
-        cx = min(max(x, 130 * s), W - 130 * s)
-        cy = min(max(y, 375 * s + 12), H - 15)
+             sfx="auto", actions=(), talk=(), life=True, peek=False, **pose):
+        """An animated stickman (see puppet.py): it breathes, blinks, glances, talks and does `actions`.
+        peek=True lets it stand partly outside the frame (the channel host peeking in from a corner)."""
+        cx = x if peek else min(max(x, 130 * s), W - 130 * s)
+        cy = y if peek else min(max(y, 375 * s + 12), H - 15)
         if abs(cx - x) > 1 or abs(cy - y) > 1:
             self.warn(f"character '{kind}' moved on-screen ({x:.0f},{y:.0f}) -> ({cx:.0f},{cy:.0f})")
         n = len(self.layers)
@@ -400,11 +401,12 @@ class Scene:
         L.update(puppet=pz, kind=kind, pseed=self.seed + 991)
         return L
 
-    def shot(self, at, zoom=1.0, center=None, move="cut"):
-        """A camera shot from `at` (seconds): cut / pan / whip to `center` at `zoom`, then a slow push-in."""
+    def shot(self, at, zoom=1.0, center=None, move="cut", base=False):
+        """A camera shot from `at` (seconds): cut / pan / whip to `center` at `zoom`, then a slow push-in.
+        base=True goes back to the scene's own camera move (after a close-up, the slow pan carries on)."""
         cx, cy = center or (W / 2, H / 2)
         self.shots.append(dict(t=max(0.0, float(at)), z=max(1.0, min(float(zoom), 3.0)), cx=float(cx), cy=float(cy),
-                               move=move if move in ("cut", "pan", "whip") else "cut"))
+                               move=move if move in ("cut", "pan", "whip") else "cut", base=bool(base)))
         self.shots.sort(key=lambda d: d["t"])
 
     # ---------------- camera ----------------
@@ -420,7 +422,7 @@ class Scene:
         sh = self.shots[i]
         td = self.MOVE_TIME[sh["move"]]
         push = 1 + min(0.06, 0.015 * max(0.0, t - sh["t"] - td))      # slow push-in while the shot holds
-        target = (sh["z"] * push, sh["cx"], sh["cy"])
+        target = self._base_cam(t) if sh.get("base") else (sh["z"] * push, sh["cx"], sh["cy"])
         if td <= 0 or t >= sh["t"] + td:
             return target
         start = self._base_cam(sh["t"]) if i == 0 else self._shot_cam(i - 1, sh["t"])

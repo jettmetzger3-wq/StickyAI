@@ -2140,8 +2140,8 @@
   "text": "In 1066 Harold's Saxons and William's Normans fought at Hastings for a whole day, and nobody wanted to give up first.",
   "scene": {
    "bg": {
-    "type": "hills",
-    "time": "day"
+    "type": "battlefield",
+    "style": "open"
    },
    "elements": [
     {
@@ -2386,6 +2386,136 @@
      "who": "Napoleon"
     }
    ]
+  }
+ },
+ {
+  "name": "factory_goes_up",
+  "mood": "fun",
+  "text": "In 1771 Richard Arkwright built a cotton mill at Cromford, and suddenly one building could do the work of an entire village.",
+  "scene": {
+   "bg": {
+    "type": "construction",
+    "what": "factory",
+    "progress": [
+     0.25,
+     1.0
+    ]
+   },
+   "elements": [
+    {
+     "type": "text",
+     "text": "CROMFORD, 1771",
+     "x": 960,
+     "y": 90,
+     "size": 64,
+     "color": "navy",
+     "at": 0.02
+    },
+    {
+     "type": "char",
+     "kind": "tophat",
+     "x": 300,
+     "y": 910,
+     "scale": 1.0,
+     "pose": "hips",
+     "mouth": "smirk",
+     "coat": "brown",
+     "at": 0.0,
+     "say": [
+      {
+       "text": "Faster, lads!",
+       "at": "word:built"
+      }
+     ],
+     "do": [
+      {
+       "act": "point",
+       "at": "word:built"
+      },
+      {
+       "act": "cheer",
+       "at": "word:village"
+      }
+     ]
+    },
+    {
+     "type": "crowd",
+     "kind": "civ",
+     "count": 5,
+     "x": 1500,
+     "y": 960,
+     "width": 500,
+     "scale": 0.55,
+     "at": "word:village",
+     "enter": "slide_right",
+     "do": [
+      {
+       "act": "surprise",
+       "at": "word:village"
+      }
+     ]
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.05
+    ]
+   }
+  }
+ },
+ {
+  "name": "thrown_in_prison",
+  "mood": "fun",
+  "text": "The king finally lost patience and threw him in prison, where he spent the next twelve years counting the days.",
+  "scene": {
+   "bg": {
+    "type": "prison"
+   },
+   "elements": [
+    {
+     "type": "char",
+     "kind": "civ",
+     "x": 900,
+     "y": 900,
+     "scale": 1.0,
+     "pose": "down",
+     "mouth": "frown",
+     "eyes": "sad",
+     "at": "word:threw",
+     "enter": "drop",
+     "say": [
+      {
+       "text": "Day 4,382...",
+       "at": "word:counting"
+      }
+     ],
+     "do": [
+      {
+       "act": "look",
+       "dir": -1,
+       "at": "word:counting"
+      }
+     ]
+    },
+    {
+     "type": "counter",
+     "from": 1,
+     "to": 4382,
+     "x": 1450,
+     "y": 200,
+     "size": 64,
+     "prefix": "DAY ",
+     "at": "word:counting",
+     "color": "white"
+    }
+   ],
+   "camera": {
+    "zoom": [
+     1.0,
+     1.06
+    ]
+   }
   }
  }
 ]

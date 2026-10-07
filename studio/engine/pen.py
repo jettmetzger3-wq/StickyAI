@@ -68,7 +68,7 @@ MOUTHS = ("smile", "grin", "open", "scream", "frown", "smirk", "wavy", "flat", "
 EYES = ("dot", "wide", "happy", "closed", "angry", "sad", "worried", "dead")
 EXTRAS = ("sweat", "blush", "tear", "vein", "q", "!", "steam", "mustache", "beard", "glasses", "zzz")
 HELD = ("sword", "flag", "whiteflag", "paper", "megaphone", "teacup", "pointer", "can", "bowl", "spear",
-        "shield", "torch", "book", "scroll", "money")
+        "shield", "torch", "book", "scroll", "money", "hammer", "pickaxe", "shovel")
 
 # hats ("kind"). Many nation names are aliases of a hat.
 HATS = ("japan", "headband", "army", "navy", "america", "tophat", "britain", "bowler", "china", "ussr", "furhat",
@@ -567,6 +567,32 @@ class Pen(doodle.Canvas):
             ux, uy = ux / n, uy / n
             self.line([(hx, hy), (hx + ux * L(150), hy + uy * L(150))], 10 * s, (225, 228, 236), 0.2)
             self.line([(hx - uy * L(18), hy + ux * L(18)), (hx + uy * L(18), hy - ux * L(18))], 9 * s, YELLOW, 0.2)
+        elif kind in ("hammer", "pickaxe", "shovel"):
+            # tools follow the forearm when it swings, so hammering and digging read at a glance
+            ux, uy = sgn * 0.25, -1.0
+            if fdirs:
+                fx, fy = fdirs[1] if not flip else fdirs[0]
+                if fy < 0.6:
+                    ux, uy = fx, fy - 0.3
+            n = math.hypot(ux, uy) or 1
+            ux, uy = ux / n, uy / n
+            ln = L(120) if kind != "hammer" else L(95)
+            ex, ey = hx + ux * ln, hy + uy * ln
+            self.line([(hx - ux * L(16), hy - uy * L(16)), (ex, ey)], 8 * s, BROWN, 0.2)
+            px, py = -uy, ux                       # across the handle
+            if kind == "hammer":
+                self.poly([(ex + px * L(30) - ux * L(6), ey + py * L(30) - uy * L(6)),
+                           (ex + px * L(30) + ux * L(16), ey + py * L(30) + uy * L(16)),
+                           (ex - px * L(22) + ux * L(16), ey - py * L(22) + uy * L(16)),
+                           (ex - px * L(22) - ux * L(6), ey - py * L(22) - uy * L(6))], (120, 124, 136), 5 * s)
+            elif kind == "pickaxe":
+                self.line([(ex + px * L(52) - ux * L(26), ey + py * L(52) - uy * L(26)), (ex, ey + uy * L(6)),
+                           (ex - px * L(52) - ux * L(26), ey - py * L(52) - uy * L(26))], 10 * s, (120, 124, 136), 0.2)
+            else:
+                self.poly([(ex - px * L(22), ey - py * L(22)), (ex + px * L(22), ey + py * L(22)),
+                           (ex + px * L(18) + ux * L(40), ey + py * L(18) + uy * L(40)),
+                           (ex + ux * L(52), ey + uy * L(52)),
+                           (ex - px * L(18) + ux * L(40), ey - py * L(18) + uy * L(40))], (150, 154, 166), 5 * s)
         elif kind == "flag":
             self.line([(hx, hy + L(30)), (hx, hy - L(150))], 7 * s, BROWN, 0.2)
             self.poly([(hx, hy - L(150)), (hx + sgn * L(110), hy - L(130)), (hx, hy - L(95))], pcol, 5 * s)

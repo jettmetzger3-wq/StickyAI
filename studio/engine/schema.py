@@ -22,15 +22,37 @@ from .weather import WEATHERS, LIGHTS, norm_weather, norm_light
 
 BG_TYPES = ("paper", "sunburst", "ground", "field", "hills", "desert", "snow", "city", "interior", "battlefield",
             "sea", "night", "dark", "map", "street", "palace", "harbor", "beach", "underwater", "space", "jungle",
-            "mountains", "trench")
+            "mountains", "trench", "construction", "factory", "farm", "mine", "classroom", "lab", "parliament",
+            "courtroom", "prison", "market", "camp")
 BG_ALIASES = {"ocean": "sea", "port": "harbor", "docks": "harbor", "harbour": "harbor", "coast": "beach",
               "island": "beach", "shore": "beach", "seabed": "underwater", "under_water": "underwater",
-              "deep_sea": "underwater", "town": "street", "village": "street", "market": "street", "road": "street",
-              "throne_room": "palace", "court": "palace", "ballroom": "palace", "castle_hall": "palace",
-              "room": "interior", "office": "interior", "house": "interior", "stars": "space", "orbit": "space",
-              "forest": "jungle", "rainforest": "jungle", "alps": "mountains", "mountain": "mountains",
-              "trenches": "trench", "war": "battlefield", "skyline": "city", "plain": "field", "meadow": "field",
-              "farm": "field", "countryside": "hills", "sand": "desert", "arctic": "snow", "winter": "snow"}
+              "deep_sea": "underwater", "town": "street", "village": "street", "road": "street",
+              "throne_room": "palace", "court": "palace", "royal_court": "palace", "ballroom": "palace",
+              "castle_hall": "palace", "room": "interior", "office": "interior", "house": "interior",
+              "stars": "space", "orbit": "space", "forest": "jungle", "rainforest": "jungle", "alps": "mountains",
+              "mountain": "mountains", "trenches": "trench", "war": "battlefield", "battle": "battlefield",
+              "skyline": "city", "plain": "field", "meadow": "field", "countryside": "hills", "sand": "desert",
+              "arctic": "snow", "winter": "snow",
+              # places where things happen (places_work.py)
+              "construction_site": "construction", "building_site": "construction", "site": "construction",
+              "shipyard": "construction", "dockyard": "construction", "build": "construction",
+              "factory_floor": "factory", "assembly_line": "factory", "industry": "factory", "industrial": "factory",
+              "mill": "factory", "workshop": "factory", "plant": "factory", "foundry": "factory",
+              "steelworks": "factory", "farmland": "farm", "fields": "farm", "ranch": "farm", "plantation": "farm",
+              "mines": "mine", "coal_mine": "mine", "gold_mine": "mine", "tunnel": "mine", "quarry": "mine",
+              "school": "classroom", "class": "classroom", "university": "classroom", "lecture": "classroom",
+              "laboratory": "lab", "science": "lab", "senate": "parliament", "congress": "parliament",
+              "assembly": "parliament", "house_of_commons": "parliament", "chamber": "parliament",
+              "legislature": "parliament", "duma": "parliament", "reichstag": "parliament",
+              "courthouse": "courtroom", "trial": "courtroom", "tribunal": "courtroom", "jail": "prison",
+              "cell": "prison", "dungeon": "prison", "gulag": "prison", "bazaar": "market",
+              "marketplace": "market", "souk": "market", "fair": "market", "army_camp": "camp",
+              "encampment": "camp", "barracks": "camp", "bivouac": "camp", "tents": "camp"}
+# what a bg alias also says about the place: a shipyard is a construction site with a ship on it
+BG_PRESETS = {"shipyard": {"what": "ship"}, "dockyard": {"what": "ship"}, "factory_floor": {"style": "inside"},
+              "assembly_line": {"style": "inside"}, "workshop": {"style": "inside"}}
+PLACE_STYLES = {"battlefield": ("river", "open", "ruins"), "factory": ("outside", "inside"),
+                "market": ("europe", "medieval", "asia", "arab", "western")}
 TIMES = ("day", "dawn", "dusk", "night", "storm")
 ENTERS = ("pop", "drop", "grow", "fade", "slide_left", "slide_right", "slide_up", "slide_down",
           "wipe_right", "wipe_left", "wipe_up", "wipe_down", "none")
@@ -168,7 +190,11 @@ SCENE_SCHEMA = {
             "type": "object", "required": ["type"],
             "properties": {
                 "type": {"enum": list(BG_TYPES)}, "time": {"enum": list(TIMES)},
-                "style": {"enum": ["paper", "dark", "europe", "medieval", "asia", "arab", "western"]},
+                "style": {"enum": ["paper", "dark", "europe", "medieval", "asia", "arab", "western", "river", "open",
+                                   "ruins", "outside", "inside"]},
+                "what": {"enum": ["factory", "house", "tower", "castle", "wall", "ship"]},
+                "progress": {"anyOf": [_num, {"type": "array", "items": _num, "minItems": 2, "maxItems": 2},
+                                       {"enum": ["done"]}]},
                 "skyline": {"type": "string"}, "wall": {"type": "string"}, "floor": {"type": "string"},
                 "color": {"type": "string"}, "ray": {"type": "string"}, "sky": {"type": "string"},
                 "ground": {"type": "string"}, "sea": {"type": "string"}, "land": {"type": "string"},
@@ -562,6 +588,8 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
     # background
     bg = sc.get("bg") if isinstance(sc.get("bg"), dict) else {"type": sc.get("bg") if isinstance(sc.get("bg"), str) else "paper"}
     bt = str(bg.get("type") or "").strip().lower().replace(" ", "_")
+    for k, v in BG_PRESETS.get(bt, {}).items():
+        bg.setdefault(k, v)
     bt = BG_ALIASES.get(bt, bt)
     bt = nearest(bt, BG_TYPES, "paper")
     if bt != bg.get("type"):
@@ -576,8 +604,28 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
               "chinese": "asia", "japanese": "asia", "middle_east": "arab", "arabic": "arab", "desert": "arab",
               "wild_west": "western", "cowboy": "western", "american_west": "western"}.get(st, st)
         bg["style"] = st if st in STREET_STYLES else "europe"
+    elif bt in PLACE_STYLES:
+        st = str(bg.get("style") or "").strip().lower().replace(" ", "_").replace("-", "_")
+        st = {"interior": "inside", "indoors": "inside", "floor": "inside", "assembly": "inside",
+              "exterior": "outside", "outdoors": "outside", "bridge": "river", "plain": "open", "field": "open",
+              "ruined": "ruins", "bombed": "ruins", "ww1": "ruins", "wwi": "ruins", "ww2": "ruins",
+              "european": "europe", "asian": "asia", "arabic": "arab", "middle_east": "arab",
+              "wild_west": "western"}.get(st, st)
+        if st in PLACE_STYLES[bt]:
+            bg["style"] = st
+        else:
+            bg.pop("style", None)
     elif bg.get("style") is not None and bg["style"] not in ("paper", "dark"):
         bg["style"] = "dark" if "dark" in str(bg["style"]).lower() else "paper"
+    if bt == "construction":
+        from .places_work import norm_what, build_progress
+        bg["what"] = norm_what(bg.get("what") or build_what_from_text(text))
+        if bg.get("progress") is not None:
+            a, b = build_progress(bg["progress"])
+            bg["progress"] = "done" if a >= 0.999 else [round(a, 2), round(b, 2)]
+    else:
+        bg.pop("what", None)
+        bg.pop("progress", None)
     if bt == "city" and bg.get("skyline") is not None:
         from .places import skyline_key
         key = skyline_key(bg.get("skyline"))
@@ -1143,6 +1191,7 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
             fixes.append(f"unknown transition {sc['transition']!r}, used auto")
             tr = "auto"
         sc["transition"] = tr
+    upgrade_place(sc, bg, text, fixes)
     repair_weather(sc, bg, mood, text, fixes)
     cam = sc.get("camera")
     if cam is not None and not isinstance(cam, dict):
@@ -1178,7 +1227,8 @@ def _lonlat_points(el, fixes):
     fixes.append(f"{el.get('type')}: read [lon, lat] lists as map coordinates")
 
 
-INDOORS = ("interior", "palace", "underwater", "space", "paper", "sunburst", "dark")
+INDOORS = ("interior", "palace", "underwater", "space", "paper", "sunburst", "dark", "mine", "classroom", "lab",
+           "parliament", "courtroom", "prison")
 WEATHER_WORDS = (("blizzard", ("blizzard", "snowstorm", "froze to death", "frozen to death")),
                  ("snow", ("snow", "snowed", "snowing", "winter", "freezing")),
                  ("storm", ("thunderstorm", "thunder", "lightning", "hurricane", "typhoon", "monsoon")),
@@ -1212,7 +1262,7 @@ def repair_weather(sc, bg, mood, text, fixes):
             if str(w.get("type", "")).lower() not in ("none", "clear", "sunny", ""):
                 fixes.append(f"unknown weather {w.get('type')!r} removed")
             w = None
-        elif bg["type"] in INDOORS:
+        elif bg["type"] in INDOORS or bg.get("style") == "inside":
             fixes.append(f"no {kind} indoors / on a plain background")
             w = None
         else:
@@ -1220,7 +1270,8 @@ def repair_weather(sc, bg, mood, text, fixes):
             for k, lo, hi in (("amount", 0.2, 2.0), ("wind", -2.0, 2.0)):
                 if w.get(k) is not None:
                     w[k] = max(lo, min(_f(w[k], 1.0 if k == "amount" else 0.0), hi))
-    elif sc.get("weather") is None and bg["type"] not in INDOORS and bg["type"] != "map":
+    elif sc.get("weather") is None and bg["type"] not in INDOORS and bg["type"] != "map" and \
+            bg.get("style") != "inside":
         kind = weather_from_text(text)
         if kind == "ash" and bg["type"] not in ("city", "street", "battlefield", "trench", "harbor"):
             kind = None
@@ -1256,3 +1307,117 @@ def check_scene(scene, mood="fun", text="", kit=None, cast=None):
     """repair + validate. Returns (scene, fixes, errors)."""
     fixed, fixes = repair_scene(scene, mood, text, kit, cast)
     return fixed, fixes, validate_scene(fixed)
+
+
+# ------------------------------------------------------------------ places where things happen
+# "He built a factory" should look like a construction site filling the screen, not a little factory prop on a
+# plain page; "the trial" is a courtroom, "they were thrown in jail" a prison cell. These read the narration.
+import re as _re
+
+BUILD_VERBS = r"(?:buil[dt]s?|building|constructs?|constructed|constructing|erects?|erected|put up|puts up|raised)"
+NOT_BUILT = ("empire", "reputation", "alliance", "coalition", "career", "fortune", "business", "case", "army",
+             "following", "network", "dynasty")
+BUILD_THINGS = (("factory", r"factor(?:y|ies)|plants?|mills?|works|foundr(?:y|ies)|steelworks|warehouses?|"
+                            r"workshops?|refiner(?:y|ies)"),
+                ("ship", r"ships?|fleet|navy|warships?|battleships?|dreadnoughts?|boats?|submarines?|carriers?"),
+                ("tower", r"skyscrapers?|towers?|office blocks?|hotels?|apartments?|tower blocks?"),
+                ("castle", r"castles?|forts?|fortress(?:es)?|palaces?|cathedrals?|citadels?|strongholds?"),
+                ("wall", r"walls?|dams?|great wall"),
+                ("house", r"houses?|homes?|cottages?|cabins?|churches|church|schools?|barns?"))
+PLACE_WORDS = (  # (bg, extra settings, pattern) - first match wins
+    ("prison", {}, r"prisons?|jail(?:ed|s)?|gaol|imprison(?:ed|ment)?|locked (?:him |her |them )?up|behind bars|"
+                   r"dungeons?|gulags?|(?:his|her|a|the) cell|thrown in(?:to)? (?:a )?cell|prison camps?|"
+                   r"labou?r camps?|prisoners? of war"),
+    ("courtroom", {}, r"trials?|put on trial|courtroom|judges?|jury|juries|verdict|sentenced|convicted|acquitted|"
+                      r"pleaded guilty|tribunal|lawsuits?|sued"),
+    ("parliament", {}, r"parliament|senate|congress|house of commons|lawmakers|mps|senators|legislat\w+|"
+                       r"debated|passed (?:a|the) (?:new )?(?:law|bill|act)|duma|reichstag"),
+    ("mine", {}, r"(?<!land )(?<!naval )(?<!sea )mines|(?:coal|gold|silver|salt|diamond|copper) mines?|miners|"
+                 r"mining|down the mine|dug for (?:gold|coal|silver)|digging for (?:gold|coal|silver)|in the mines?"),
+    ("lab", {}, r"laborator(?:y|ies)|labs?|scientists?|experiments?|chemists?|test tubes?|invented|"
+                r"discovered (?:a|the) (?:cure|vaccine|element)"),
+    ("classroom", {}, r"schools?|classrooms?|teachers?|lessons?|pupils|students|lectures?|professors?|"
+                      r"universit(?:y|ies)|homework"),
+    ("factory", {"style": "inside"}, r"assembly lines?|production lines?|factory floor|conveyor belts?"),
+    ("factory", {}, r"factor(?:y|ies)|industrial revolution|steelworks|textile mills?|cotton mills?|"
+                    r"foundr(?:y|ies)|smokestacks?"),
+    ("farm", {}, r"farms?|farmers?|farming|harvests?|crops?|peasants?|plough(?:ed)?|plow(?:ed)?|wheat fields?|"
+                 r"agricultur\w+|grain|famine"),
+    ("market", {}, r"(?<!stock )markets?|marketplace|bazaars?|merchants?|traders? (?:sold|selling)|market stalls?|"
+                   r"haggl\w+"),
+    ("camp", {}, r"(?<!concentration )(?<!death )(?<!refugee )(?<!extermination )camp(?:ed|s)?|encamp\w*|"
+                 r"barracks|bivouac\w*|pitched (?:their )?tents"),
+    ("street", {}, r"riots?|rioters|rioting|in the streets|street fighting|barricades|mobs? (?:stormed|marched)"),
+    ("battlefield", {}, r"battles?|battlefields?|fought(?! for)|fighting(?! for)|clashed|charged (?:at|into|across|"
+                        r"forward|the enemy)|cannons? fired|opened fire|(?<!heart )attack(?:ed|s)?|armies met|"
+                        r"the armies|skirmish\w*|bayonets?|volleys?"),
+    ("construction", {}, r"construction|building site|under construction|scaffolding|cranes?"),
+)
+GENERIC_BGS = ("paper", "sunburst", "ground", "field", "hills", "interior")
+DIAGRAMS = ("chart", "timeline", "compare", "split", "board", "icons", "territory", "empire", "route", "front",
+            "counter", "arrow", "battle", "city")
+SAME_AS_PLACE = {"factory": ("construction", "factory"), "barn": ("farm",), "tent": ("camp",)}
+
+
+def _has(pattern, low):
+    return _re.search(r"\b(?:" + pattern + r")\b", low) is not None
+
+
+def build_what_from_text(text):
+    """What the narration says is being built ("built a navy" -> ship); None if it doesn't say."""
+    low = " " + str(text or "").lower() + " "
+    for what, things in BUILD_THINGS:
+        m = _re.search(r"\b" + BUILD_VERBS + r"\b((?:\s+[\w'-]+){0,3}?)\s+(?:" + things + r")\b", low)
+        if m and not any(w in m.group(1).split() for w in NOT_BUILT):
+            return what
+    return None
+
+
+SENSITIVE_PLACES = r"concentration camps?|death camps?|extermination camps?|holocaust|genocide"
+
+
+def activity_place(text):
+    """The full background the narration's activity happens in, e.g. {"type": "construction", "what": "factory"}
+    for "he built a factory"; None when it names no such place (or a place we shouldn't draw as a cartoon)."""
+    low = " " + str(text or "").lower() + " "
+    if _has(SENSITIVE_PLACES, low):
+        return None
+    what = build_what_from_text(low)
+    if what:
+        return {"type": "construction", "what": what}
+    for bt, extra, pat in PLACE_WORDS:
+        if _has(pat, low):
+            return dict({"type": bt}, **extra)
+    return None
+
+
+def upgrade_place(sc, bg, text, fixes):
+    """A scene on a plain or generic background whose narration (or main prop) is about a place where something
+    happens gets that place as its full background; a prop that the new background already shows big is removed."""
+    els = sc.get("elements") or []
+    if bg["type"] not in GENERIC_BGS or any(e.get("type") in DIAGRAMS for e in els):
+        _drop_duplicate_props(bg, els, fixes)
+        return
+    place = activity_place(text)
+    if place is None:
+        return
+    if bg["type"] == "field" and place["type"] not in ("battlefield", "farm", "camp", "construction"):
+        return                      # an outdoor scene keeps its field unless the action happens outdoors too
+    old = bg["type"]
+    keep = {k: v for k, v in bg.items() if k in ("time", "items", "clouds")}
+    if place["type"] in INDOORS:
+        keep.pop("time", None)
+    bg.clear()
+    bg.update(keep)
+    bg.update(place)
+    fixes.append(f"bg {old!r} -> {place['type']!r}: the narration happens there")
+    _drop_duplicate_props(bg, els, fixes)
+
+
+def _drop_duplicate_props(bg, els, fixes):
+    """A small factory prop in front of a whole factory background is a leftover: remove it."""
+    dup = [k for k, e in enumerate(els) if e.get("type") == "prop" and not e.get("do") and
+           bg["type"] in SAME_AS_PLACE.get(resolve_prop(e.get("name")) or "", ())]
+    for k in reversed(dup):
+        fixes.append(f"removed the small {els[k].get('name')!r}: the background shows it")
+        els.pop(k)

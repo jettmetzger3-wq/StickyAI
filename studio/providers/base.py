@@ -69,7 +69,7 @@ class Provider:
     def info(self):
         ok, why = self.available()
         return dict(id=self.id, stage=self.stage, label=self.label, description=self.description, paid=self.paid,
-                    quality=self.quality, available=ok, reason=why)
+                    quality=self.quality, available=ok, reason=why, short=getattr(self, "short", ""))
 
 
 # ------------------------------------------------------------------ stage interfaces

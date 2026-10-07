@@ -248,6 +248,157 @@ function FreeModel({ id, label, hint, s, set }) {
   );
 }
 
+const TASKS = [
+  ["script", "Writing the script", "The most important job. Your best writer."],
+  ["factcheck", "Fact-checking", "Claude Code can search the web for this; the others check from memory."],
+  ["watch", "Watching the source video", "Needs a writer that can see images (Claude, Gemini)."],
+  ["props", "Designing extra props", "One request per video."],
+  ["storyboard", "Drawing the scenes", "The biggest job: most of the AI usage goes here."],
+  ["package", "Titles, description, thumbnail text", "Short and easy: a lighter model does it just as well."],
+  ["short", "Picking the Short's best moment", "Short and easy."],
+];
+const MODEL_LABEL = { "": "Plan saver decides", default: "My Claude Code default", opus: "Opus", sonnet: "Sonnet", haiku: "Haiku" };
+const SAVER_MODELS = {
+  off: {},
+  balanced: { watch: "sonnet", props: "sonnet", package: "sonnet", short: "sonnet" },
+  max: { watch: "sonnet", props: "sonnet", package: "haiku", short: "haiku", factcheck: "sonnet" },
+};
+
+function WriterCard({ s, set, catalog }) {
+  const llms = (catalog && catalog.llm) || [];
+  const main = s.providers.llm;
+  const tw = s.task_writers || {};
+  const tm = s.claude_task_models || {};
+  const saver = s.plan_saver || "balanced";
+  const byId = Object.fromEntries(llms.map((p) => [p.id, p]));
+  const label = (p) => `${p.label}${p.paid ? " (paid)" : ""}${p.available ? "" : " (not set up)"}`;
+  return (
+    <Card title="Writer: which AI does what">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Main writer" hint="Writes everything unless you hand a job to another AI below. New videos start with it.">
+          <select className="w-full" value={main} onChange={(e) => set({ providers: { ...s.providers, llm: e.target.value } })}>
+            {llms.map((p) => (
+              <option key={p.id} value={p.id}>{label(p)}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="If my Claude plan runs out mid-video" hint="Only free writers can step in, so nothing starts costing money on its own. Claude is used again as soon as your plan allows.">
+          <select className="w-full" value={s.backup_writer || "auto"} onChange={(e) => set({ backup_writer: e.target.value })}>
+            <option value="auto">Switch to Gemini (or Groq if that's the key I have)</option>
+            <option value="gemini">Switch to Gemini</option>
+            <option value="groq">Switch to Groq</option>
+            <option value="ollama">Switch to Ollama (on this PC)</option>
+            <option value="off">Stop and wait for me</option>
+          </select>
+        </Field>
+      </div>
+
+      <div className="mt-4 text-sm font-medium">Who does what</div>
+      <p className="mb-2 text-xs text-stone-500 dark:text-zinc-400">
+        Hand any job to a different AI. A paid writer always shows its price first and waits for your OK.
+      </p>
+      <div className="space-y-2">
+        {TASKS.map(([id, name, hint]) => {
+          const who = tw[id] || "";
+          const eff = who || main;
+          const isClaude = eff === "claude_cli";
+          const auto = SAVER_MODELS[saver]?.[id];
+          return (
+            <div key={id} className="grid items-center gap-2 rounded-lg bg-stone-50 p-2 sm:grid-cols-[1fr_14rem_11rem] dark:bg-zinc-800/60">
+              <div>
+                <div className="text-sm">{name}</div>
+                <div className="text-xs text-stone-500 dark:text-zinc-400">{hint}</div>
+              </div>
+              <select value={who} onChange={(e) => set({ task_writers: { ...tw, [id]: e.target.value } })}>
+                <option value="">Main writer ({byId[main]?.short || byId[main]?.label || main})</option>
+                {llms.map((p) => (
+                  <option key={p.id} value={p.id}>{label(p)}</option>
+                ))}
+              </select>
+              {isClaude ? (
+                <select value={tm[id] || ""} onChange={(e) => set({ claude_task_models: { ...tm, [id]: e.target.value } })}
+                  title="Which Claude model Claude Code uses for this job">
+                  {Object.entries(MODEL_LABEL).map(([v, l]) => (
+                    <option key={v} value={v}>{v === "" ? `${l}${auto ? ` (${auto})` : " (default)"}` : l}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-stone-400">{byId[eff]?.paid ? "paid: you approve the price" : "free"}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Field label="Claude plan saver" hint={
+          saver === "off" ? "Every Claude job uses your Claude Code default model, 8 scenes per request." :
+          saver === "max" ? "Stretches your plan furthest: lighter models for side jobs and the fact-check, 16 scenes per request, fewer example scenes. Scenes can get a little plainer." :
+          "Same quality: the script, fact-check and scenes keep your best model; watching, props, titles and the Short pick use Sonnet; scenes go 12 per request and the shared instructions are cached after the first request."
+        }>
+          <select className="w-full" value={saver} onChange={(e) => set({ plan_saver: e.target.value })}>
+            <option value="balanced">Balanced (recommended, same quality)</option>
+            <option value="max">Maximum savings</option>
+            <option value="off">Off</option>
+          </select>
+        </Field>
+        <Field label="Claude Code default model (optional)" hint="Used where the table says 'default'. Leave empty for whatever Claude Code normally uses.">
+          <input className="w-full" value={s.llm_models.claude_cli || ""} onChange={(e) => set({ llm_models: { ...s.llm_models, claude_cli: e.target.value } })} />
+        </Field>
+      </div>
+    </Card>
+  );
+}
+
+const HAT_CHOICES = ["cap", "tophat", "bowler", "beret", "headphones", "glasses", "graduate", "cowboy", "pirate", "wizard", "crown", "chef", "hardhat", "bicorne", "viking", "headband", "none"];
+
+function MascotCard({ s, set }) {
+  const m = { on: true, name: "Sticky", kind: "cap", hat_color: "red", coat: "", look: "", intro: true, outro: true, cameos: true, ...(s.mascot || {}) };
+  const setM = (patch) => set({ mascot: { ...m, ...patch } });
+  return (
+    <Card title="Channel mascot">
+      <p className="mb-3 text-xs text-stone-500 dark:text-zinc-400">
+        Your channel's own host stickman. It says hi right after the hook, signs off at the end with a subscribe button, and pops up in the corner
+        to react to the biggest moments ("WHAT?!", "Oof."). Its lines are normal beats in the Script tab, so you can edit or delete them per video.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Toggle checked={m.on !== false} onChange={(v) => setM({ on: v })} label="Use the mascot in new videos" />
+        <Field label="Name">
+          <input className="w-full" value={m.name} maxLength={24} onChange={(e) => setM({ name: e.target.value })} />
+        </Field>
+        <Field label="Hat">
+          <select className="w-full" value={m.kind} onChange={(e) => setM({ kind: e.target.value })}>
+            {HAT_CHOICES.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+        </Field>
+        <Field label="Hat color" hint="A color name (red, navy, gold...) or #rrggbb">
+          <input className="w-full" value={m.hat_color || ""} onChange={(e) => setM({ hat_color: e.target.value })} />
+        </Field>
+        <Field label="Coat color (optional)" hint="Empty = classic stick body">
+          <input className="w-full" value={m.coat || ""} onChange={(e) => setM({ coat: e.target.value })} />
+        </Field>
+        <Field label="Face">
+          <select className="w-full" value={m.look || ""} onChange={(e) => setM({ look: e.target.value })}>
+            <option value="">Clean-shaven</option>
+            <option value="mustache">Mustache</option>
+            <option value="beard">Beard</option>
+          </select>
+        </Field>
+        <Toggle checked={m.intro !== false} onChange={(v) => setM({ intro: v })} label="Says hi after the hook" />
+        <Toggle checked={m.outro !== false} onChange={(v) => setM({ outro: v })} label="Signs off at the end" />
+        <Toggle checked={m.cameos !== false} onChange={(v) => setM({ cameos: v })} label="Pops in at big moments" hint="At most once every 7 scenes, on the biggest reaction word." />
+        <div />
+        <Field label="Greeting" hint="{name} and {title} are filled in.">
+          <input className="w-full" value={m.intro_line || ""} onChange={(e) => setM({ intro_line: e.target.value })} />
+        </Field>
+        <Field label="Sign-off" hint="{name} and {title} are filled in.">
+          <input className="w-full" value={m.outro_line || ""} onChange={(e) => setM({ outro_line: e.target.value })} />
+        </Field>
+      </div>
+    </Card>
+  );
+}
+
 export default function Settings() {
   const cfg = useConfig();
   const [s, setS] = useState(null);
@@ -383,7 +534,9 @@ export default function Settings() {
         <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">{notes.mcp}</p>
       </Card>
 
-      <Card title="Writer">
+      <WriterCard s={s} set={set} catalog={catalog} />
+
+      <Card title="Writer models">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Anthropic API model" hint="Opus 5.5: $4 / $20 per million tokens. Sonnet 5.5: $2 / $10. Haiku 4.5: $1 / $5.">
             <select
@@ -396,19 +549,8 @@ export default function Settings() {
               <option value="claude-haiku-4-5">Claude Haiku 4.5 (cheapest)</option>
             </select>
           </Field>
-          <Field label="Claude Code model (optional)" hint="Leave empty to use your Claude Code default.">
-            <input className="w-full" value={s.llm_models.claude_cli || ""} onChange={(e) => set({ llm_models: { ...s.llm_models, claude_cli: e.target.value } })} />
-          </Field>
           <Field label="Path to the claude command (optional)" hint="Only if it isn't found automatically.">
             <input className="w-full" value={s.claude_cli_path || ""} onChange={(e) => set({ claude_cli_path: e.target.value })} />
-          </Field>
-          <Field label="When my Claude plan runs out mid-video" hint="A free writer takes over for the rest of the video instead of stopping (needs its free key under API keys). Claude is used again as soon as your plan allows.">
-            <select className="w-full" value={s.backup_writer || "auto"} onChange={(e) => set({ backup_writer: e.target.value })}>
-              <option value="auto">Switch to Gemini (or Groq if that's the key I have)</option>
-              <option value="gemini">Switch to Gemini</option>
-              <option value="groq">Switch to Groq</option>
-              <option value="off">Stop and wait for me</option>
-            </select>
           </Field>
           <FreeModel id="gemini" label="Gemini model (free key)" s={s} set={set}
             hint="gemini-flash-latest: best free quality. gemini-flash-lite-latest: more free requests per day, plainer scenes." />
@@ -493,6 +635,8 @@ export default function Settings() {
       {(cfg.mode !== "hosted" || cfg.private) && <YouTubeCard />}
       {cfg.mode === "hosted" && <HostedCard s={s} set={set} />}
 
+      <MascotCard s={s} set={set} />
+
       <Card title="Video & workflow">
         <div className="grid gap-4 sm:grid-cols-2">
           <Toggle checked={s.autopilot} onChange={(v) => set({ autopilot: v })} label="Autopilot by default" hint="Off = pause after script, storyboard and voice." />
@@ -510,6 +654,8 @@ export default function Settings() {
           <Toggle checked={s.music_stings !== false} onChange={(v) => set({ music_stings: v })} label="Musical hits on big moments" hint='A fanfare when someone wins, "dun dun DUN" on a twist, a sad trombone when a plan flops.' />
           <Toggle checked={s.mood_narration !== false} onChange={(v) => set({ mood_narration: v })} label="Narrator follows the mood" hint="Slower with a pause for sad parts, a little faster for jokes." />
           <Toggle checked={s.voice_polish !== false} onChange={(v) => set({ voice_polish: v })} label="Polish the narration" hint="Removes low rumble, makes words a bit clearer and evens out loud and quiet parts, like a YouTube narrator's mic." />
+          <Toggle checked={s.auto_reactions !== false} onChange={(v) => set({ auto_reactions: v })} label="Faces react to the words" hint='Characters look shocked on "suddenly", furious on "betrayed", smug on "won", crushed on "lost", right on the word.' />
+          <Toggle checked={s.auto_camera !== false} onChange={(v) => set({ auto_camera: v })} label="Smart camera" hint="A close-up cuts in exactly on the punchline word, and wide places get a slow pan." />
           <Toggle checked={s.fact_check !== false} onChange={(v) => set({ fact_check: v })} label="Fact-check the script" hint="After writing, the writer double-checks uncertain facts (with web search on Claude Code) and fixes mistakes." />
           <Toggle
             checked={s.custom_props !== false}

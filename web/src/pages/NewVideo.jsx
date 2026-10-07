@@ -97,6 +97,7 @@ export default function NewVideo() {
   const [watch, setWatch] = useState(true);
   const [autopilot, setAutopilot] = useState(true);
   const [shareCopy, setShareCopy] = useState(true);
+  const [mascot, setMascot] = useState(true);
   const [credit, setCredit] = useState(true);
   const [tier, setTier] = useState(planMode && cfg.user?.usage?.plan === "pro" ? "pro" : "free");
   const [aiShort, setAiShort] = useState(false);
@@ -123,6 +124,7 @@ export default function NewVideo() {
       setSettings(d.settings);
       setAutopilot(d.settings.autopilot !== false);
       setShareCopy(d.settings.share_copy !== false);
+      setMascot(d.settings.mascot?.on !== false);
       // "Custom" starts from your default tools (Settings > Tools)
       setCustom((c) => ({ ...(c || {}), ...d.settings.providers }));
     });
@@ -216,6 +218,7 @@ export default function NewVideo() {
         autopilot,
         share_copy: shareCopy,
         credit_source: credit,
+        mascot,
         providers,
         voice,
         approve,
@@ -425,6 +428,12 @@ export default function NewVideo() {
               hint="On: runs straight to the finished video. Off: pauses so you can review and edit the script, the storyboard and the voice."
             />
             <Toggle checked={shareCopy} onChange={setShareCopy} label="Also make a small share copy (under 30 MB)" />
+            <Toggle
+              checked={mascot}
+              onChange={setMascot}
+              label={`Channel mascot${settings?.mascot?.name ? ` (${settings.mascot.name})` : ""}`}
+              hint="Your host stickman says hi after the hook, signs off at the end and pops in at big moments. Change it in Settings."
+            />
           </div>
         </Card>
       </div>

@@ -207,7 +207,8 @@ THEMES = {
                                         "feudal", "crusade", "plague", "black death", "monk", "siege", "kingdom",
                                         "duke", "baron"],
         places=[{"type": "street", "style": "medieval"}, {"type": "palace"}, {"type": "field"}, {"type": "hills"},
-                {"type": "interior", "wall": "#B9B2A6", "floor": "#7A6A58"}],
+                {"type": "interior", "wall": "#B9B2A6", "floor": "#7A6A58"}, {"type": "farm"},
+                {"type": "market", "style": "medieval"}, {"type": "construction", "what": "castle"}],
         props=["castle", "catapult", "shield", "sword", "horse", "crown", "throne", "cathedral", "rat", "torch",
                "scroll", "keg", "wheat", "watchtower", "bell", "hut"],
         kinds=["knight", "crown", "mitre", "civ"],
@@ -216,7 +217,8 @@ THEMES = {
         label="World War I", words=["world war i", "world war one", "ww1", "wwi", "great war", "trench", "somme",
                                     "verdun", "1914", "1915", "1916", "1917", "1918", "kaiser", "western front",
                                     "archduke", "gallipoli"],
-        places=[{"type": "trench"}, {"type": "battlefield"}, {"type": "field", "time": "storm"},
+        places=[{"type": "trench"}, {"type": "battlefield", "style": "ruins"}, {"type": "field", "time": "storm"},
+                {"type": "camp"},
                 {"type": "map", "center": [10, 50], "width": 40, "style": "dark"}],
         props=["sandbags", "barbed_wire", "biplane", "zeppelin", "helmet", "tank", "cannon", "medal", "telephone",
                "newspaper", "musket"],
@@ -227,7 +229,8 @@ THEMES = {
                                      "d-day", "normandy", "blitz", "stalingrad", "pearl harbor", "1939", "1940",
                                      "1941", "1942", "1943", "1944", "1945", "allies", "axis", "luftwaffe",
                                      "panzer", "midway"],
-        places=[{"type": "battlefield"}, {"type": "city", "time": "night"}, {"type": "beach"}, {"type": "trench"},
+        places=[{"type": "battlefield", "style": "ruins"}, {"type": "city", "time": "night"}, {"type": "beach"},
+                {"type": "factory", "style": "inside"}, {"type": "camp"},
                 {"type": "map", "center": [15, 50], "width": 45, "style": "dark"}],
         props=["tank", "plane", "ship", "carrier", "submarine", "helmet", "bomb", "sandbags", "radio", "medal",
                "newspaper", "telephone", "flag"],
@@ -257,7 +260,7 @@ THEMES = {
         label="the Wild West", words=["wild west", "cowboy", "frontier", "gold rush", "outlaw", "sheriff", "saloon",
                                       "pioneer", "oregon trail", "railroad", "texas", "native american", "buffalo"],
         places=[{"type": "street", "style": "western"}, {"type": "desert"}, {"type": "desert", "time": "dusk"},
-                {"type": "mountains"}, {"type": "field"}],
+                {"type": "mountains"}, {"type": "mine"}, {"type": "market", "style": "western"}, {"type": "farm"}],
         props=["wagon", "cactus", "horse", "pickaxe", "gold_bars", "train", "bull", "barrel", "dynamite", "cash"],
         kinds=["cowboy", "tophat", "headband", "civ"],
         lines=["Yeehaw!", "This town ain't big enough...", "Gold! Gold!", "Reach for the sky!"]),
@@ -279,7 +282,8 @@ THEMES = {
         label="money & economy", words=["economy", "money", "bank", "stock", "market", "trade", "inflation", "debt",
                                         "tax", "rich", "billion", "million", "price", "wall street", "crash",
                                         "depression", "gold"],
-        places=[{"type": "interior"}, {"type": "city"}, {"type": "street", "style": "europe"}],
+        places=[{"type": "interior"}, {"type": "city"}, {"type": "street", "style": "europe"}, {"type": "market"},
+                {"type": "factory"}],
         props=["cash", "gold_bars", "moneybag", "coin", "piggy_bank", "line_chart", "bar_chart", "briefcase", "lock",
                "newspaper"],
         kinds=["tophat", "glasses", "civ", "bowler"],
@@ -287,11 +291,22 @@ THEMES = {
     "science": dict(
         label="science & inventions", words=["science", "scientist", "invent", "discover", "experiment", "physics",
                                              "chemistry", "einstein", "newton", "edison", "tesla", "laboratory",
-                                             "atom", "electric", "engine", "industrial revolution", "factory"],
-        places=[{"type": "interior"}, {"type": "city"}, {"type": "street", "style": "europe"}],
+                                             "atom", "electric", "engine"],
+        places=[{"type": "lab"}, {"type": "interior"}, {"type": "classroom"}, {"type": "city"}],
         props=["flask", "atom", "gear", "lightbulb", "telescope", "computer", "factory", "train", "book", "apple"],
         kinds=["glasses", "graduate", "hardhat", "civ"],
         lines=["Eureka!", "It works!", "Science!", "Back to the drawing board."]),
+    "industry": dict(
+        label="industry & work", words=["industrial revolution", "factory", "factories", "mill", "steam engine",
+                                        "railway", "railroad", "coal", "steel", "textile", "workers", "carnegie",
+                                        "rockefeller", "ford", "assembly line", "manufactur", "strike", "union",
+                                        "miners", "child labor", "child labour"],
+        places=[{"type": "factory"}, {"type": "factory", "style": "inside"}, {"type": "construction", "what": "factory"},
+                {"type": "city", "skyline": "london", "time": "dusk"},
+                {"type": "street", "style": "europe", "time": "dusk"}],
+        props=["factory", "train", "railway", "gear", "cash", "moneybag", "newspaper", "pickaxe", "hammer", "keg"],
+        kinds=["tophat", "hardhat", "cap", "bowler", "civ"],
+        lines=["Faster!", "Twelve-hour shifts?!", "Productivity!", "More coal!", "We want better pay!"]),
     "plague": dict(
         label="plague & disease", words=["plague", "black death", "disease", "pandemic", "epidemic", "virus",
                                          "smallpox", "flu", "cholera", "doctor"],
@@ -424,7 +439,7 @@ PAPERS = ["#FAF5E8", "#F3EAD3", "#EEF3F7", "#F6EEE6", "#EFF5E9", "#F7F0DC"]
 RAYS = ["#FFECAF", "#FFD8B0", "#D8ECFF", "#E4F5D4", "#F9D5E5", "#FFE6A0"]
 TIME_NEXT = {"day": "dusk", "dusk": "night", "night": "dawn", "dawn": "day", "storm": "day"}
 PAINTED = ("field", "hills", "desert", "snow", "city", "battlefield", "street", "harbor", "beach", "jungle",
-           "mountains")
+           "mountains", "farm", "market", "camp", "factory")
 
 
 def bg_sig(bg):
@@ -432,20 +447,31 @@ def bg_sig(bg):
     t = bg.get("type", "paper")
     if t == "map":
         return None          # maps are told apart by what is on them
-    return (t, bg.get("time"), bg.get("color"), bg.get("ray"), bg.get("style"), bg.get("skyline"), bg.get("wall"))
+    return (t, bg.get("time"), bg.get("color"), bg.get("ray"), bg.get("style"), bg.get("skyline"), bg.get("wall"),
+            bg.get("what"), str(bg.get("progress")))
 
 
 def vary(scenes, order, editable):
     """scenes: {index: scene}. When a scene looks exactly like the one before it, nudge its colors / time of day.
     Only scenes in `editable` are changed. Returns [(index, what changed)]."""
     changes = []
-    prev = None
+    prev = prev_bg = None
     for i in order:
         sc = scenes.get(i)
         if not isinstance(sc, dict):
-            prev = None
+            prev = prev_bg = None
             continue
         bg = sc.setdefault("bg", {"type": "paper"})
+        if bg.get("type") == "construction" and prev_bg and prev_bg.get("type") == "construction" and \
+                prev_bg.get("what") == bg.get("what") and i in editable:
+            # the same building over several beats keeps going up where the last scene left it
+            from ..engine.places_work import build_progress
+            end = build_progress(prev_bg.get("progress"))[1]
+            nxt = "done" if end >= 0.999 else [round(end, 2), round(min(1.0, end + 0.45), 2)]
+            if bg.get("progress") != nxt:
+                bg["progress"] = nxt
+                changes.append((i, "the building keeps rising from the last scene"))
+        prev_bg = bg
         sig = bg_sig(bg)
         if sig is not None and sig == prev and i in editable:
             t = bg.get("type", "paper")

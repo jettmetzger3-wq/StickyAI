@@ -51,14 +51,15 @@ def clear():
 
 
 def backup_for(primary_id):
-    """The free writer to fall back on, or None. Settings > Writer > backup_writer: auto | gemini | groq | off."""
+    """The free writer to fall back on, or None. Settings > Writer > backup_writer: auto | gemini | groq |
+    ollama | off. Only free writers can be backups: a backup never starts spending money on its own."""
     if primary_id != "claude_cli":
         return None
     from . import REGISTRY
     want = str(load_settings().get("backup_writer") or "auto").lower()
     if want == "off":
         return None
-    order = ("gemini", "groq") if want == "auto" else (want,)
+    order = ("gemini", "groq") if want == "auto" else (want,) if want in ("gemini", "groq", "ollama") else ()
     for pid in order:
         p = next((x for x in REGISTRY["llm"] if x.id == pid), None)
         if p is not None and p.available()[0]:

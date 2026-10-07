@@ -250,6 +250,7 @@ class NewProject(BaseModel):
     autopilot: bool = True
     share_copy: bool = True
     credit_source: bool = True
+    mascot: bool = True           # the channel host greets, signs off and pops in (Settings > Channel mascot)
     providers: dict = {}
     voice: dict = {}
     approve: dict = {}            # {stage: cost dict} the user saw and confirmed
@@ -289,7 +290,8 @@ def _create_hosted(b, u):
     opts = dict(minutes=minutes, tone=str(b.tone)[:80], faithfulness=b.faithfulness if b.faithfulness in
                 ("close", "balanced", "loose") else "balanced", style_url=b.style_url[:300], extra=b.extra[:1500],
                 watch=b.watch, autopilot=b.autopilot, share_copy=b.share_copy, credit_source=b.credit_source,
-                captions=True, voice=_clean_voice(b.voice), watermark=h.get("watermark_text", "") if plan["watermark"] else "")
+                mascot=b.mascot, captions=True, voice=_clean_voice(b.voice),
+                watermark=h.get("watermark_text", "") if plan["watermark"] else "")
     with using_model(plan.get("llm_model")):
         est = costs.estimate_draft(b.mode, prov, opts, None)
     total = sum(v["total"]["usd"] for v in est.values())
@@ -345,7 +347,7 @@ def create_project(b: NewProject):
             raise HTTPException(400, f"unknown provider {pid}")
     opts = dict(minutes=b.minutes, tone=b.tone, faithfulness=b.faithfulness, style_url=b.style_url, extra=b.extra,
                 watch=b.watch, autopilot=b.autopilot, share_copy=b.share_copy, credit_source=b.credit_source,
-                captions=True, voice=b.voice or {})
+                mascot=b.mascot, captions=True, voice=b.voice or {})
     pr = new_project(b.title or (b.topic if b.mode == "topic" else ""), b.mode,
                      source_url=b.url if b.mode == "youtube" else "", topic=b.topic, options=opts, providers=prov)
     if config.hosted():
@@ -516,7 +518,7 @@ def put_options(slug: str, body: dict):
     if hosted_user():
         # plan users can change how it looks and sounds, not the tools or the length they reserved
         o = body.get("options") or {}
-        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx") if k in o}
+        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx", "mascot") if k in o}
         if "voice" in o:
             safe["voice"] = _clean_voice(o["voice"])
         body = dict(options=safe, **({"title": body["title"]} if "title" in body else {}))
@@ -592,7 +594,7 @@ class RegenBeat(BaseModel):
 
 
 def _paid_guard(pr, label, in_chars, out_tokens, approved):
-    llm = stage_provider(pr.meta(), "llm")
+    llm = stage_provider(pr.meta(), "llm", task="script")
     if llm.id == "offline":
         raise HTTPException(400, "Basic (no AI) mode can't rewrite beats; switch the writer to Claude in the project options")
     ok, why = llm.available()
@@ -689,7 +691,7 @@ class RegenScene(BaseModel):
 def regen_scene(slug: str, i: int, b: RegenScene):
     pr = proj(slug)
     ensure_idle(pr)
-    llm = stage_provider(pr.meta(), "llm")
+    llm = stage_provider(pr.meta(), "llm", task="storyboard")
     if hosted_user():
         ai_edit(pr)
         start_background(slug, start="storyboard", stop_after="storyboard",

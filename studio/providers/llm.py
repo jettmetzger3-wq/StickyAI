@@ -107,7 +107,8 @@ class ClaudeCLI(LLMBackend):
     def estimate_tokens(self, in_chars, out_tokens, model=None):
         return Cost(0.0, note="uses your Claude subscription's usage limits, no API charges")
 
-    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False):
+    def complete(self, system, prompt, schema=None, images=(), max_tokens=16000, model=None, label="", web=False,
+                 extra_args=()):
         if not self.path():
             raise ProviderError("claude CLI not found")
         model = model or load_settings().get("llm_models", {}).get("claude_cli") or None
@@ -137,6 +138,7 @@ class ClaudeCLI(LLMBackend):
                 cmd += ["--json-schema", json.dumps(schema, separators=(",", ":"))]
             if model:
                 cmd += ["--model", model]
+            cmd += list(extra_args or ())
             try:
                 r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
                                    errors="replace", timeout=1800, cwd=td, env=env)

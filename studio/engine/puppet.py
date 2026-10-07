@@ -24,8 +24,11 @@ ACTIONS = {
     "walk": 2.0, "run": 1.2, "sneak": 2.5, "jump": 0.6, "hop": 0.4, "wave": 1.6, "point": 1.6, "cheer": 1.6,
     "celebrate": 2.0, "nod": 1.0, "shake_head": 1.0, "shrug": 1.4, "think": 2.0, "facepalm": 1.6, "tremble": 2.0,
     "lean": 1.6, "bow": 1.4, "turn": 0.0, "faint": 0.6, "laugh": 1.6, "angry": 1.6, "cry": 2.0, "dance": 2.4,
-    "look": 1.6, "talk": 2.0, "surprise": 0.8, "salute": 1.6, "fight": 1.6, "slash": 1.7,
+    "look": 1.6, "talk": 2.0, "surprise": 0.8, "salute": 1.6, "fight": 1.6, "slash": 1.7, "hammer": 2.0,
+    "dig": 2.0, "react": 1.5,
 }
+# faces for "react" (see reactions.py: the narration's words make characters react on the word)
+EXPRESSIONS = ("surprise", "angry", "smug", "sad", "scared", "happy", "laugh", "confused")
 ACTION_ALIASES = {
     "walks": "walk", "move": "walk", "go": "walk", "stroll": "walk", "march": "walk", "running": "run",
     "run_away": "run", "flee": "run", "charge": "run", "jumps": "jump", "leap": "jump", "bounce": "hop",
@@ -38,7 +41,11 @@ ACTION_ALIASES = {
     "sad": "cry", "glance": "look", "speak": "talk", "say": "talk", "shout": "talk", "gasp": "surprise",
     "shock": "surprise", "punch": "fight", "attack": "fight", "duel": "slash", "swordfight": "slash",
     "sword_fight": "slash", "fence": "slash", "fencing": "slash", "clash": "slash", "stab": "slash",
-    "swing": "slash", "strike": "slash", "slashes": "slash", "parry": "slash",
+    "swing": "slash", "strike": "slash", "slashes": "slash", "parry": "slash", "build": "hammer",
+    "builds": "hammer", "construct": "hammer", "work": "hammer", "works": "hammer", "hammering": "hammer",
+    "nail": "hammer", "repair": "hammer", "fix": "hammer", "forge": "hammer", "smith": "hammer",
+    "mine": "dig", "mining": "dig", "digs": "dig", "shovel": "dig", "dig_up": "dig", "plow": "dig",
+    "plough": "dig", "farm": "dig", "till": "dig", "excavate": "dig",
 }
 
 
@@ -298,6 +305,69 @@ class Puppet:
             if p.get("prop") is None:
                 p["prop"] = "sword"
             dx = (0 if up else 18) * fwd
+        elif act == "react":
+            ex = a.get("expr")
+            if ex == "surprise":
+                k = min(el / 0.35, 1.0)
+                dy = -24 * 4 * k * (1 - k)
+                p["eyes"], p["mouth"] = "wide", "o"
+                p["head"][1] -= 4
+                if el < 0.9 and "!" not in p["extra"]:
+                    p["extra"] = tuple(p["extra"]) + ("!",)
+            elif ex == "angry":
+                p["eyes"] = "angry"
+                p["mouth"] = "scream" if el < 0.55 else "frown"
+                if el < 0.45:
+                    dx = (2.5 if int(el * 24) % 2 else -2.5)
+                if "vein" not in p["extra"]:
+                    p["extra"] = tuple(p["extra"]) + ("vein",)
+            elif ex == "smug":
+                p["mouth"] = "smirk"
+                p["eyes"] = "closed" if 0.15 < el < 0.9 else "dot"
+                p["head"][1] -= 3
+                if all(abs(arm[0]) < 60 for arm in p["arms"]) and p.get("prop") is None:
+                    p["arms"] = [[35, -135], [35, -135]]
+            elif ex == "sad":
+                p["eyes"], p["mouth"] = "sad", "frown"
+                p["head"][1] += 7
+                if el > 0.5 and "tear" not in p["extra"]:
+                    p["extra"] = tuple(p["extra"]) + ("tear",)
+            elif ex == "scared":
+                p["eyes"], p["mouth"] = "worried", "wavy"
+                dx = 2.0 if int(el * 22) % 2 else -2.0
+                if "sweat" not in p["extra"]:
+                    p["extra"] = tuple(p["extra"]) + ("sweat",)
+            elif ex == "happy":
+                k = min(el / 0.4, 1.0)
+                dy = -14 * 4 * k * (1 - k)
+                p["eyes"], p["mouth"] = "happy", "grin"
+            elif ex == "laugh":
+                p["mouth"] = ("grin", "open")[int(el * 8) % 2]
+                p["eyes"] = "happy"
+                dy = -8 * abs(math.sin(2 * math.pi * 3 * el))
+            elif ex == "confused":
+                p["mouth"] = "wavy"
+                p["head"][0] += 5 * fwd
+                if "q" not in p["extra"]:
+                    p["extra"] = tuple(p["extra"]) + ("q",)
+        elif act == "hammer":
+            # raise the hammer, bring it down (one blow every 0.5 s)
+            ph = (el % 0.5) / 0.5
+            up = ph < 0.55
+            p["arms"][1] = [150, 40] if up else [72, -36]
+            p["mouth"] = "flat"
+            if p.get("prop") is None:
+                p["prop"] = "hammer"
+            p["head"][1] += 0 if up else 4
+        elif act == "dig":
+            # both hands on the tool: lift it, then drive it into the ground (one stroke every 0.8 s)
+            ph = (el % 0.8) / 0.8
+            up = ph < 0.5
+            p["arms"] = [[120, 30], [120, 30]] if up else [[55, -30], [55, -30]]
+            p["lean"] = (0 if up else 16) * fwd
+            p["mouth"] = "flat"
+            if p.get("prop") is None:
+                p["prop"] = "shovel"
         elif act == "fight":
             k = int(el * 4) % 2
             p["arms"] = [[100, 10], [40, 10]] if k else [[40, 10], [100, 10]]

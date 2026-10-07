@@ -149,7 +149,7 @@ def test_storyboard_splits_batches_for_small_free_limits(monkeypatch):
             return json.dumps({"scenes": [{"beat": idx[0], "scene": {"bg": {"type": "field"}, "elements": [
                 {"type": "char", "kind": "bicorne", "x": 600, "y": 900}]}}]}), {}
 
-    monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None: SmallWriter())
+    monkeypatch.setattr(stages, "provider", lambda meta, stage, ctx=None, task=None: SmallWriter())
     monkeypatch.setattr(stages, "render_previews", lambda *a, **k: None)
     pr = new_project("Small limits", "topic", topic="Napoleon", options={"minutes": 1})
     pr.save_script({"title": "Small limits", "topic": "Napoleon", "cast": [{"name": "Napoleon", "kind": "bicorne"}],

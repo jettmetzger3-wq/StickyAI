@@ -58,10 +58,27 @@ Paste the key under Settings → API keys (`GEMINI_API_KEY` / `GROQ_API_KEY`) an
 video). When a per-minute limit is hit the studio waits; when the day's limit is used up the video pauses and you
 press **Resume** the next day. "Ollama (local model)" and "Basic (no AI, for testing)" also work.
 
-**Backup writer:** Claude Code stays the default. If your Claude plan hits its usage limit in the middle of a
-video, the free writer you have a key for (Gemini first, else Groq) takes over for the rest of that step instead of
-the video stopping; the video gets a note saying so, and Claude is tried again after its reset time. Settings →
-Writer → "When my Claude plan runs out mid-video" (switch to Gemini / Groq, or stop and wait).
+**Pick your writer, and who does what:** Settings → "Writer: which AI does what".
+- **Main writer**: Claude Code (your plan, the default), Gemini, Groq, the Anthropic API, Ollama or Basic. It
+  writes everything, and new videos start with it (the New Video page can still pick another per video).
+- **Who does what**: hand any single job to a different AI: writing the script, fact-checking, watching the source
+  video, designing props, drawing the scenes, titles and description, picking the Short's moment. For example the
+  script on Claude and the scenes on Gemini. A paid writer always shows its price first and waits for your OK.
+- **Backup writer**: if your Claude plan hits its usage limit in the middle of a video, a free writer (Gemini, Groq
+  or Ollama on your PC) takes over for the rest of that step instead of the video stopping; the video gets a note
+  saying so, and Claude is tried again after its reset time. Or choose "Stop and wait for me". Only free writers can
+  step in, so nothing starts costing money on its own.
+
+**Claude plan saver** (Settings → Writer, on "Balanced" by default): uses less of your Claude plan for the same
+video. The script, the fact-check and the scenes keep your best Claude model; the side jobs (watching the source
+video, designing props, titles and description, picking the Short) use Sonnet (titles and the Short pick also
+think less, on Claude Code versions that support it); scenes are asked for 12 at a time instead of 8, so the long
+scene instructions are sent a third fewer times; and the first batch of scenes goes alone so the batches after it
+can reuse Claude Code's prompt cache of those instructions. The channel host's
+greeting and sign-off scenes are drawn without asking the AI at all. "Maximum savings" goes further (Haiku for
+titles and the Short, Sonnet for the fact-check, 16 scenes per request, fewer example scenes; scenes can get a
+little plainer); "Off" uses your default model everywhere. You can also set the Claude model per job in the
+"Who does what" table.
 
 **Free voice:** Kokoro downloads its model (~340 MB) from GitHub the first time you preview or use it.
 
@@ -251,7 +268,8 @@ the Kokoro model in `data/models/`.
   battlefields, and a pirate video in harbors, on beaches and underwater. Places include city skylines with real
   landmarks (Paris, London, New York, Washington, Moscow, Rome, Cairo, Istanbul, Delhi, Tokyo, Beijing, Berlin...),
   town streets (European, medieval, Asian, Arab, Wild West), palace halls, harbors, beaches, underwater, space,
-  jungle, mountains and WW1 trenches. Two scenes in a row never look the same (colors or time of day change).
+  jungle, mountains, WW1 trenches, and the places where things happen (see below). Two scenes in a row never look
+  the same (colors or time of day change).
 - **Props** (`studio/engine/props_*.py`): about 230 detailed doodles: world landmarks, ships from Viking longships to
   the Titanic, sea life, animals, food from baguettes to sushi, weapons and machines across history, and everyday
   objects. On top of that, before the storyboard the writer designs a few extra props this particular story needs
@@ -288,6 +306,29 @@ the Kokoro model in `data/models/`.
   Napoleon is always in French blue. A coronation crown and similar costume changes are kept.
 - **Thumbnails**: big faces cut out like stickers (white outline, soft shadow), a close-up giant against a furious
   small character, a prop that sums up the story, huge double-outlined words in the cast's colors.
+- **Places where things happen** (`engine/places_work.py`): when the narration says what someone does, the whole
+  screen becomes that place instead of a small prop on a plain page. "He built a factory" is a construction site:
+  the steel frame stands, a tower crane carries beams over and lowers them, workers hammer on the scaffolding and
+  the brick walls rise while the scene plays (also houses, skyscrapers, castles, walls and ships on a slipway; the
+  same building keeps rising over several scenes and its chimney starts smoking when it's finished). Battles happen
+  on a real battlefield (a village with a church tower, a river with a wooden bridge, trampled ground, craters,
+  black smoke rising; also open plains and WW1/WW2 ruins), and there are working factories (smoking chimneys and a
+  railway outside; a running conveyor belt, turning gears and a stamping press inside), farms, mines, classrooms,
+  labs with bubbling flasks, parliament, a courtroom, a prison cell, a market and an army camp with a crackling
+  fire, each with its own background sound. The writer is told to use them, and the auto-repair switches a plain
+  scene to the right place when the narration names it (and leaves figures of speech like "built an empire" alone).
+- **Faces that react to the words** (`engine/reactions.py`): characters look shocked on "suddenly", furious on
+  "betrayed", smug on "won", crushed on "lost", scared on "terrified", laugh on "laughed", right as the narrator
+  says the word. The character the sentence is about reacts ("Napoleon won, and Francis was furious"); a gasp with
+  no clear subject goes through everyone. A character's own actions always win. Settings → "Faces react to the words".
+- **Smarter camera**: without hand-made shots, the camera cuts in to a close-up exactly on the punchline word (the
+  last face that reacts) and cuts back out after it; wide painted places get a slow sideways pan instead of a
+  plain push-in. Settings → "Smart camera".
+- **Channel mascot** (`pipeline/mascot.py`): your channel's own host stickman (Settings → Channel mascot: name, hat,
+  colors, beard, its lines). It says hi right after the hook ("Hey, it's Sticky! Today: ..."), signs off at the end
+  next to a subscribe button, and leans in from the edge of the screen to react to the biggest moments ("WHAT?!",
+  "Oof.", "Ha!"), at most once every 7 scenes. Its lines are ordinary beats in the Script tab, so you can edit or
+  delete them, they never end up in the Short, and the New Video page can switch it off for one video.
 - **Drifting clouds**: the clouds of every painted sky drift slowly and pass behind buildings, hills and towers.
 - **Fallback scenes** (Basic mode, or when an AI scene can't be repaired) now use maps with territories and
   invasion arrows when countries are mentioned, timelines for several dates, counters for big numbers ("600,000
@@ -317,7 +358,7 @@ the Kokoro model in `data/models/`.
   Every scene is auto-repaired (wrong names, off-screen positions, text in the caption area, labels on faces,
   somber-scene rules) and validated against a JSON Schema before rendering. If a scene is broken the AI is asked
   to fix it, and as a last resort a simple rule-based scene (that still follows the video's topic) is used.
-  24 hand-made example scenes
+  26 hand-made example scenes
   (`studio/prompts/examples.json`) teach the AI the style (writers with small free limits get a compact version of
   the instructions and the 3 most useful examples).
 - **Rendering**: each scene is composited frame by frame and piped raw into ffmpeg (x264), one MP4 per scene in

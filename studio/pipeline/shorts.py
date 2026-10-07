@@ -51,13 +51,30 @@ def rule_pick(beats, durs):
                 by="rule")
 
 
-def fix_range(pick, durs):
+def fix_range(pick, durs, beats=None):
     n = len(durs)
     s = max(0, min(int(pick.get("start", 0)), n - 1))
     e = max(s, min(int(pick.get("end", s)), n - 1))
+    host = [i for i, b in enumerate(beats or []) if b.get("host")]
+    if host:
+        # the channel host's greeting and sign-off don't belong in a Short: start after or stop before them
+        while s in host and s + 1 < n:
+            s += 1
+        e = max(e, s)
+        inside = [i for i in host if s < i <= e]
+        if inside:
+            k = inside[0]
+            if sum(durs[s:k]) >= MIN_S or k + 1 >= n:
+                e = k - 1
+            else:
+                s = k + 1
+                e = max(e, s)
+        while e in host and e > s:
+            e -= 1
     while sum(durs[s:e + 1]) > MAX_S and e > s:
         e -= 1
-    while sum(durs[s:e + 1]) < MIN_S and e + 1 < n and sum(durs[s:e + 2]) <= MAX_S:
+    while sum(durs[s:e + 1]) < MIN_S and e + 1 < n and sum(durs[s:e + 2]) <= MAX_S and \
+            not (beats and beats[e + 1].get("host")):
         e += 1
     pick.update(start=s, end=e)
     return pick
@@ -74,7 +91,7 @@ def pick_clip(ctx):
     old = read_json(pr.p("final", "short.json"), {}) or {}
     if old.get("key") == key and old.get("pick"):
         return old["pick"], durs
-    llm = st.provider(meta, "llm", ctx)
+    llm = st.provider(meta, "llm", ctx, task="short")
     pick = None
     if llm.id != "offline" and llm.available()[0]:
         try:
@@ -85,7 +102,7 @@ def pick_clip(ctx):
             pick["by"] = llm.id
         except Exception as e:
             ctx.warn(f"Couldn't pick the Short's moment with the AI ({str(e)[:120]}); used the opening instead.")
-    pick = fix_range(pick or rule_pick(beats, durs), durs)
+    pick = fix_range(pick or rule_pick(beats, durs), durs, beats)
     pick["title"] = st.clean_line(pick.get("title") or script.get("title", ""))[:40]
     pick["script"] = st.clean_line(pick.get("script") or "")
     tags = [("#" + re.sub(r"[^A-Za-z0-9]", "", str(t).lstrip("#"))) for t in pick.get("hashtags") or [] if t]
@@ -158,8 +175,9 @@ def make_stickman_short(ctx, pick):
     vb = voice.get("beats") or []
     wm = opts.get("watermark") or ""
     jobs = []
+    settings = st.load_settings()
     for i in range(s, e + 1):
-        scene = read_json(pr.scene_path(i))
+        scene = st.as_rendered(read_json(pr.scene_path(i)), i, beats, settings, opts=opts)
         key = st.h(scene, beats[i], info["frames"][i], (vb[i] or {}).get("word_times") if i < len(vb) else None, wm,
                    st.ENGINE_VERSION)
         out = os.path.join(work, f"s_{i:03d}.mp4")

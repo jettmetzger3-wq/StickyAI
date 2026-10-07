@@ -21,7 +21,7 @@ from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind, m
 from ..engine.render import ENGINE_VERSION, pick_transition
 from ..engine.pen import resolve_kind
 from .. import prompts as PR
-from . import rules, costs, themes as TH
+from . import rules, costs, themes as TH, mascot as MA, writers as WR
 from .project import read_json, write_json
 from ..engine.custom_props import clean_kit, kit_sheet
 from ..engine.registry import PROPS
@@ -37,9 +37,17 @@ def h(*parts):
     return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def provider(meta, stage, ctx=None):
-    pid = (meta.get("providers") or {}).get(stage) or P.TIERS["free"][stage]
-    p = P.get(stage, pid)
+def provider(meta, stage, ctx=None, task=None):
+    """The provider for a stage. For the writer, `task` (script, factcheck, watch, props, storyboard, package,
+    short) picks the AI assigned to that job in Settings > "Who does what", else the video's writer."""
+    if stage == "llm":
+        settings = load_settings()
+        p = P.get("llm", WR.task_writer_id(meta, task, settings))
+        if p.id == "claude_cli":
+            p = WR.ClaudeTask(p, task, settings)      # the task's Claude model and the plan savers
+    else:
+        pid = (meta.get("providers") or {}).get(stage) or P.TIERS["free"][stage]
+        p = P.get(stage, pid)
     if stage == "llm":
         backup = P.backup_for(p.id)
         if backup is not None:
@@ -141,7 +149,7 @@ def stage_source(ctx):
     with open(pr.p("source", "transcript.txt"), "w", encoding="utf-8") as f:
         f.write(transcript_text(segs))
     ctx.log(f"transcript: {len(segs)} segments, {sum(len(s['text'].split()) for s in segs)} words")
-    llm = provider(meta, "llm", ctx)
+    llm = provider(meta, "llm", ctx, task="watch")
     if opts.get("watch", True) and llm.supports_images and llm.id != "offline" and llm.available()[0]:
         try:
             ctx.progress(0.55, "downloading a low-res copy to watch")
@@ -183,7 +191,10 @@ def normalize_script(data, fallback_title=""):
         if not t:
             continue
         mood = b.get("mood") if b.get("mood") in ("fun", "tense", "somber") else "fun"
-        beats.append({"mood": mood, "text": t})
+        beat = {"mood": mood, "text": t}
+        if b.get("host") in ("intro", "outro"):          # the channel host's own lines (see mascot.py)
+            beat["host"] = b["host"]
+        beats.append(beat)
     if not beats:
         raise P.ProviderError("the script came back empty")
     facts = []
@@ -212,7 +223,7 @@ def source_bundle(pr, meta):
 def stage_script(ctx):
     pr, meta = ctx.project, ctx.project.meta()
     opts = meta.get("options") or {}
-    llm = provider(meta, "llm", ctx)
+    llm = provider(meta, "llm", ctx, task="script")
     minutes = float(opts.get("minutes") or 10)
     youtube = meta.get("mode") == "youtube"
     src = source_bundle(pr, meta) if (youtube or opts.get("style_url")) else None
@@ -239,9 +250,14 @@ def stage_script(ctx):
     if llm.id != "offline" and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
         ctx.progress(0.6, "fact-checking")
         try:
-            fact_check(ctx, llm, script)
+            fc = provider(meta, "llm", ctx, task="factcheck")
+            if fc.id == "offline" or not fc.available()[0]:
+                fc = llm
+            fact_check(ctx, fc, script)
         except P.ProviderError as e:
             ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
+    if opts.get("mascot", True) is not False:
+        MA.add_host_beats(script, load_settings())
     pr.save_script(script)
     if not meta.get("title") or meta.get("title") in (meta.get("source_url"), meta.get("topic")):
         pr.update(title=script.get("title") or meta.get("title"))
@@ -313,7 +329,7 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         key = h(beats[i]["text"], beats[i]["mood"])
         if force or not os.path.exists(pr.scene_path(i)) or made.get(str(i), {}).get("key") != key:
             todo.append(i)
-    llm = provider(meta, "llm", ctx)
+    llm = provider(meta, "llm", ctx, task="storyboard")
     hints = {}
     if meta.get("mode") == "youtube":
         vn = read_json(pr.p("source", "visual_notes.json"))
@@ -323,16 +339,21 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
     vthemes = TH.detect(script.get("title", ""), script.get("topic", ""), beats)
     kit_text = TH.kit_block(vthemes)
     custom = pr.prop_kit()
-    if todo and llm.id != "offline":
+    host_beats = {i for i in todo if beats[i].get("host")}
+    ai_todo = [i for i in todo if i not in host_beats]
+    if ai_todo and llm.id != "offline":
         ok, why = llm.available()
         if not ok:
             raise P.ProviderError(f"{llm.label} is not available: {why}")
-        custom = design_props(ctx, llm, script, beats, vthemes, kit_text, custom)
+        props_llm = provider(meta, "llm", ctx, task="props")
+        if props_llm.id == "offline" or not props_llm.available()[0]:
+            props_llm = llm
+        custom = design_props(ctx, props_llm, script, beats, vthemes, kit_text, custom)
         # free API writers have small per-minute limits: they get fewer scenes (and examples) per request
         size = max(1, int(getattr(llm, "batch_beats", 8) or 8))
         n_ex = int(getattr(llm, "examples", 20))
         compact = bool(getattr(llm, "compact", False))
-        batches = [todo[k:k + size] for k in range(0, len(todo), size)]
+        batches = [ai_todo[k:k + size] for k in range(0, len(ai_todo), size)]
         done = [0]
         who = getattr(llm, "short", "The AI")
 
@@ -372,11 +393,21 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                     out[bi] = sc
             return out
 
-        ctx.progress(0.02, f"drawing {len(todo)} scenes")
+        ctx.progress(0.02, f"drawing {len(ai_todo)} scenes")
         par = max(1, int(getattr(llm, "parallel", 3) or 3))
         rounds = (len(batches) + par - 1) // par
-        with ctx.working(f"{who} is drawing up {len(todo)} scenes", expect=75 * rounds, until=0.64), \
+        with ctx.working(f"{who} is drawing up {len(ai_todo)} scenes", expect=75 * rounds, until=0.64), \
                 cf.ThreadPoolExecutor(max_workers=par) as ex:
+            if getattr(llm, "warm_first", False) and len(batches) > 1 and par > 1:
+                # plan saver: the first request alone, so Claude Code caches the long shared instructions
+                # and the parallel requests after it reuse them
+                b0 = batches.pop(0)
+                try:
+                    raw.update(run_batch(b0))
+                except Exception as e:
+                    ctx.warn(f"storyboard batch {b0[0]}-{b0[-1]} failed: {str(e)[:200]}")
+                done[0] += len(b0)
+                ctx.progress(0.05 + 0.6 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
             futs = {ex.submit(run_batch, b): b for b in batches}
             for fut in cf.as_completed(futs):
                 b = futs[fut]
@@ -385,11 +416,18 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
                 except Exception as e:
                     ctx.warn(f"storyboard batch {b[0]}-{b[-1]} failed: {str(e)[:200]}")
                 done[0] += len(b)
-                ctx.progress(0.05 + 0.6 * done[0] / len(todo), f"{who} drew {done[0]} of {len(todo)} scenes")
+                ctx.progress(0.05 + 0.6 * done[0] / len(ai_todo), f"{who} drew {done[0]} of {len(ai_todo)} scenes")
     finished = {}
     for i in todo:
         ctx.check_cancel()
         beat = beats[i]
+        if beat.get("host"):
+            fixed, fixes, _ = check_scene(MA.host_scene(beat, load_settings(), script.get("title", ""), i),
+                                          beat["mood"], beat["text"], custom, cast)
+            finished[i] = fixed
+            made[str(i)] = dict(key=h(beat["text"], beat["mood"]), fixes=["the channel host's scene"] + fixes,
+                                source="host", at=time.time())
+            continue
         sc = raw.get(i)
         talk = TH.ensure_dialogue(sc, beat["text"], beat["mood"], cast, TH.beat_themes(beat["text"], vthemes), i)
         fixed, fixes, errs = check_scene(sc, beat["mood"], beat["text"], custom, cast) if sc else (None, [], ["missing"])
@@ -453,10 +491,29 @@ def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
     return kit
 
 
+def as_rendered(scene, i, beats, settings, plan=None, opts=None):
+    """The scene as it is rendered: the stored scene, plus the host's cameo on a big moment, minus the automatic
+    reactions or camera moves when they're switched off in Settings."""
+    if not isinstance(scene, dict):
+        return scene
+    opts = opts or {}
+    if opts.get("mascot", True) is not False:
+        scene = MA.with_cameo(scene, i, beats, settings, plan)
+    if settings.get("auto_reactions", True) is False and scene.get("react") is not False:
+        scene = dict(scene, react=False)
+    if settings.get("auto_camera", True) is False:
+        cam = dict(scene.get("camera") or {})
+        if cam.get("auto_shots") is not False or cam.get("pan") is not False:
+            cam.update(auto_shots=False, pan=False)
+            scene = dict(scene, camera=cam)
+    return scene
+
+
 def scene_job(pr, i, beats, durs):
     dur, wt = durs[i]
-    return dict(idx=i, scene=read_json(pr.scene_path(i)), dur=dur, mood=beats[i]["mood"], text=beats[i]["text"],
-                word_times=wt)
+    opts = (pr.meta() or {}).get("options") or {}
+    scene = as_rendered(read_json(pr.scene_path(i)), i, beats, load_settings(), opts=opts)
+    return dict(idx=i, scene=scene, dur=dur, mood=beats[i]["mood"], text=beats[i]["text"], word_times=wt)
 
 
 def render_previews(ctx, indices, p0=0.0, p1=1.0):
@@ -588,7 +645,8 @@ def stage_render(ctx, only=None, force=False):
     wm = opts.get("watermark") or ""
     cap_style = opts.get("caption_style") or settings.get("caption_style", "highlight")
     use_tr = opts.get("transitions", settings.get("transitions", True)) is not False
-    scenes = [read_json(pr.scene_path(i)) for i in range(len(beats))]
+    cameos = MA.cameo_plan(beats, settings) if opts.get("mascot", True) is not False else {}
+    scenes = [as_rendered(read_json(pr.scene_path(i)), i, beats, settings, cameos, opts) for i in range(len(beats))]
     for i, b in enumerate(beats):
         scene = scenes[i]
         if scene is None:
@@ -791,7 +849,7 @@ def stage_package(ctx):
     script = pr.script()
     info = pr.render_info()
     total = float(info.get("total") or 0)
-    llm = provider(meta, "llm", ctx)
+    llm = provider(meta, "llm", ctx, task="package")
     ctx.progress(0.05, "writing title, description and tags")
     data = None
     if llm.id != "offline" and llm.available()[0]:
