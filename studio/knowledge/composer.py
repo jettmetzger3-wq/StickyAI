@@ -853,15 +853,15 @@ def L_two_talk(c, a, s, w):
     year = (a.get("years") or [None])[0]
     bg = bg_for(c, a, s, default="interior", indoor=True)
     la, lb = slot(s, "a_line"), slot(s, "b_line")
-    left = person(c, A, 600, FEET, 1.15, pose="point_right", mouth="open", year=year, at=0.02)
-    right = person(c, B, 1320, FEET, 1.15, flip=True, pose="shrug", mouth="smirk", year=year, at=0.06)
+    left = person(c, A, 660, FEET, 1.15, pose="point_right", mouth="open", year=year, at=0.02)
+    right = person(c, B, 1260, FEET, 1.15, flip=True, pose="shrug", mouth="smirk", year=year, at=0.06)
     if la:
         left["say"] = [say(la, w.at("said", "told", "asked", "wanted", "offered", "warned", default=0.2))]
     if lb:
         right["say"] = [say(lb, w.at("replied", "answered", "but", default=0.6))]
     pic = slot(s, "prop") or prop_in_text(a.get("text"), skip=("crowd",))
     els = banner(a, c, s) + [left, right] + ([prop(pic, MID, 760, 0.8, at=w.at(pic, default=0.3))] if pic in PROPS else [])
-    cam = {"shots": [{"at": 0, "zoom": 1.0}, {"at": 0.25, "zoom": 1.45, "focus": [600, 600], "move": "cut"}, {"at": 0.6, "zoom": 1.45, "focus": [1320, 600], "move": "cut"}, {"at": 0.9, "zoom": 1.0, "move": "pan"}]}
+    cam = {"shots": [{"at": 0, "zoom": 1.0}, {"at": 0.25, "zoom": 1.35, "focus": [660, 600], "move": "cut"}, {"at": 0.6, "zoom": 1.35, "focus": [1260, 600], "move": "cut"}, {"at": 0.9, "zoom": 1.0, "move": "pan"}]}
     return {"bg": bg, "elements": els, "camera": cam}
 
 

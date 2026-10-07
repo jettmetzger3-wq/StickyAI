@@ -1680,7 +1680,7 @@
    "id": "TWO_PEOPLE_TALK",
    "label": "Two people talk or argue",
    "layout": "two_talk",
-   "when": "a conversation: someone said, told, asked or replied to someone",
+   "when": "a conversation or meeting: someone said, told, asked, met, visited or shook hands with someone",
    "triggers": {
     "events": [
      "dialogue"
@@ -1694,7 +1694,19 @@
      "shouted",
      "argued with",
      "offered",
-     "warned"
+     "warned",
+     "met",
+     "meets",
+     "meeting",
+     "summit",
+     "visited",
+     "visits",
+     "handshake",
+     "shaking hands",
+     "shook hands",
+     "sat down with",
+     "welcomed",
+     "negotiated with"
     ],
     "docs": [],
     "needs": [

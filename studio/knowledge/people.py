@@ -71,7 +71,12 @@ def find(name, year=None):
 @functools.lru_cache(maxsize=1)
 def _name_regex():
     names = sorted({n for n in _index() if len(n) >= 4}, key=len, reverse=True)
-    return re.compile(r"\b(" + "|".join(re.escape(n) for n in names) + r")\b", re.I)
+    # three-letter names (Mao, Lee, Ike, FDR, JFK, MLK) only count when written like a name, not as any lowercase word
+    short = sorted({f for n in _index() if len(n) < 4 for f in (n.title(), n.upper())})
+    alts = "(?i:" + "|".join(re.escape(n) for n in names) + ")"
+    if short:
+        alts += "|" + "|".join(re.escape(n) for n in short)
+    return re.compile(r"\b(" + alts + r")\b")
 
 
 def find_in_text(text, year=None):

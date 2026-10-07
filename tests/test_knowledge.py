@@ -323,3 +323,19 @@ def test_call_llm_answers_repeat_questions_from_the_cache_and_logs_them(tmp_path
     assert stages.call_llm(c, L(), "sys", "prompt A", label="script", cache=False) == {"ok": 1} and len(n) == 2
     s = usage.summary(pr)
     assert s["total"]["calls"] == 2 and s["total"]["cached"] == 1
+
+
+def test_three_letter_names_count_only_when_written_like_names():
+    from studio.knowledge import people as PE
+    ids = lambda t: [e["id"] for e, _ in PE.find_in_text(t)]
+    assert ids("Nixon visited Mao in China in 1972.") == ["nixon", "mao"]
+    assert "robert_e_lee" in ids("Lee surrendered at Appomattox.")
+    assert "fdr" in ids("FDR spoke on the radio.") and "kennedy" in ids("JFK was shot in Dallas.")
+    assert ids("the lee side of the ship, a mao of jade") == []
+
+
+def test_a_visit_between_two_named_leaders_is_a_two_person_scene():
+    from studio.knowledge import analysis as AN, patterns as PT
+    a = AN.analyze("Nixon visited Mao in China in 1972, shocking everyone by shaking hands.")
+    pid, sc = PT.best(a)
+    assert pid == "TWO_PEOPLE_TALK" and sc >= PT.CONFIDENT

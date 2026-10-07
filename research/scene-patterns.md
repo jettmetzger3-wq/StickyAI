@@ -700,7 +700,7 @@ Provenance: every pattern lists the videos it was verified against. `seed` means
 
 ## TWO_PEOPLE_TALK: Two people talk or argue
 
-**Use when:** a conversation: someone said, told, asked or replied to someone
+**Use when:** a conversation or meeting: someone said, told, asked, met, visited or shook hands with someone
 
 **Visual sequence**
 
@@ -718,7 +718,7 @@ Provenance: every pattern lists the videos it was verified against. `seed` means
 - **Transitions:** auto
 - **Tone:** humor, tension, neutral
 - **Slots:** `a` (first speaker); `b` (second speaker); `a_line` (max 6 words); `b_line` (max 6 words); `place` (interior or palace); `prop` (the thing between them)
-- **Narration cues:** events dialogue; words said, told, asked, replied, whispered, shouted, argued with, offered, warned
+- **Narration cues:** events dialogue; words said, told, asked, replied, whispered, shouted, argued with, offered, warned, met
 - **Example narration:** "The king told his advisor he wanted more gold. The advisor said there was none."
 - **Provenance:** seed: documented technique, not yet frame-verified
 
