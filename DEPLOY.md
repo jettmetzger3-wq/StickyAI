@@ -128,7 +128,7 @@ reset a password, disable an account, and see this month's revenue and tool spen
 ## Running without Docker
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements.txt -r requirements-paid.txt     # hosted mode uses Stripe and the paid providers
 cd web && npm ci && npm run build && cd ..
 export STUDIO_MODE=hosted STUDIO_PUBLIC_URL=https://your-domain STUDIO_TRUST_PROXY=1 STUDIO_ADMIN_EMAIL=you@example.com
 python -m studio serve --host 127.0.0.1 --port 8765     # behind nginx/Caddy that terminates HTTPS

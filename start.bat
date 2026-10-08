@@ -15,6 +15,21 @@ if errorlevel 1 (
   exit /b 1
 )
 
+REM A deep folder (or one inside OneDrive) makes Windows file paths too long (260 characters) for some packages, and OneDrive
+REM tries to sync the tens of thousands of files in .venv. Say so before anything is installed.
+set "HERE=%cd%"
+set "LONGCHK=%HERE%"
+if not "%LONGCHK:~70,1%"=="" set "DEEP=1"
+echo "%HERE%" | find /i "OneDrive" >nul && set "DEEP=1"
+if defined DEEP (
+  echo.
+  echo NOTE: this folder is deep or inside OneDrive:
+  echo     "%HERE%"
+  echo Windows limits file paths to 260 characters and OneDrive tries to sync the .venv folder. If a package fails to
+  echo install, or the studio is slow to start, move the whole folder to a short path such as C:\StickyAI and run start.bat there.
+  echo.
+)
+
 set "PY=python"
 where py >nul 2>nul
 if not errorlevel 1 set "PY=py -3"
@@ -46,7 +61,11 @@ if errorlevel 1 (
   python -m pip install --upgrade pip >nul
   python -m pip install -r requirements.txt
   if errorlevel 1 (
+    echo.
     echo Package install failed. Check the messages above.
+    echo   - If they mention "Long Path" or "No such file or directory" with a very long file name, the folder is too deep:
+    echo     move the studio to a short path such as C:\StickyAI, delete the .venv folder, and run start.bat again.
+    echo   - If they mention "Application Control" or "blocked", see Troubleshooting in README.md.
     pause
     exit /b 1
   )

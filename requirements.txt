@@ -14,13 +14,9 @@ yt-dlp[default]>=2026.1.29   # [default] adds the YouTube challenge solver (need
 youtube-transcript-api>=1.0
 pyttsx3>=2.90; sys_platform == "win32"
 
-# Optional paid providers (only used if you add API keys)
-anthropic>=1.0
-elevenlabs>=2.0
-higgsfield-client>=0.2
-
-# Hosted mode only (accounts + payments, see DEPLOY.md)
-stripe>=12.0
+# The paid providers (Anthropic API, ElevenLabs, Higgsfield) and hosted-mode payments (Stripe) are NOT installed by default:
+# the free studio does not need them, and the ElevenLabs package has file names so long that it can fail to install on Windows
+# (paths over 260 characters). Add them only when you use them: `pip install -r requirements-paid.txt` (see README).
 
 # Optional: local Whisper transcription for videos without captions
 # faster-whisper>=1.0

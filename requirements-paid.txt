@@ -1,0 +1,12 @@
+# Optional: the paid providers and hosted-mode payments. Install on the PC that will use them:
+#     Windows:   .venv\Scripts\python -m pip install -r requirements-paid.txt
+#     Mac/Linux: .venv/bin/python -m pip install -r requirements-paid.txt
+# Nothing here is used until you add its key in Settings, and every paid step still shows its price and waits for your click.
+#
+# Windows note: the elevenlabs package contains file names that make the full path longer than 260 characters when the
+# studio lives in a deep folder (e.g. inside OneDrive). Keep the studio in a short folder such as C:\StickyAI, or turn on
+# Windows long-path support (see README > Troubleshooting).
+anthropic>=1.0
+elevenlabs>=2.0
+higgsfield-client>=0.2
+stripe>=12.0

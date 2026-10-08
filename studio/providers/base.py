@@ -4,6 +4,7 @@ A provider says whether it is free, whether it is available on this machine (key
 how much a job will cost *before* it runs. Paid providers never run without an approval (see pipeline/costs.py).
 """
 import importlib.util
+import os
 import shutil
 from dataclasses import dataclass, field, asdict
 
@@ -34,6 +35,20 @@ class Cost:
 FREE = Cost()
 
 
+PIP_NAMES = {"elevenlabs": "elevenlabs", "anthropic": "anthropic", "higgsfield_client": "higgsfield-client", "stripe": "stripe",
+             "faster_whisper": "faster-whisper", "kokoro_onnx": "kokoro-onnx", "yt_dlp": "yt-dlp"}
+PAID_PACKAGES = ("elevenlabs", "anthropic", "higgsfield_client", "stripe")
+
+
+def pip_hint(module):
+    """How to install a missing Python package into the studio's own environment (the paid ones live in requirements-paid.txt)."""
+    py = ".venv\\Scripts\\python" if os.name == "nt" else ".venv/bin/python"
+    if module in PAID_PACKAGES:
+        return (f"run {py} -m pip install -r requirements-paid.txt; on Windows keep the studio in a short folder like C:\\StickyAI, "
+                f"long paths can break this install")
+    return f"run {py} -m pip install {PIP_NAMES.get(module, module)}"
+
+
 class Provider:
     id = "base"
     stage = ""
@@ -56,7 +71,7 @@ class Provider:
                 return False, f"'{b}' not found on PATH" + (f" ({self.install_hint})" if self.install_hint else "")
         for m in self.needs_modules:
             if importlib.util.find_spec(m) is None:
-                return False, f"python package '{m}' missing" + (f" ({self.install_hint})" if self.install_hint else "")
+                return False, f"python package '{m}' is not installed" + f" ({self.install_hint or pip_hint(m)})"
         return True, ""
 
     def estimate(self, **job):

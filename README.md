@@ -232,6 +232,21 @@ the Kokoro model in `data/models/`.
 
 ## Troubleshooting
 
+- **`ERROR: Could not install packages due to an OSError: [Errno 2] No such file or directory: '...\.venv\Lib\site-packages\...'`
+  and "Windows long path support"** (Windows limits a file path to 260 characters; a folder like
+  `C:\Users\you\OneDrive\Desktop\StickyAI\StickyAI-claude-...\.venv\Lib\site-packages\elevenlabs\...` goes over it):
+  the studio no longer installs the paid-provider packages by default (they are in `requirements-paid.txt`), so a plain
+  `start.bat` should install fine. To be safe, **keep the studio in a short folder outside OneDrive**, for example `C:\StickyAI`
+  (OneDrive also tries to sync the tens of thousands of files in `.venv`, which is slow and can lock them): move the folder,
+  delete its `.venv` subfolder, and run `start.bat` again. If you do want ElevenLabs / the Anthropic API / Higgsfield, install them
+  from the short folder with `.venv\Scripts\python -m pip install -r requirements-paid.txt`, or turn on Windows long paths
+  (an administrator's PowerShell: `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`,
+  then restart the PC).
+- **Updating when you downloaded a ZIP**: a ZIP has no history, so `git pull` does not work in it. Either download the ZIP of the
+  branch again into a new short folder (copy your old `data` and `projects` folders and `.env` across to keep your work), or
+  install Git (`winget install --id Git.Git -e`) and clone once: `git clone -b claude/stickman-video-generator-ox3n1n https://github.com/jettmetzger3-wq/StickyAI C:\StickyAI`,
+  then update any time with `git pull`.
+
 - **`DLL load failed ... An Application Control policy has blocked this file`** (Windows, Smart App Control / WDAC / AppLocker):
   Windows is blocking one of the compiled files inside a Python package. The studio no longer needs scipy's `_stats_pythran`
   file (it starts without `scipy.stats`, and without scipy's signal code entirely if that is blocked too: `studio/engine/dsp.py`),
