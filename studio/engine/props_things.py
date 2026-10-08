@@ -28,6 +28,17 @@ def _fit(g, text, cx, cy, size, max_w, col=INK, f="bold"):
     g.text(text, cx, cy, size, col, f=f)
 
 
+def _title_lines(title, one=18):
+    """A long title on two lines instead of cut off ('DECLARATION OF INDEPENDENCE' -> 'DECLARATION OF' / 'INDEPENDENCE').
+    Split at the space that makes the lines most even; a title with no space, or a short one, stays on one line."""
+    t = str(title or "").strip().upper()
+    if len(t) <= one or " " not in t:
+        return [t[:30]] if t else []
+    words = t.split()
+    best = min(range(1, len(words)), key=lambda i: max(len(" ".join(words[:i])), len(" ".join(words[i:]))))
+    return [" ".join(words[:best])[:24], " ".join(words[best:])[:24]]
+
+
 def _c(c, default):
     return C(c, default) if c is not None else default
 
@@ -758,9 +769,11 @@ def scroll(p, x, y, s, c, k):
     g.rect(-100, -80, 100, 90, PARCH, 5)
     title, body = str(k.get("title", "")).strip(), _text_lines(k, "text", "lines_text", limit=4)
     if title or body:
-        _fit(g, title[:22].upper(), 0, -56, 15, 168, (90, 50, 30)) if title else None
+        tl = _title_lines(title)
+        for j, ln in enumerate(tl):
+            _fit(g, ln, 0, -56 if len(tl) == 1 else -64 + j * 19, 15 if len(tl) == 1 else 14, 168, (90, 50, 30))
         for i, ln in enumerate(body):
-            _fit(g, ln[:26], 0, -28 + i * 22, 11, 168, (90, 70, 50), f="hand")
+            _fit(g, ln[:26], 0, -28 + i * 22 + (12 if len(tl) == 2 else 0), 11, 168, (90, 70, 50), f="hand")
     else:
         for i in range(5):
             g.line([(-70, -44 + i * 24), (70 - (i % 2) * 30, -44 + i * 24)], 3.5, (150, 130, 100))
@@ -783,11 +796,13 @@ def document(p, x, y, s, c, k):
     title, body = str(k.get("title", "")).strip(), _text_lines(k, "text", "lines_text", limit=5)
     stamp = str(k.get("stamp", "")).strip().upper()[:10]
     if title or body:
-        if title:
-            _fit(g, title[:24].upper(), -14, -74, 13, 2 * w - 54, (50, 50, 80))
-            g.line([(-w + 14, -60), (w - 14, -60)], 3, (90, 90, 110))
+        tl = _title_lines(title, 14 if w < 90 else 20)
+        if tl:
+            for j, ln in enumerate(tl):
+                _fit(g, ln, -14, -74 if len(tl) == 1 else -82 + j * 14, 13 if len(tl) == 1 else 11.5, 2 * w - 54, (50, 50, 80))
+            g.line([(-w + 14, -60 if len(tl) == 1 else -56), (w - 14, -60 if len(tl) == 1 else -56)], 3, (90, 90, 110))
         for i, ln in enumerate(body):
-            _fit(g, ln[:30], 0, -38 + i * 21, 10.5, 2 * w - 20, (70, 70, 90), f="hand")
+            _fit(g, ln[:30], 0, -38 + i * 21 + (4 if len(tl) == 2 else 0), 10.5, 2 * w - 20, (70, 70, 90), f="hand")
     else:
         g.line([(-52, -70), (20, -70)], 6, (90, 90, 110))
         for i in range(max(1, min(n, 7))):

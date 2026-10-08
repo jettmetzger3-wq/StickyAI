@@ -26,11 +26,12 @@ from .. import cache as CA, usage as UG
 from . import flow as FL, research as RS, director as DR, characters as CH, continuity as CT, review as RV, modes as MD
 from . import rules, costs, themes as TH, mascot as MA, writers as WR
 from .project import read_json, write_json
+from ..engine import prop_library as PL
 from ..engine.custom_props import clean_kit, kit_sheet
 from ..knowledge import semantics as SM
 from ..research import budget as RB, engine as RE, claims as CL
 from . import spec as SP, muted as MU, world as WD, coverage as CVG
-from ..knowledge import props_intel as PI
+from ..knowledge import propindex as PX, props_intel as PI
 from ..engine.registry import PROPS
 from .source import (fetch_meta, transcript_text, download_lowres, extract_frames, thumbnail_frames, contact_sheets,
                      hints_for_beats)
@@ -42,6 +43,13 @@ class Cancelled(Exception):
 
 def h(*parts):
     return hashlib.sha1(json.dumps(parts, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def engine_key(scenes):
+    """ENGINE_VERSION, plus the fingerprint of the shared-library props the scenes use (a redrawn library prop
+    re-renders only the scenes that show it; a scene without library props keeps the plain version, so nothing re-renders)."""
+    fp = PL.fingerprint(scenes)
+    return f"{ENGINE_VERSION}+{fp}" if fp else ENGINE_VERSION
 
 
 def provider(meta, stage, ctx=None, task=None):
@@ -518,7 +526,8 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         if props_llm.id == "offline" or not props_llm.available()[0]:
             props_llm = llm
         if profile["props_ai"]:
-            custom = design_props(ctx, props_llm, script, beats, vthemes, kit_text, custom)
+            custom = design_props(ctx, props_llm, script, beats, vthemes, kit_text, custom,
+                                  wanted=unmet_objects(plan_info, beats) if plan_info else None)
         # free API writers have small per-minute limits: they get fewer scenes (and examples) per request
         size = max(1, int(getattr(llm, "batch_beats", 8) or 8))
         n_ex = int(getattr(llm, "examples", 20))
@@ -744,7 +753,8 @@ def ai_fix_open(ctx, llm, report, finished, beats, custom, cast, limit=8):
 
 
 def cached_props(text):
-    """Custom props an earlier video already had drawn (the Rosetta Stone, a Spitfire) whose names appear in `text`."""
+    """Props an earlier video already had drawn (the Rosetta Stone, a Spitfire) whose names appear in `text`. Designs from
+    before the shared library existed are moved into it here, so they are picked by name from now on."""
     idx = CA.get("props", "_index") or {}
     low = str(text or "").lower()
     out = []
@@ -753,50 +763,74 @@ def cached_props(text):
         if words and all(w in low for w in words):
             d = CA.get("props", k)
             if d:
+                PL.add_user_design(d)
                 out.append(d)
     return out
 
 
 def remember_props(kit):
-    idx = CA.get("props", "_index") or {}
-    for d in kit or []:
-        k = CA.key("prop", d.get("name"))
-        CA.put("props", k, d, dict(name=d.get("name")))
-        idx[d["name"]] = k
-    if kit:
-        CA.put("props", "_index", idx)
+    """Keep every prop the AI drew for good (data/prop_library/): from now on it is a prop like any other, picked by name."""
+    added = [d["name"] for d in kit or [] if PL.add_user_design(d)]
+    if added:
+        PX.reset()
 
 
-def design_props(ctx, llm, script, beats, vthemes, kit_text, current):
+def unmet_objects(plan_info, beats):
+    """[(object, sentence)] the director's plan says must be SEEN, which no prop shows (the only things an AI-drawn prop is for)."""
+    out, seen = [], set()
+    for i, e in sorted((plan_info or {}).items()):
+        for need in (e or {}).get("needs") or []:
+            r = SM.classify_need(need)
+            key = r["canon"]
+            if r["kind"] == "object" and key not in seen and not PX.covers(r["value"]):
+                seen.add(key)
+                out.append((str(r["value"])[:50], (beats[i] if i < len(beats) else {}).get("text", "")))
+    return out
+
+
+def design_props(ctx, llm, script, beats, vthemes, kit_text, current, wanted=None):
     """Ask the writer once per script for a few props this story needs that the library doesn't have.
-    Saved in props.json; reused until the script changes. Props drawn for earlier videos are reused from the cache
-    (and the AI isn't asked at all when the cache already covers the story). A failure here never stops the storyboard."""
+    `wanted` (from the plan) lists the objects that must be seen and no library prop shows: only those are drawn, and when
+    there are none the AI is not asked at all. Every prop drawn is kept for good in the shared library, so the next video
+    that needs it just picks it. A failure here never stops the storyboard."""
     pr = ctx.project
-    key = h(script.get("title", ""), script.get("topic", ""), [b["text"] for b in beats])
+    key = h(script.get("title", ""), script.get("topic", ""), [b["text"] for b in beats], wanted)
     saved = read_json(pr.p("props.json"), {}) or {}
     if saved.get("key") == key:
         return saved.get("props") or []
     if not (load_settings().get("custom_props", True)):
         return current or []
     have = cached_props(" ".join(b.get("text", "") for b in beats))
-    if len(have) >= 4:
+    if wanted is not None:
+        wanted = [(w, t) for w, t in wanted if not PX.covers(w)]       # the library may have grown since (cached_props above)
+        if not wanted:
+            ctx.log("props: the shared library shows everything the plan needs (no AI call)")
+            UG.saved(pr, "props", calls=1, tokens=8000, note="no props to draw: the shared library already shows everything the plan needs")
+            write_json(pr.p("props.json"), dict(key=key, props=have or current or [], themes=vthemes, at=time.time(), cached=True))
+            return have or current or []
+    elif len(have) >= 4:
         ctx.log("props: reused " + ", ".join(d["name"] for d in have) + " from earlier videos (no AI call)")
+        UG.saved(pr, "props", calls=1, tokens=8000, note="props reused from earlier videos")
         write_json(pr.p("props.json"), dict(key=key, props=have, themes=vthemes, at=time.time(), cached=True))
         return have
     try:
         data = call_llm(ctx, llm, PR.PROP_DESIGN_SYSTEM,
-                        PR.prop_design_prompt(script.get("title", ""), script.get("topic", ""), beats, kit_text),
+                        PR.prop_design_prompt(script.get("title", ""), script.get("topic", ""), beats, kit_text, wanted=wanted),
                         label="props", tries=1, until=0.06)
         kit = clean_kit(data, PROPS)
     except Exception as e:
         ctx.warn(f"couldn't design custom props, using the library only: {str(e)[:160]}")
+        for w, t in wanted or []:
+            PX.note_gap(w, t)
         return have or current or []
     names = {d["name"] for d in kit}
     kit = kit + [d for d in have if d["name"] not in names]
     remember_props(kit)
+    for w, t in wanted or []:                          # still nothing for it: the missing-props list keeps it
+        PX.note_gap(w, t)
     write_json(pr.p("props.json"), dict(key=key, props=kit, themes=vthemes, at=time.time()))
     if kit:
-        ctx.log("designed props: " + ", ".join(d["name"] for d in kit))
+        ctx.log("designed props (kept in the shared library): " + ", ".join(d["name"] for d in kit))
         try:
             kit_sheet(kit, pr.p("props.png"))
         except Exception as e:
@@ -1025,7 +1059,7 @@ def stage_render(ctx, only=None, force=False):
         if kind != "cut" and prev is not None:
             prev_job = dict(idx=i - 1, scene=prev, dur=durs[i - 1], mood=beats[i - 1]["mood"], text=beats[i - 1]["text"],
                             word_times=vb[i - 1].get("word_times"))
-        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, ENGINE_VERSION, cap_style, kind,
+        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, engine_key([scene, prev]), cap_style, kind,
                 h(prev_job) if prev_job else None)
         up_to_date = manifest.get(str(i)) == key and os.path.exists(pr.segment_path(i))
         if not (force or not up_to_date or (only is not None and i in only)):

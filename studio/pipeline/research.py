@@ -92,5 +92,5 @@ def docs_from_brief(brief):
                 nm = str(d["name"]).strip()
                 prop = "newspaper" if re.search(r"newspaper|headline|times|herald|gazette", nm, re.I) else \
                     "scroll" if re.search(r"treaty|declaration|edict|proclamation|charter|pact", nm, re.I) else "document"
-                out[nm.lower()] = (nm.upper()[:24], lines, prop)
+                out[nm.lower()] = (nm.upper()[:34], lines, prop)
     return out

@@ -14,8 +14,9 @@ from .fonts import font
 from .pen import ARMS, LEGS, MOUTHS, EYES, EXTRAS, HELD, HATS, KIND_ALIASES, MOUNTS, MOUNT_ALIASES, mount_lift, hat_top, \
     resolve_kind
 from .puppet import resolve_action
-from .registry import PROPS, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
+from .registry import PROPS, PROP_ENUM, PROP_ALIASES, resolve_prop, guess_prop, prop_bounds, prop_anchor
 from .custom_props import clean_parts, kit_lookup, to_element_params, slug
+from .prop_library import LIBRARY as _LIBRARY
 from .geo import REGIONS, View, unknown_names
 from .captions import CAPTION_ZONE
 from .weather import WEATHERS, LIGHTS, norm_weather, norm_light
@@ -108,7 +109,7 @@ ELEMENT_SCHEMAS = {
     "text": _obj(("type", "text"), type={"const": "text"}, **_xy, **_anim, text={"type": "string"}, size=_num,
                  color={"type": "string"}, font={"enum": ["bold", "hand"]}, stroke=_num,
                  align={"enum": ["center", "left", "right"]}),
-    "prop": _obj(("type", "name"), type={"const": "prop"}, **_xy, **_anim, name={"enum": sorted(PROPS)}, scale=_num,
+    "prop": _obj(("type", "name"), type={"const": "prop"}, **_xy, **_anim, name={"enum": PROP_ENUM}, scale=_num,
                  animate={"type": "boolean"}, do={"type": "array", "maxItems": 4, "items": {
                      "type": "object", "required": ["act"], "properties": {
                          "act": {"enum": ["fire", "explode", "collapse", "sink", "shake"]}, "at": _at, "dur": _num,
@@ -121,7 +122,7 @@ ELEMENT_SCHEMAS = {
     "sign": _obj(("type", "text"), type={"const": "sign"}, **_xy, **_anim, text={"type": "string"}, size=_num, w=_num, h=_num),
     "board": _obj(("type",), type={"const": "board"}, **_xy, **_anim, title={"type": "string"},
                   lines={"type": "array", "items": {"type": "string"}}, size=_num, w=_num, h=_num),
-    "icons": _obj(("type", "icon", "count"), type={"const": "icons"}, **_xy, **_anim, icon={"enum": sorted(PROPS)},
+    "icons": _obj(("type", "icon", "count"), type={"const": "icons"}, **_xy, **_anim, icon={"enum": PROP_ENUM},
                   count=_num, per_row=_num, scale=_num, gap=_num, color={"type": "string"}),
     "shape": _obj(("type", "shape"), type={"const": "shape"}, **_xy, **_anim,
                   shape={"enum": ["rect", "circle", "ellipse", "line", "poly"]}, w=_num, h=_num, r=_num,
@@ -850,6 +851,8 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
         elif t == "prop":
             n = resolve_prop(el.get("name"))
             design = custom.get(slug(el.get("name"))) or custom.get(slug(el.get("name")).replace("_", ""))
+            if n in _LIBRARY and _LIBRARY[n]["source"] == "user":
+                design, n = design or _LIBRARY[n], None       # a prop the AI drew keeps its shapes inside the scene
             if design and n is None:
                 el["params"] = to_element_params(design, el.get("params"))
                 n = "custom"
@@ -893,7 +896,10 @@ def repair_scene(scene, mood="fun", text="", kit=None, cast=None):
                     el.pop("do", None)
         elif t == "icons":
             design = custom.get(slug(el.get("icon")))
-            if design and resolve_prop(el.get("icon")) is None:
+            hit = resolve_prop(el.get("icon"))
+            if hit in _LIBRARY and _LIBRARY[hit]["source"] == "user":
+                design, hit = design or _LIBRARY[hit], None
+            if design and hit is None:
                 el["params"] = to_element_params(design, el.get("params"))
                 n = "custom"
             else:

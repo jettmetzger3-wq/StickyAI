@@ -184,7 +184,7 @@ def make_stickman_short(ctx, pick):
     for i in range(s, e + 1):
         scene = st.as_rendered(read_json(pr.scene_path(i)), i, beats, settings, opts=opts)
         key = st.h(scene, beats[i], info["frames"][i], (vb[i] or {}).get("word_times") if i < len(vb) else None, wm,
-                   st.ENGINE_VERSION)
+                   st.engine_key(scene))
         out = os.path.join(work, f"s_{i:03d}.mp4")
         if manifest.get(str(i)) == key and os.path.exists(out):
             continue

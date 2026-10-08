@@ -93,7 +93,14 @@ def test_director_stage_composes_most_scenes_and_sends_only_the_odd_one_to_the_s
     assert u["total"]["calls"] == len(w.calls) and u["total"]["tokens"] > 0
 
 
+def no_skip(monkeypatch, on=False):
+    from studio.pipeline import director
+    real = director.load_settings
+    monkeypatch.setattr(director, "load_settings", lambda: dict(real(), plan_skip_easy=on))
+
+
 def test_second_run_after_an_edit_replans_only_the_changed_beat(monkeypatch):
+    no_skip(monkeypatch)                                  # with "easy scenes skip the plan" off, every beat is planned once
     pr = make_project()
     w = Writer()
     run(monkeypatch, pr, w)
@@ -105,6 +112,38 @@ def test_second_run_after_an_edit_replans_only_the_changed_beat(monkeypatch):
     run(monkeypatch, pr, w2)
     labels = [c[0] for c in w2.calls]
     assert labels == ["plan 4-4"] and first >= 2                                      # one beat re-planned, the rest from the cache/disk
+
+
+def test_easy_scenes_skip_the_ai_plan_and_the_saving_is_written_down(monkeypatch):
+    pr = make_project()
+    w = Writer()
+    sb = run(monkeypatch, pr, w)
+    plan = json.load(open(pr.p("plan.json")))["beats"]
+    easy = [int(i) for i, v in plan.items() if v["source"] == "local"]
+    assert easy and all(plan[str(i)]["coverage"] >= 0.9 for i in easy)                 # drawn by the studio, and it shows the narration
+    planned = [c for c in w.calls if c[0].startswith("plan")]
+    assert len(planned) == 1 and sb["scenes"][str(easy[0])]["source"].startswith("pattern:")
+    saved = usage.summary(pr)["saved"]
+    assert saved["tokens"] >= 190 * len(easy) and any(x["kind"] == "plan" for x in saved["items"])
+    # the same video with the setting off plans every beat with the AI (and saves nothing)
+    cache.clear()
+    no_skip(monkeypatch)
+    pr2 = make_project()
+    w2 = Writer()
+    run(monkeypatch, pr2, w2)
+    plan2 = json.load(open(pr2.p("plan.json")))["beats"]
+    local2 = {i for i, v in plan2.items() if v["source"] == "local"}
+    plan_saved = lambda pr_: sum(x["tokens"] for x in usage.summary(pr_)["saved"]["items"] if x["kind"] == "plan")
+    assert local2 <= {"0"} and plan_saved(pr2) == 0                                    # (the stand-in writer never plans the hook beat)
+    # a scene that is not easy still goes to the plan: the Constitution scene names a document and people
+    assert plan["1"]["source"] == "plan"
+
+
+def test_fast_mode_keeps_its_own_confident_match_rule(monkeypatch):
+    pr = make_project(mode="fast")
+    w = Writer()
+    run(monkeypatch, pr, w)
+    assert not [x for x in usage.summary(pr)["saved"]["items"] if x["kind"] == "plan"]  # fast mode does not use the easy-scene test
 
 
 def test_fast_mode_makes_fewer_calls_than_normal_and_deep_adds_research_free_review(monkeypatch):

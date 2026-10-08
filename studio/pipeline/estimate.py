@@ -23,6 +23,8 @@ PLAN_PER_BEAT_IN = 95           # a beat and the studio's local hints
 PLAN_PER_BEAT_OUT = 95          # pattern + slots + a line
 SCENE_OUT_TOK = 600             # one full scene as JSON
 CUSTOM_EXAMPLES_TOK = 1800      # the six key examples the custom path sends instead of twenty
+PROPS_IN_TOK = 700               # the short request: only the objects no library prop shows
+PROPS_OUT_TOK = 2600            # about 3 drawn props
 CUSTOM_SHARE = {"fast": 0.0, "normal": 0.08, "deep": 0.1}
 WARN_TOKENS = 250_000
 WARN_CALLS = 30
@@ -99,8 +101,11 @@ def estimate_video(project, meta=None):
                 new += 1
         if not beats:
             new = n
-        if prof["name"] == "fast":
-            new = int(new * 0.4)                             # confident local matches need no AI at all
+        share = prof.get("easy_share", 0.0)
+        if prof["name"] == "normal" and not st.get("plan_skip_easy", True):
+            share = 0.0
+        if share:
+            new = int(new * (1 - share))                     # confident / easy local scenes need no AI plan at all
         calls = math.ceil(new / prof["plan_batch"]) if new else 0
         items.append(item("storyboard", "director plan (pattern + details per scene)", calls,
                           calls * PLAN_FIXED_TOK + new * PLAN_PER_BEAT_IN, new * PLAN_PER_BEAT_OUT, cached=cached,
@@ -112,10 +117,9 @@ def estimate_video(project, meta=None):
             items.append(item("storyboard", "full scene writer (only for scenes no pattern fits)", c_calls,
                               c_calls * (SCENE_LANGUAGE_TOK + CUSTOM_EXAMPLES_TOK + size * 120), custom_n * SCENE_OUT_TOK,
                               note=f"about {custom_n} scenes (usually 5-15%)"))
-            if prof["props_ai"] and not CA.get("props", "_index"):
-                items.append(item("props", "drawing extra props", 1, 4000, 4000))
-            elif prof["props_ai"]:
-                items.append(item("props", "drawing extra props", 0, 4000, 4000, note="0-1 calls: reused from earlier videos when possible"))
+            if prof["props_ai"]:
+                items.append(item("props", "drawing props the shared library doesn't have", 1, PROPS_IN_TOK, PROPS_OUT_TOK,
+                                  note="0 calls when the shared library already shows everything the plan needs (it grows with every video)"))
         if prof["review_ai"]:
             items.append(item("storyboard", "AI fix for scenes the review couldn't fix", 2, 2 * 9400, 2 * 600, note="up to 6 scenes"))
     else:

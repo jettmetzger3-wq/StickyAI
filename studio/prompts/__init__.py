@@ -614,7 +614,33 @@ PROP_DESIGN_SYSTEM = ("You design simple, bold doodle props for a stickman histo
                       "with dark outlines. You only answer with JSON.")
 
 
-def prop_design_prompt(title, topic, beats, kit_text=""):
+_PROP_SPEC = """Draw each one on a 100 x 100 grid (x to the right, y DOWN, 0,0 = top-left) as a list of shapes, back to front:
+  {"shape": "rect", "x": left, "y": top, "w": width, "h": height, "fill": color, "r": corner radius (optional)}
+  {"shape": "circle", "x": cx, "y": cy, "r": radius, "fill": color}
+  {"shape": "ellipse", "x": cx, "y": cy, "rx": rx, "ry": ry, "fill": color}
+  {"shape": "poly", "points": [[x, y], ...], "fill": color}           (3-24 points, closed)
+  {"shape": "line", "points": [[x, y], ...], "color": color, "width": 1-6}   (open line)
+  {"shape": "text", "text": "short", "x": cx, "y": cy, "size": 8-30, "color": color}
+Every filled shape gets a dark outline automatically ("outline": false to skip it, good for highlights/shading).
+Colors: names (red, navy, gold, brown, gray, white, black, green, darkgreen, cream, khaki, silver, ...) or "#rrggbb".
+Style: bold and readable when small, 6-25 shapes, big shapes first, a few details (stripes, rivets, shading,
+highlights), flat cartoon colors, no tiny text. Fill most of the grid. "anchor": "bottom" for things that stand on
+the ground (rest them on y = 100), "center" for floating or held items.
+
+Answer with JSON only: {"props": [{"name": "snake_case_name", "anchor": "bottom|center",
+"description": "what it is, a few words", "parts": [...]}]}"""
+
+
+def prop_design_prompt(title, topic, beats, kit_text="", wanted=None):
+    """`wanted` = [(object, sentence it appears in)]: the objects the plan says must be seen and no library prop shows.
+    With it the request is short (just those objects); without it the writer reads the whole story and chooses."""
+    if wanted:
+        lines = "\n".join(f'- {w}: "{str(ctx)[:140]}"' for w, ctx in wanted[:10])
+        return f"""VIDEO: {title} ({topic})
+Draw ONE prop for each object below, and nothing else (every other object is already in the library):
+{lines}
+
+{_PROP_SPEC}"""
     text = " ".join(b.get("text", "") for b in beats)[:9000]
     library = ", ".join(sorted(n for n in PROPS if n != "custom"))
     return f"""VIDEO: {title} ({topic})
@@ -629,21 +655,7 @@ vehicles, weapons, food, documents, inventions and items that are named or impor
 Napoleon's bicorne on a pillow, the Rosetta Stone, a Spitfire, the Declaration of Independence, a spinning jenny, a
 Viking rune stone). Skip anything the library already covers well.
 
-Draw each one on a 100 x 100 grid (x to the right, y DOWN, 0,0 = top-left) as a list of shapes, back to front:
-  {{"shape": "rect", "x": left, "y": top, "w": width, "h": height, "fill": color, "r": corner radius (optional)}}
-  {{"shape": "circle", "x": cx, "y": cy, "r": radius, "fill": color}}
-  {{"shape": "ellipse", "x": cx, "y": cy, "rx": rx, "ry": ry, "fill": color}}
-  {{"shape": "poly", "points": [[x, y], ...], "fill": color}}           (3-24 points, closed)
-  {{"shape": "line", "points": [[x, y], ...], "color": color, "width": 1-6}}   (open line)
-  {{"shape": "text", "text": "short", "x": cx, "y": cy, "size": 8-30, "color": color}}
-Every filled shape gets a dark outline automatically ("outline": false to skip it, good for highlights/shading).
-Colors: names (red, navy, gold, brown, gray, white, black, green, darkgreen, cream, khaki, silver, ...) or "#rrggbb".
-Style: bold and readable when small, 6-25 shapes, big shapes first, a few details (stripes, rivets, shading,
-highlights), flat cartoon colors, no tiny text. Fill most of the grid. "anchor": "bottom" for things that stand on
-the ground (rest them on y = 100), "center" for floating or held items.
-
-Answer with JSON only: {{"props": [{{"name": "snake_case_name", "anchor": "bottom|center",
-"description": "what it is, a few words", "parts": [...]}}]}}"""
+{_PROP_SPEC}"""
 
 
 def fix_scenes_prompt(items):

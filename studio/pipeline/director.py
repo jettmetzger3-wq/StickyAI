@@ -8,16 +8,20 @@ scene. Beats no pattern fits are marked CUSTOM and still go to the full storyboa
 Plans are cached per beat (knowledge/patterns version + cast + beat text), so editing one line re-plans one line.
 Without an AI (Basic writer, fast mode on confident beats) the retriever's best pattern is composed directly.
 """
+import copy
 import json
 import re
 
-from .. import cache as CA
+from .. import cache as CA, usage as UG
+from ..config import load_settings
 from ..engine.schema import BG_TYPES
 from ..knowledge import composer as CO, patterns as PT, semantics as SM
 from ..knowledge.analysis import analyze
 from . import characters as CH, continuity as CT, coverage as CV
 
 CONFIDENT_LOCAL = 6.5          # a local match this strong needs no AI in fast mode
+EASY_COVERAGE = 0.9            # normal mode: a beat is "easy" when the locally built scene also shows 90% of what it says
+PLAN_TOK_PER_BEAT = 190        # what planning one beat costs (the estimator's numbers): used for the savings meter
 PLACE_NAMES = ", ".join(t for t in BG_TYPES if t not in ("paper", "sunburst", "ground", "sea", "night", "map", "dark"))
 SYSTEM = ("You are the director of a funny stickman history YouTube channel. For each narration beat you choose ONE scene "
           "pattern and fill in its details. A local animation engine draws the scene from your choice, so you decide WHAT "
@@ -175,6 +179,36 @@ def compose_one(entry, beat, a, ctx, local_best):
     return sc, pid
 
 
+def _clone_tracker(tracker):
+    """A copy of the continuity state to rehearse on (the project and its files are shared, never written)."""
+    if tracker is None:
+        return None
+    t = copy.copy(tracker)
+    t.states = copy.deepcopy(tracker.states)
+    t.worlds = copy.deepcopy(tracker.worlds)
+    return t
+
+
+def easy_beats(todo, beats, analyses, cast, tracker, title, best, floor):
+    """Beats the studio can draw well on its own, so the AI need not plan them: a confident local pattern whose scene also
+    shows what the narration says (rehearsed on a copy of the continuity state; nothing is kept). Normal mode uses this."""
+    t, easy = _clone_tracker(tracker), set()
+    for i in todo:
+        a = analyses[i]
+        try:
+            got = CV.choose(None, beats[i], a, SM.requirements(a, beats[i].get("text", "")), cast, i, t.before(i) if t else {}, title, best[i])
+        except Exception:
+            got = None
+        if not got:
+            continue
+        if t:
+            t.record(i, got["scene"], a, got["pattern"], got["state"], beats[i])
+        cov = got["coverage"]
+        if best[i][1] >= floor and got["pattern"] != PT.CUSTOM and cov["score"] >= EASY_COVERAGE and not cov["must_missing"]:
+            easy.add(i)
+    return easy
+
+
 def build(ctx, llm, script, todo, registry, analyses, tracker, profile, call, hints=None, parallel=3, force=False):
     """Plan and compose every beat in `todo`. `call(llm, system, prompt, label)` makes one AI request (the stage passes
     call_llm, so the cache and the usage ledger apply). Returns (scenes {i: scene}, custom [i], info {i: {...}})."""
@@ -189,16 +223,28 @@ def build(ctx, llm, script, todo, registry, analyses, tracker, profile, call, hi
     for i in todo:                                         # local retrieval first: free, and it shapes the prompt
         best[i] = PT.best(analyses[i], recent)
         recent.append(best[i][0])
+    skipped = []
     if use_ai:
+        floor = profile.get("easy_local")
+        easy = set()
+        if floor and profile["name"] != "fast" and load_settings().get("plan_skip_easy", True) and not force:
+            easy = easy_beats(todo, beats, analyses, CH.as_cast(registry), tracker, title, best, floor)
         for i in todo:
             if profile["name"] == "fast" and best[i][1] >= CONFIDENT_LOCAL:
                 continue                                    # fast mode: a very confident local match needs no AI
             cached = None if force else CA.get("plans", plan_key(beats[i], registry))
             if cached:
                 plans[i] = cached
+            elif i in easy:
+                skipped.append(i)                           # normal mode: the studio's own scene already shows the narration
             else:
                 need.append(i)
         size = max(4, int(profile["plan_batch"]))
+        if skipped:
+            now = -(-len(need) // size) if need else 0
+            was = -(-(len(need) + len(skipped)) // size)
+            UG.saved(getattr(ctx, "project", None), "plan", calls=was - now, tokens=len(skipped) * PLAN_TOK_PER_BEAT,
+                     note=f"{len(skipped)} of {len(todo)} scenes were easy: drawn by the studio without planning them with the AI")
         batches = [need[k:k + size] for k in range(0, len(need), size)]
 
         def run_batch(idx):

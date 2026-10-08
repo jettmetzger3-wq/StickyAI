@@ -272,7 +272,13 @@ def guess_prop(name):
         if hit:
             return hit
     m = difflib.get_close_matches(n, names, n=1, cutoff=0.8)
-    return resolve_prop(m[0]) if m else None
+    if m:
+        return resolve_prop(m[0])
+    try:                                              # the meaning table: 'colonial_musketeer' -> musket
+        from ..knowledge import propindex
+        return propindex.nearest(n)
+    except ImportError:
+        return None
 
 
 _bounds = None
@@ -289,6 +295,8 @@ def prop_bounds(name, params=None):
     global _bounds
     if name == "custom":
         return custom_bounds(params)
+    if name in _PL.LIBRARY or name in _PL.VARIANTS:
+        return _PL.bounds(name)
     if _bounds is None:
         try:
             with open(BOUNDS_FILE, encoding="utf-8") as f:
@@ -300,3 +308,12 @@ def prop_bounds(name, params=None):
         return tuple(b)
     anchor = PROPS.get(name, ("bottom",))[0]
     return (-150, -300, 150, 0) if anchor == "bottom" else (-120, -120, 120, 120)
+
+
+# the names the scene schema accepts; one list object, so a prop registered later (the library grows) is accepted too
+PROP_ENUM = sorted(PROPS)
+
+# the shared prop library (hand-drawn designs + everything the AI ever designed): registered as ordinary props
+from . import prop_library as _PL  # noqa: E402
+
+_PL.load()

@@ -32,6 +32,9 @@ function ReviewCard({ review, usage, slug }) {
         {usage?.total && (
           <> This video used <b>{usage.total.calls}</b> AI calls (~{Math.round(usage.total.tokens / 1000)}k tokens){usage.total.cached ? <> and reused <b>{usage.total.cached}</b> saved answers</> : null}.</>
         )}
+        {usage?.saved?.tokens > 0 && (
+          <> The studio also spared the AI about <b>{(usage.saved.tokens / 1000).toFixed(1)}k</b> tokens{usage.saved.calls ? <> (<b>{usage.saved.calls}</b> {usage.saved.calls === 1 ? "call" : "calls"})</> : null}: {(usage.saved.items || []).map((x) => x.note).join("; ")}. <i>(estimates)</i></>
+        )}
       </p>
       <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3 lg:grid-cols-4">
         {Object.entries(review.scores || {}).map(([k, v]) => (

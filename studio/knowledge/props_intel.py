@@ -96,7 +96,7 @@ def doc_for(a, slots=None, want=None):
     if title is None:
         g = GENERIC.get(d["kind"], GENERIC["law"])
         title, lines, prop = (d["name"].upper() or g[0]), g[1], g[2]
-    title = str(slots.get("doc_title") or title).upper()[:24]
+    title = str(slots.get("doc_title") or title).upper()[:34]
     got = slots.get("doc_lines")
     if isinstance(got, str):
         got = [t.strip() for t in re.split(r"[|\n]", got) if t.strip()]

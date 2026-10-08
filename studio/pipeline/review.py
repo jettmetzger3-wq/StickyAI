@@ -9,18 +9,14 @@ handed back to the writer for just those scenes.
 import re
 
 from ..engine import layout as LY
-from ..knowledge import composer as CO, props_intel as PI
+from ..engine.registry import PROPS
+from ..knowledge import composer as CO, propindex as PX, props_intel as PI
 from . import continuity as CT
 
 CHECKS = ("narration", "coverage", "history", "continuity", "characters", "props", "action", "camera", "layout", "pacing", "emotion",
           "redundancy", "usage")
-# the first year a prop can appear in a story without being an anachronism
-ERA_PROPS = {"tank": 1915, "plane": 1903, "biplane": 1903, "helicopter": 1936, "rocket": 1944, "satellite": 1957,
-             "computer": 1946, "tv": 1927, "radio": 1895, "telephone": 1876, "car": 1886, "carrier": 1918,
-             "mini_carrier": 1918, "mushroom_cloud": 1945, "zeppelin": 1900, "skyscraper": 1885, "submarine": 1620,
-             "periscope": 1854, "dynamite": 1867, "musket": 1400, "cannon": 1326, "bike": 1817, "train": 1804,
-             "tanker": 1886, "ocean_liner": 1838, "microphone": 1876, "camera": 1826, "barbed_wire": 1867,
-             "tank_ship": 1886, "speed_lines": 0}
+# the first year a prop can appear in a story without being an anachronism (the table lives with the prop index)
+ERA_PROPS = PX.ERA_FIRST
 ERA_KINDS = {"astronaut": 1961, "pilot": 1903, "hardhat": 1890, "headphones": 1958, "student": 1700, "marine": 1775}
 SOMBER_BAD = ("trophy", "dove_party", "cheer")
 
@@ -108,6 +104,26 @@ def add_person(sc, p, registry, a, label=True):
     return True
 
 
+PROP_SPOTS = ((1560, 860), (360, 860), (960, 880), (1700, 700), (220, 700), (1250, 760))
+
+
+def add_prop(sc, name, text=""):
+    """Put a prop the narration needs into the scene at the first free spot where it creates no new medium/high layout
+    problem. Returns True when it was added. Never makes a scene worse: if every spot clashes, nothing is added."""
+    if name not in PROPS or len(sc.get("elements") or []) >= 12:
+        return False
+    ctx = dict(text=text)
+    base = len([x for x in LY.audit(sc, ctx) if x["sev"] in ("high", "medium")])
+    anchor = PROPS[name][0]
+    for x, y in PROP_SPOTS:
+        el = CO.prop(name, x, y if anchor == "bottom" else y - 200, 0.8, at=0.3)
+        trial = dict(sc, elements=list(sc.get("elements") or []) + [el])
+        if len([f for f in LY.audit(trial, ctx) if f["sev"] in ("high", "medium")]) <= base:
+            sc.setdefault("elements", []).append(el)
+            return True
+    return False
+
+
 def check_narration(i, sc, a, out, registry=None):
     """Does every important narration point have a visual? Returns (matched, expected)."""
     txt = texts_of(sc)
@@ -172,7 +188,7 @@ def check_history(i, sc, a, year, out):
         return
     els = sc.get("elements") or []
     for e in list(els):
-        if e.get("type") == "prop" and ERA_PROPS.get(e.get("name"), 0) > year + 8:
+        if e.get("type") == "prop" and (PX.first_year(e.get("name")) or 0) > year + 8:
             issue(out, i, "history", "high", f"a {e['name']} did not exist yet in {year}: removed", fixed=True)
             els.remove(e)
         elif e.get("type") in ("char", "crowd") and ERA_KINDS.get(e.get("kind"), 0) > year + 8:

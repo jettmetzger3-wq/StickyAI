@@ -14,7 +14,7 @@ from ..engine.pen import resolve_kind
 from ..engine.registry import PROPS, PROP_ALIASES
 from ..engine.schema import cast_member, nearest, BG_TYPES, BG_ALIASES
 from ..engine.timing import norm_word
-from . import people as PE, props_intel as PI
+from . import people as PE, propindex as PX, props_intel as PI
 
 W, H = 1920, 1080
 FEET = 890
@@ -176,13 +176,9 @@ def say(t, at=None):
 
 
 def prop_in_text(text_, skip=()):
-    """A library prop named in the narration ('cannon', 'newspaper', 'gold'), or None."""
-    for tok in re.findall(r"[a-z]+", str(text_ or "").lower()):
-        for cand in (tok, tok[:-1] if tok.endswith("s") else tok):
-            name = PROP_ALIASES.get(cand, cand)
-            if name in PROPS and name not in skip and name not in ("custom", "crowd", "puppet"):
-                return name
-    return None
+    """A prop the narration names or means ('cannon', 'newspaper', 'troops' -> helmet), or None. A word that is itself a
+    prop wins; otherwise the local prop index (studio/knowledge/propindex.py) answers, with the year in the text as a guard."""
+    return PX.pick(text_, skip=skip)
 
 
 # ------------------------------------------------------------------ backgrounds and banners

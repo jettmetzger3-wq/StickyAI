@@ -3,9 +3,10 @@
 FAST    for testing and quick drafts. No research, no fact-check, no custom prop drawing; the AI only writes the script
         and one compact "director plan" per ~24 scenes. Beats the plan can't express are drawn by the local composer
         and the old rule-based scenes (no AI). Titles and the Short's moment come from local rules.
-NORMAL  the everyday mode. Script, flow smoothing when the script jumps around, a plan per ~16 scenes, the full
-        storyboard writer only for the scenes the plan marks "custom", props drawn once and cached, a local review
-        that fixes weak scenes.
+NORMAL  the everyday mode. Script, flow smoothing when the script jumps around, a plan per ~16 scenes (only for the
+        scenes the studio cannot already draw well on its own: "easy" scenes skip the AI), the full storyboard writer
+        only for the scenes the plan marks "custom", props picked from the shared library (the AI draws only what is
+        missing), a local review that fixes weak scenes.
 DEEP    the best video. A cached topic brief first (key people, places, documents, numbers), fact-check with web search,
         a plan per ~10 scenes with more context, the full storyboard writer for custom scenes, and an AI pass that
         fixes whatever the local review still flags.
@@ -20,15 +21,15 @@ MODES = {
     "fast": dict(
         label="Fast", blurb="Quick drafts and testing: the fewest AI calls, everything cached.",
         research=False, factcheck=False, smooth=False, props_ai=False, plan_batch=24, custom_ai=False,
-        review_ai=False, package_ai=False, short_ai=False, plan_examples=0),
+        review_ai=False, package_ai=False, short_ai=False, plan_examples=0, easy_local=None, easy_share=0.6),
     "normal": dict(
         label="Normal", blurb="Everyday quality with low usage: a compact plan, AI only where it matters.",
         research=True, factcheck=True, smooth=True, props_ai=True, plan_batch=16, custom_ai=True,
-        review_ai=False, package_ai=True, short_ai=True, plan_examples=2),
+        review_ai=False, package_ai=True, short_ai=True, plan_examples=2, easy_local=5.5, easy_share=0.25),
     "deep": dict(
         label="Deep", blurb="Best quality: topic research, web fact-check, richer plan, AI polish. Uses the most.",
         research=True, factcheck=True, smooth=True, props_ai=True, plan_batch=10, custom_ai=True,
-        review_ai=True, package_ai=True, short_ai=True, plan_examples=4),
+        review_ai=True, package_ai=True, short_ai=True, plan_examples=4, easy_local=None, easy_share=0.0),
 }
 
 

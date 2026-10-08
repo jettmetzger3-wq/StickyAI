@@ -6,6 +6,7 @@
   online                                      your studio online (login + free https link for your phone)
   admin you@example.com                       hosted mode: create/promote an admin account
   list | resume <slug> | rerender <slug> <scene numbers> | estimate ... | doctor
+  props list|gaps|seed|sheet                  the shared prop library (see docs/props.md)
 """
 import argparse
 import os
@@ -235,8 +236,9 @@ def main(argv=None):
     ad.add_argument("email")
     ad.add_argument("--password", action="store_true", help="also set a new password")
     ad.set_defaults(fn=cmd_admin)
-    from . import research_cli
+    from . import research_cli, props_cli
     research_cli.register(sub)
+    props_cli.register(sub)
     a = ap.parse_args(argv)
     config.ensure_dirs()
     return a.fn(a)

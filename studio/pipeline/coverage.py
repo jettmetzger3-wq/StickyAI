@@ -9,7 +9,7 @@ scenes back to the writer in one batched request.
 """
 import copy
 
-from ..knowledge import composer as CO, patterns as PT, semantics as SM
+from ..knowledge import composer as CO, patterns as PT, propindex as PX, semantics as SM
 from . import review as RV
 
 FAIL = SM.COVERAGE_FAIL
@@ -65,7 +65,8 @@ def choose(entry, beat, a, reqs, cast, idx, state, title, local_best):
 # ------------------------------------------------------------------ patching what is still missing
 def patch(scene, cov, a, registry):
     """Add what a plain addition can add: a missing person or group, a number, a place/date line. Returns the list of
-    things added. (A missing map region or document can't be patched in: a different pattern has to be chosen.)"""
+    things added. (A missing map region or document can't be patched in: a different pattern has to be chosen. A missing
+    object is looked up in the prop index; when no prop shows it, it is written to the gap list instead.)"""
     added = []
     people = {SM.canon(p["name"]): p for p in a.get("people") or []}
     for m in cov["missing"]:
@@ -90,6 +91,12 @@ def patch(scene, cov, a, registry):
                      "suffix": (" billion" if v >= 1e9 else " million" if big else "") + ("%" if n["kind"] == "percent" else ""),
                      "at": 0.3, "dur": 1.5, "color": "red" if n["kind"] == "casualty" else "navy"})
                 added.append(f"showed the number {n['shown']}")
+        elif k == "object":
+            name = PX.covers(m["value"], year=(a.get("years") or [None])[0])
+            if name and RV.add_prop(scene, name, a.get("text", "")):
+                added.append(f"showed the {name.replace('_', ' ')} ({m['value']})")
+            elif not name:
+                PX.note_gap(m["value"], a.get("text", ""))
         elif k in ("time", "place") and not any(e.get("type") == "text" and e.get("y", 999) < 200 for e in scene.get("elements") or []):
             if scene.get("bg", {}).get("type") != "map":
                 scene.setdefault("elements", []).insert(0, CO.text(str(m["value"])[:30], CO.MID, 105, 70, "navy", at=0.0))

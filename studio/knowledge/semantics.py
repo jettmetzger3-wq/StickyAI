@@ -21,7 +21,7 @@ import os
 import re
 
 from ..engine import geo
-from . import people as PE
+from . import people as PE, propindex as PX
 
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "context.json"), encoding="utf-8") as _f:
     CTX = json.load(_f)
@@ -413,6 +413,8 @@ def scene_concepts(scene):
         elif t == "prop":
             n = el.get("name")
             for w in PROP_WORDS.get(n, [n]):
+                S.add(canon(w))
+            for w in PX.words_for(n, 6):                      # the words that mean this prop ("gunpowder" -> keg)
                 S.add(canon(w))
             p = el.get("params") or {}
             for k in ("title", "label"):

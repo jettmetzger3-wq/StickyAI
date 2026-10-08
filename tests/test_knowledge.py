@@ -241,7 +241,8 @@ def test_parse_plan_is_tolerant_and_rejects_unknown_patterns():
     assert got[3]["slots"] == {"signer": "Madison"}
 
 
-def test_director_builds_scenes_with_few_calls_and_reuses_cached_plans():
+def test_director_builds_scenes_with_few_calls_and_reuses_cached_plans(monkeypatch):
+    monkeypatch.setattr(DR, "load_settings", lambda: {"plan_skip_easy": False})     # the plan covers every beat (see the next test)
     beats = [dict(mood="fun", text=SAMPLES["DOCUMENT_SIGNING"]), dict(mood="tense", text=SAMPLES["WAR_DECLARATION"]),
              dict(mood="fun", text="He kept losing at chess to a pigeon."), dict(mood="tense", text=SAMPLES["RIOT"])]
     script = {"title": "t", "beats": beats, "cast": CAST}
@@ -270,6 +271,40 @@ def test_director_builds_scenes_with_few_calls_and_reuses_cached_plans():
     assert calls[0][1] < 12000                              # a whole batch of plan requests, not a 16,000-token manual per batch
     scenes2, custom2, _ = DR.build(Ctx(), FakeLLM(), script, [0, 1, 2, 3], reg, an, None, prof, call)
     assert len(calls) == 1 and custom2 == [2] and sorted(scenes2) == [0, 1, 3]       # the plans came from the cache
+
+
+def test_director_leaves_easy_beats_to_the_studio_in_normal_mode():
+    beats = [dict(mood="fun", text=SAMPLES["DOCUMENT_SIGNING"]), dict(mood="tense", text=SAMPLES["WAR_DECLARATION"]),
+             dict(mood="fun", text="He kept losing at chess to a pigeon."), dict(mood="tense", text=SAMPLES["RIOT"])]
+    script = {"title": "t", "beats": beats, "cast": CAST}
+    reg = CH.build(script)
+    an = DR.analyses_for(beats, CH.as_cast(reg))
+    asked = []
+
+    class Ctx:
+        project = None
+
+        def warn(self, m):
+            raise AssertionError(m)
+
+    def call(llm, system, prompt, label):
+        asked.append(label)
+        idx = [int(x) for x in label.split()[1].split("-")]
+        return {"plan": [{"beat": i, "pattern": "CUSTOM"} for i in idx]}
+
+    class FakeLLM:
+        id = "fake"
+
+    prof = MD.profile(opts={"gen_mode": "normal"})
+    easy = DR.easy_beats([0, 1, 2, 3], beats, an, CH.as_cast(reg), None, "t", {i: PT.best(an[i], []) for i in range(4)}, prof["easy_local"])
+    assert easy and 2 not in easy                                       # the pigeon-and-chess beat is never "easy"
+    scenes, custom, info = DR.build(Ctx(), FakeLLM(), script, [0, 1, 2, 3], reg, an, None, prof, call)
+    assert len(asked) <= 1 and all(info[i]["source"] == "local" for i in easy if i in info)
+    assert deep_never_skips()
+
+
+def deep_never_skips():
+    return MD.profile(opts={"gen_mode": "deep"})["easy_local"] is None and MD.profile(opts={"gen_mode": "fast"})["easy_local"] is None
 
 
 def test_director_without_an_ai_composes_locally_and_uses_the_catch_all():
