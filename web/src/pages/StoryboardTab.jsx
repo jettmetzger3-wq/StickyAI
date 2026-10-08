@@ -12,6 +12,7 @@ const CHECK_LABEL = {
   props: "Props",
   action: "Action",
   camera: "Camera",
+  layout: "Layout",
   pacing: "Pacing",
   emotion: "Mood",
   redundancy: "No repeats",
@@ -20,6 +21,7 @@ const CHECK_LABEL = {
 
 function ReviewCard({ review, usage, slug }) {
   const [allowed, setAllowed] = useState(false);
+  const [allowedLayout, setAllowedLayout] = useState(false);
   if (!review) return null;
   const open = (review.issues || []).filter((i) => !i.fixed);
   return (
@@ -51,8 +53,24 @@ function ReviewCard({ review, usage, slug }) {
           {(review.muted?.weak || []).length > 0 && <> · hard to follow muted: {(review.muted.weak || []).map((i) => i + 1).join(", ")}</>}
         </p>
       )}
+      {review.layout && (
+        <p className="mt-1 text-sm text-stone-600 dark:text-zinc-400">
+          Layout (collisions, margins, sizes, speech bubbles) <b>{Math.round((review.layout.mean ?? 1) * 100)}%</b>
+          {(review.layout.escalate || []).length > 0 && (
+            <span className="text-red-700 dark:text-red-400"> · scenes {(review.layout.escalate || []).map((i) => i + 1).join(", ")} still have a layout problem moving things could not fix</span>
+          )}
+          {(review.layout.open || []).filter((x) => x.sev === "medium").length > 0 && (
+            <> · {(review.layout.open || []).filter((x) => x.sev === "medium").length} smaller issue(s) left</>
+          )}
+        </p>
+      )}
       <div className="mt-2 flex flex-wrap gap-2">
         <a className="text-sm underline" href={fileUrl(slug, "storyboard/preview.html")} target="_blank" rel="noreferrer">Open the storyboard preview page</a>
+        {(review.layout?.escalate || []).length > 0 && !allowedLayout && (
+          <Button size="sm" onClick={async () => { await api.put(`/api/projects/${encodeURIComponent(slug)}/options`, { options: { allow_layout_issues: true } }); setAllowedLayout(true); }}>
+            Render anyway (layout)
+          </Button>
+        )}
         {(review.coverage?.blocked || []).length > 0 && !allowed && (
           <Button size="sm" onClick={async () => { await api.put(`/api/projects/${encodeURIComponent(slug)}/options`, { options: { allow_low_coverage: true } }); setAllowed(true); }}>
             Render anyway

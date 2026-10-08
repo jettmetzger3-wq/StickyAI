@@ -479,6 +479,9 @@ def _area(a, b):
     return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
 
 
+BUBBLE_MARGIN = 56                    # speech bubbles keep this far from the edge of the frame (see layout.py)
+
+
 def say_bubbles(el, says, safe, mood="fun", others=()):
     """Speech bubbles for a character's (or crowd's) "say" lines: above the head, tail pointing at the speaker,
     shown one after another."""
@@ -514,6 +517,7 @@ def say_bubbles(el, says, safe, mood="fun", others=()):
         return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
 
     made = []
+    safe = (max(safe[0], BUBBLE_MARGIN), safe[1], min(safe[2], W - BUBBLE_MARGIN), safe[3])     # keep clear of the frame edge
     for k, ln in enumerate(lines):
         b = {"type": "bubble", "text": wrap_line(ln["text"]), "size": 44 if len(ln["text"]) <= 36 else 40}
         w, h, _ = bubble_size(b)

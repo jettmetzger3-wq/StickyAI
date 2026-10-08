@@ -342,6 +342,12 @@ the Kokoro model in `data/models/`.
   the gaps, stops when the evidence is enough, and **pauses to ask** before going over. Every claim keeps its source, a quality
   tier that caps its confidence, and the scenes that use it; the Script tab shows them, and only the sources the script really
   uses go into `final/sources.md` and the video description. The fact-check call only runs for what the research does not cover.
+- **Scenes that are laid out, not just filled** (`docs/layout.md`): before a scene is rendered, every element gets a measured box and the
+  scene is checked for collisions (a speech bubble over a title, text on a face, a head on a document), safe margins and the burned-in
+  caption area, character size (too small, too big, mismatched neighbours), visual hierarchy, speech-bubble tails and sizes, lopsided or
+  empty pictures and close-ups that would cut a label in half. Problems are fixed locally by moving things (never by shrinking text), in
+  a fixed order, and a repair can never create a new problem. Only what moving things could not fix is blocked from rendering (and, in
+  Deep mode, sent back to the writer in one batched request). A video-wide pass keeps titles and each person's size consistent.
 - **Scenes that show what the narration says**: each beat gets typed visual requirements (the 13 colonies on the Atlantic
   coast, the Constitution in Philadelphia 1787, the Boston Tea Party in the harbor, ...). A **coverage score** is computed
   before rendering, the local composer picks and patches the pattern that covers the most, and scenes that do not show their

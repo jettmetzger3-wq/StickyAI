@@ -20,6 +20,7 @@ from ..engine.audio import build_mix, loudnorm, load_audio, SR, ambience_kind, m
     find_sting, BASE_MOOD
 from ..engine.render import ENGINE_VERSION, pick_transition
 from ..engine.pen import resolve_kind
+from ..engine import layout as LY
 from .. import prompts as PR
 from .. import cache as CA, usage as UG
 from . import flow as FL, research as RS, director as DR, characters as CH, continuity as CT, review as RV, modes as MD
@@ -703,13 +704,16 @@ def finish_storyboard(ctx, pr, script, beats, final, analyses, plan_info, tracke
     old_plan = (read_json(pr.p("plan.json"), {}) or {}).get("beats") or {}
     plan_all = {int(k): v for k, v in old_plan.items()}
     plan_all.update(plan_info or {})
-    specs = SP.write_all(pr, beats, final, analyses, plan_all, covs, tracker.worlds, durs, registry, claims_by_beat)
+    specs = SP.write_all(pr, beats, final, analyses, plan_all, covs, tracker.worlds, durs, registry, claims_by_beat,
+                         layout=(report or {}).get("layout"))
     used = used_sources(pr)
     page = SP.preview_html(script.get("title") or "", specs, muted, used)
     os.makedirs(pr.p("storyboard"), exist_ok=True)
     with open(pr.p("storyboard", "preview.html"), "w", encoding="utf-8") as f:
         f.write(page)
+    lay = (report or {}).get("layout") or {}
     ctx.log(f"storyboard check: coverage {int(round(100 * CVG.summary(covs)['mean']))}%, muted-video test {int(round(100 * muted['score']))}%, "
+            f"layout {int(round(100 * lay.get('mean', 1)))}% ({len(lay.get('open') or [])} open), "
             f"{len(muted['weak'])} weak scene(s); specs and preview.html written")
 
 
@@ -807,7 +811,11 @@ def as_rendered(scene, i, beats, settings, plan=None, opts=None):
         return scene
     opts = opts or {}
     if opts.get("mascot", True) is not False:
-        scene = MA.with_cameo(scene, i, beats, settings, plan)
+        withc = MA.with_cameo(scene, i, beats, settings, plan)
+        if withc is not scene:                 # the host's cameo is a flourish: it never gets to collide with the scene
+            n0 = len(scene.get("elements") or [])
+            clash = [x for x in LY.audit(withc, dict(text=(beats[i] or {}).get("text", ""))) if x["sev"] in ("high", "medium") and any(k >= n0 for k in x["idx"])]
+            scene = scene if clash else withc
     if settings.get("auto_reactions", True) is False and scene.get("react") is not False:
         scene = dict(scene, react=False)
     if settings.get("auto_camera", True) is False:
@@ -935,6 +943,42 @@ def narration(mood, speed, provider_id):
 
 
 # ================================================================== render
+def layout_prepare(ctx, pr, beats):
+    """Right before rendering, every scene is laid out once more (a scene can have been edited by hand since the
+    storyboard stage): collisions, margins, sizes and close-ups are repaired locally and the fix is saved with the scene,
+    so what is rendered is what was checked. Returns {beat: [problems that could not be fixed by moving things]}."""
+    left, changed = {}, 0
+    for i, b in enumerate(beats):
+        if b.get("host") or not os.path.exists(pr.scene_path(i)):
+            continue
+        sc = read_json(pr.scene_path(i))
+        if not isinstance(sc, dict):
+            continue
+        lc = dict(text=b.get("text", ""))
+        _, fixes, _ = LY.fix_scene(sc, lc)
+        if fixes:
+            write_json(pr.scene_path(i), sc)
+            changed += 1
+        high = [x for x in LY.audit(sc, lc) if x["sev"] == "high"]
+        if high:
+            left[i] = high
+    if changed:
+        ctx.log(f"layout: repaired {changed} scene(s) before rendering (moved text and objects, no AI used)")
+    return left
+
+
+def layout_gate(left, idxs, opts, settings):
+    """A scene that still has a serious layout problem after every local repair is not rendered: it would look wrong and
+    the only cure left is a new layout. 'Render anyway' (options.allow_layout_issues) or Settings > layout_gate: warn lets it through."""
+    blocked = [i for i in idxs if i in left]
+    if not blocked or opts.get("allow_layout_issues") or settings.get("layout_gate", "block") != "block":
+        return
+    lines = "; ".join(f"scene {i + 1}: " + left[i][0]["msg"] for i in blocked[:4])
+    raise P.ProviderError(f"{len(blocked)} scene(s) still have a layout problem that moving things around could not fix, so they were not "
+                          f"rendered: {lines}. Redraw them in the Storyboard tab (Deep mode asks the writer for a new layout "
+                          f"automatically), or choose 'Render anyway'.")
+
+
 def coverage_gate(pr, idxs, opts, settings):
     """Don't render scenes that obviously don't show what the narration says (the review's coverage below COVERAGE_BLOCK
     after every repair). 'Render anyway' (options.allow_low_coverage) or Settings > coverage_gate: warn lets them through."""
@@ -969,6 +1013,7 @@ def stage_render(ctx, only=None, force=False):
     cap_style = opts.get("caption_style") or settings.get("caption_style", "highlight")
     use_tr = opts.get("transitions", settings.get("transitions", True)) is not False
     cameos = MA.cameo_plan(beats, settings) if opts.get("mascot", True) is not False else {}
+    unresolved = layout_prepare(ctx, pr, beats)
     scenes = [as_rendered(read_json(pr.scene_path(i)), i, beats, settings, cameos, opts) for i in range(len(beats))]
     for i, b in enumerate(beats):
         scene = scenes[i]
@@ -990,6 +1035,7 @@ def stage_render(ctx, only=None, force=False):
                                captions=opts.get("captions", True), watermark=wm, caption_style=cap_style,
                                transition=kind, prev=prev_job)))
     coverage_gate(pr, [j["idx"] for _, j in jobs], opts, settings)
+    layout_gate(unresolved, [j["idx"] for _, j in jobs], opts, settings)
     ctx.log(f"render: {len(jobs)} of {len(beats)} scenes need rendering ({workers()} workers)")
     t0 = time.time()
     total_frames = sum(j["frames"] for _, j in jobs) or 1

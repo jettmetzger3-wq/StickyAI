@@ -8,10 +8,11 @@ handed back to the writer for just those scenes.
 """
 import re
 
+from ..engine import layout as LY
 from ..knowledge import composer as CO, props_intel as PI
 from . import continuity as CT
 
-CHECKS = ("narration", "coverage", "history", "continuity", "characters", "props", "action", "camera", "pacing", "emotion",
+CHECKS = ("narration", "coverage", "history", "continuity", "characters", "props", "action", "camera", "layout", "pacing", "emotion",
           "redundancy", "usage")
 # the first year a prop can appear in a story without being an anachronism
 ERA_PROPS = {"tank": 1915, "plane": 1903, "biplane": 1903, "helicopter": 1936, "rocket": 1944, "satellite": 1957,
@@ -209,48 +210,47 @@ def check_action(i, sc, a, out):
         issue(out, i, "action", "low", f"everyone was standing still: gave the main character a '{act}'", fixed=True)
 
 
-READABLE = ("text", "bubble", "note", "board", "sign", "counter")      # things the viewer has to be able to read
-
-
-def cropped_text(sc, zoom, focus):
-    """The readable elements a punch-in to `zoom` on `focus` would cut in half (partly in the picture, partly out)."""
-    from ..engine.schema import element_bbox
-    hw, hh = 960 / zoom, 540 / zoom
-    fx, fy = (focus if isinstance(focus, (list, tuple)) and len(focus) >= 2 else (960, 540))[:2]
-    fx, fy = min(max(float(fx), hw), 1920 - hw), min(max(float(fy), hh), 1080 - hh)
-    x0, y0, x1, y1 = fx - hw, fy - hh, fx + hw, fy + hh
-    cut = []
-    for el in sc.get("elements") or []:
-        if el.get("type") not in READABLE:
-            continue
-        b = element_bbox(el)
-        if not b:
-            continue
-        inside = b[0] >= x0 - 6 and b[2] <= x1 + 6 and b[1] >= y0 - 6 and b[3] <= y1 + 6
-        outside = b[2] <= x0 or b[0] >= x1 or b[3] <= y0 or b[1] >= y1
-        if not inside and not outside:
-            cut.append(el)
-    return cut
-
-
 def check_camera(i, sc, a, out):
     cam = sc.get("camera")
     key = has_type(sc, "counter") or any(n in ("document", "scroll", "newspaper") for n in props_of(sc))
     if key and not cam:
         sc["camera"] = {"zoom": [1.0, 1.08]}
         issue(out, i, "camera", "low", "an important number or document had no camera move: added a slow push-in", fixed=True)
-    for sh in (cam or {}).get("shots") or []:           # a punch-in must never leave a label or speech bubble half cut off
-        z = float(sh.get("zoom") or 1.0)
-        if z < 1.25 or not cropped_text(sc, z, sh.get("focus")):
+    fixes = []
+    LY.fix_camera(sc, None, fixes)                      # a punch-in must never leave a label or speech bubble half cut off
+    for f in fixes:
+        issue(out, i, "camera", "medium", f, fixed=True)
+
+
+def layout_ctx(beat, reqs_i):
+    return dict(text=(beat or {}).get("text", ""), needs=[r.get("value") for r in reqs_i or [] if isinstance(r, dict)])
+
+
+def check_layout(i, sc, ctx, out):
+    """Collisions, margins, sizes, hierarchy and bubbles: repaired locally, cheapest change first (studio/engine/layout.py)."""
+    _, fixes, _ = LY.fix_scene(sc, ctx)
+    for f in fixes:
+        issue(out, i, "layout", "low", f, fixed=True)
+
+
+def layout_report(scenes, beats, reqs, only, out):
+    """After every scene was repaired and the video-wide consistency pass ran: what is still wrong, and the score per scene."""
+    per, open_, esc = {}, [], []
+    for i in sorted(scenes):
+        sc, beat = scenes[i], (beats[i] if i < len(beats) else {})
+        if not isinstance(sc, dict) or beat.get("host") or not (only is None or i in only):
             continue
-        was = z
-        while z > 1.25 and cropped_text(sc, z, sh.get("focus")):
-            z = round(z - 0.1, 2)
-        if cropped_text(sc, z, sh.get("focus")):
-            z = 1.0
-        sh["zoom"] = z
-        issue(out, i, "camera", "medium", "the camera zoom cut a label or speech bubble in half: " +
-              (f"eased it from {was:g}x to {z:g}x" if z > 1.0 else "removed that close-up"), fixed=True)
+        left = LY.audit(sc, layout_ctx(beat, (reqs or {}).get(i)))
+        per[str(i)] = LY.score(left)
+        for x in left:
+            if x["sev"] in ("high", "medium"):
+                issue(out, i, "layout", x["sev"], x["msg"] + (f" ({x['fix']})" if x.get("fix") else ""), fixed=False)
+                open_.append(dict(beat=i, sev=x["sev"], kind=x["kind"], msg=x["msg"]))
+        if any(x["sev"] == "high" for x in left):
+            esc.append(i)
+    vals = list(per.values())
+    return dict(per_beat=per, mean=round(sum(vals) / len(vals), 3) if vals else 1.0, open=open_, escalate=esc,
+                blocked=[i for i in esc])
 
 
 def check_emotion(i, sc, a, beat, out):
@@ -306,6 +306,7 @@ def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, u
             check_props(i, sc, a, local)
             check_action(i, sc, a, local)
             check_camera(i, sc, a, local)
+            check_layout(i, sc, layout_ctx(beat, (reqs or {}).get(i)), local)
             check_emotion(i, sc, a, beat, local)
             if reqs and reqs.get(i) is not None:
                 covs[i] = CV.check(i, sc, a, reqs[i], registry, local)
@@ -319,6 +320,10 @@ def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, u
         else:
             streak = 0
         last_sig = sig
+    # the same style and the same sizes across the whole video
+    for row in LY.consistency({i: s for i, s in scenes.items() if isinstance(s, dict) and not (beats[i] if i < len(beats) else {}).get("host")}, only=only):
+        issue(out, row["beat"], "layout", "low", row["msg"], fixed=row["fixed"])
+    lay = layout_report(scenes, beats, reqs, only, out)
     # continuity and character consistency
     cont = CT.check({i: s for i, s in scenes.items() if (only is None or i in only)}, analyses, registry, beats)
     out += cont
@@ -346,7 +351,7 @@ def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, u
     cov_sum = CV.summary(covs)
     if covs:
         scores["coverage"] = cov_sum["mean"]
-    return dict(scores=scores, issues=out, fixed=len([x for x in out if x["fixed"]]),
+    return dict(scores=scores, issues=out, layout=lay, fixed=len([x for x in out if x["fixed"]]),
                 open=len([x for x in out if not x["fixed"] and x["severity"] in ("medium", "high")]),
                 coverage=dict(cov_sum, per_beat={str(i): c["score"] for i, c in covs.items()},
                               missing={str(i): [f"{m['value']} ({m['kind']})" for m in c["must_missing"]] for i, c in covs.items() if c["must_missing"]}))

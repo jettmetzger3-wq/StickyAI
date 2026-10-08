@@ -325,7 +325,7 @@ def L_intro_person(c, a, s, w):
     nm = (e or {}).get("name") or who
     at_name = w.at(_first_name_token(who), who, default=0.05)
     els = banner(a, c, s) + [
-        person(c, who, 640, FEET, 1.4, enter="slide_left", at=at_name, pose="hips" if not e or e["id"] != "napoleon" else "hand_in_coat",
+        person(c, who, 640, FEET, 1.25, enter="slide_left", at=at_name, pose="hips" if not e or e["id"] != "napoleon" else "hand_in_coat",
                mouth="smile", year=year,
                **({"say": [say(slot(s, "say"), w.at(_first_name_token(who)) or 0.3)]} if slot(s, "say") else {})),
         plate(1330, 425, 820, 210 if role else 140, at=at_name),
@@ -338,7 +338,7 @@ def L_intro_person(c, a, s, w):
         els.append(prop(sig, 1420, 860, 0.85 if sig not in ("flag", "podium") else 1.0, at=w.at(sig, default=0.4)))
     others = [p["name"] for p in ppl if p["name"] != who][:2] + list(slot(s, "with", []) or [])[:2]
     for k, o in enumerate(others[:2]):
-        els.append(person(c, o, 1650 + k * 200, FEET, 0.7, flip=True, at=w.at(_first_name_token(o), default=0.5)))
+        els.append(person(c, o, 1650 + k * 200, FEET, 0.88, flip=True, at=w.at(_first_name_token(o), default=0.5)))
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.06]}}
 
 
@@ -394,7 +394,7 @@ def L_document(c, a, s, w):
     sign_at = w.at("signed", "signs", "sign", "ratified", "wrote", "drafted", default=0.45)
     where = [text(ctx_["banner"], MID, 105, 70, "navy", at=0.0)] if (ctx_ and ctx_.get("banner")) else banner(a, c, s)
     els = where + [
-        _doc_el(d, MID, 520, 2.5 if d["prop"] == "document" else 2.3, at_doc, enter="grow"),
+        _doc_el(d, MID, 450, 2.5 if d["prop"] == "document" else 2.3, at_doc, enter="grow"),
         prop("quill", 1250, 780, 0.95, at=sign_at, idle="bob"),
         prop("check", 1150, 330, 1.0, at=off(sign_at, 0.5)),
     ]
@@ -443,7 +443,7 @@ def L_chamber(c, a, s, w):
     els.append(crowd(c, slot(s, "right_side") or "civ", 1400, 925, 8, 640, 0.52, rows=2, flip=True, at=0.08, mouth="frown"))
     if spk:
         els.append(person(c, spk, MID, FEET, 1.05, pose="point_right", year=year, at=0.02, mouth="open"))
-    els.append(_doc_el(d, 1580, 470, 1.9, w.at("law", "act", "bill", "constitution", "amendment", default=0.2), enter="grow"))
+    els.append(_doc_el(d, 1600, 400, 1.6, w.at("law", "act", "bill", "constitution", "amendment", default=0.2), enter="grow"))
     yes, no = slot(s, "yes"), slot(s, "no")
     try:
         yes_n, no_n = int(float(str(yes).replace(",", ""))) if yes is not None else None, int(float(str(no).replace(",", ""))) if no is not None else None
@@ -453,7 +453,7 @@ def L_chamber(c, a, s, w):
         els.append({"type": "counter", "from": 0, "to": yes_n, "x": 480, "y": 250, "size": 70, "prefix": "YES ", "color": "green", "at": vote_at, "dur": 1.4, "format": "number"})
         els.append({"type": "counter", "from": 0, "to": no_n, "x": 1000, "y": 250, "size": 70, "prefix": "NO ", "color": "red", "at": vote_at, "dur": 1.4, "format": "number"})
     else:
-        els.append(prop("check", 1580, 760, 1.0, at=vote_at))
+        els.append(prop("check", 1700, 300, 1.0, at=vote_at))
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.05]}}
 
 
@@ -509,7 +509,7 @@ def L_war_declaration(c, a, s, w):
     msg = str(slot(s, "message") or "WAR!").upper()[:20]
     if maps and len([p for p in a.get("places") or []]) >= 2:
         bg, els = maps
-        els.append(text(msg, MID, 220, 100, "red", at=w.at("declared", "war", "ultimatum", default=0.1)))
+        els.append(text(msg, MID, 255, 100, "red", at=w.at("declared", "war", "ultimatum", default=0.1)))
         return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.06]}}
     bg = bg_for(c, a, s, default="palace", indoor=True)
     leader = slot(s, "aggressor") or (ppl[0] if ppl else (a.get("groups") or [""])[0])
@@ -627,7 +627,8 @@ def L_event_scene(c, a, s, w):
     bg = dict(e.get("bg") or {"type": "field"})
     c.state["bg"] = dict(bg)
     first = (re.findall(r"[A-Za-z]{4,}", e.get("label", "")) or ["event"])[0]
-    els = [text(e["banner"], MID, 105, 70, "navy", at=0.0), text(e["label"], MID, 215, 62, "red", at=w.at(first, default=0.1), enter="pop")]
+    lab_x = MID + 290 if e.get("people") else MID           # a speaker stands under the middle: keep the bubble's tail clear of the label
+    els = [text(e["banner"], MID, 105, 70, "navy", at=0.0), text(e["label"], lab_x, 225, 62, "red", at=w.at(first, default=0.1), enter="pop")]
     for k, cr in enumerate(e.get("crowds") or []):
         els.append(crowd(c, cr["who"], cr["x"], 930, cr.get("count", 10), cr.get("width", 600), 0.55, rows=2,
                          at=0.05 + 0.08 * k, flip=bool(cr.get("flip")), kind=cr.get("kind", "civ"), coat=cr.get("coat", "#555555")))
@@ -639,7 +640,7 @@ def L_event_scene(c, a, s, w):
             els.append(prop(pr["name"], pr["x"], pr["y"], pr.get("scale", 1.0), at=w.at(pr["name"], default=0.12 + 0.1 * k), enter="grow"))
     n = next(iter(a.get("numbers") or []), None)
     if n:                                           # a figure the narrator gives ("342 chests of tea") is shown too
-        els.append(text(str(n.get("shown") or n.get("value"))[:18], 1290, 400, 70, "red", at=w.at(str(n.get("shown") or "").split(" ")[0], default=0.3), enter="pop"))
+        els.append(text(str(n.get("shown") or n.get("value"))[:18], 1250, 390, 70, "red", at=w.at(str(n.get("shown") or "").split(" ")[0], default=0.3), enter="pop"))
     say_ = slot(s, "say")
     if say_ and any(el.get("type") == "char" for el in els):
         next(el for el in els if el.get("type") == "char")["say"] = [say(str(say_)[:36], 0.3)]
@@ -765,11 +766,11 @@ def L_stat(c, a, s, w):
     suffix = (" billion" if v >= 1e9 else " million" if big else "")
     if n0["kind"] == "percent":
         suffix = "%"
-    els = [{"type": "counter", "from": 0, "to": round(shown, 1) if (big or n0["kind"] == "percent") else round(shown), "x": MID, "y": 400, "size": 150,
+    els = [{"type": "counter", "from": 0, "to": round(shown, 1) if (big or n0["kind"] == "percent") else round(shown), "x": MID, "y": 385, "size": 150,
             "prefix": prefix, "suffix": suffix, "format": "number", "decimals": 1 if (big and shown != int(shown)) else 0,
             "at": key, "dur": 1.8, "color": col}]
     if unit_label:
-        els.append(text(unit_label[:26], MID, 540, 62, "red" if n0["kind"] == "casualty" else col, at=w.at(n0["text"].split()[0].replace(",", ""), default=0.3) if False else key))
+        els.append(text(unit_label[:26], MID, 565, 62, "red" if n0["kind"] == "casualty" else col, at=w.at(n0["text"].split()[0].replace(",", ""), default=0.3) if False else key))
     if len(nums) > 1 and nums[1]["kind"] == n0["kind"]:
         n1 = nums[1]
         els.append({"type": "compare", "items": [{"label": n0["text"][:12], "value": n0["value"]}, {"label": n1["text"][:12], "value": n1["value"]}],
@@ -873,7 +874,7 @@ def L_invention(c, a, s, w):
         text(thing.replace("_", " ").upper()[:20] + (f" {year}" if year else ""), 1250, 250, 60, "navy", at=w.at(thing, default=0.5)),
     ]
     for k, o in enumerate([p["name"] for p in ppl[1:3]]):
-        els.append(person(c, o, 1700 + 120 * k, FEET, 0.7, flip=True, at=0.6, do=[{"act": "surprise", "at": 0.65}]))
+        els.append(person(c, o, 1700 + 120 * k, FEET, 0.85, flip=True, at=0.6, do=[{"act": "surprise", "at": 0.65}]))
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.06]}}
 
 
@@ -914,7 +915,7 @@ def L_migration(c, a, s, w):
         els.append(prop(veh if veh in PROPS else "sailboat", 1450, 800, 1.1, at=0.15, move={"dx": 120, "dy": 0}))
     nums = a.get("numbers") or []
     if nums:
-        els.append({"type": "counter", "from": 0, "to": int(nums[0]["value"]), "x": MID, "y": 230, "size": 100, "format": "number", "suffix": " people", "at": w.at(nums[0]["text"].split()[0].replace(",", ""), default=0.3), "dur": 1.6})
+        els.append({"type": "counter", "from": 0, "to": int(nums[0]["value"]), "x": MID, "y": 275, "size": 100, "format": "number", "suffix": " people", "at": w.at(nums[0]["text"].split()[0].replace(",", ""), default=0.3), "dur": 1.6})
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.05]}}
 
 
@@ -970,10 +971,10 @@ def L_celebration(c, a, s, w):
     bg = bg_for(c, a, s, default="street", force="street")
     key = w.at("won", "victory", "celebrated", "triumph", "conquered", "parade", default=0.3)
     els = banner(a, c, s) + [crowd(c, who, 1040, 930, 18, 1100, 0.58, rows=3, at=0.05, mouth="grin", do=[{"act": "cheer", "at": key}]),
-                             person(c, who, 640, FEET, 1.3, pose="cheer", mouth="grin", eyes="happy", at=0.02, do=[{"act": "celebrate", "at": key}]),
-                             prop("trophy", 860, 870, 1.0, at=key, enter="pop"), prop("flag", 330, 880, 1.0, at=0.1)]
+                             person(c, who, 640, FEET, 1.2, pose="cheer", mouth="grin", eyes="happy", at=0.02, do=[{"act": "celebrate", "at": key}]),
+                             prop("trophy", 1040, 520, 1.1, at=key, enter="pop"), prop("flag", 330, 880, 1.0, at=0.1)]
     if loser:
-        els.append(person(c, loser, 1780, FEET, 0.7, flip=True, pose="down", mouth="frown", eyes="sad", extras=["tear"], at=0.4))
+        els.append(person(c, loser, 1780, FEET, 0.85, flip=True, pose="down", mouth="frown", eyes="sad", extras=["tear"], at=0.4))
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.05]}}
 
 
@@ -994,7 +995,7 @@ def L_disaster(c, a, s, w):
                              person(c, "", 700, FEET, 0.8, at=0.25, mouth="o", eyes="wide", do=[{"act": "tremble", "at": hit}])]
     nums = a.get("numbers") or []
     if nums:
-        els.append(text(nums[0]["shown"] + (" DEAD" if nums[0]["kind"] == "casualty" or re.search(r"died|killed|dead", low) else ""), MID, 230, 80, "red",
+        els.append(text(nums[0]["shown"] + (" DEAD" if nums[0]["kind"] == "casualty" or re.search(r"died|killed|dead", low) else ""), MID, 275, 80, "red",
                         at=w.at(nums[0]["text"].split()[0].replace(",", ""), default=0.7)))
     return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.06]}}
 

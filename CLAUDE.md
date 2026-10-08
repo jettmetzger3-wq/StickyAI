@@ -19,7 +19,11 @@ in `web/` (built copy in `web/dist`, rebuild with `cd web && npm run build`). Fu
 6. **Research stays inside its budget** (`studio/research/budget.py`). Reuse `data/research_cache/` first, research only gaps, stop
    when the evidence is enough, and pause for the user's OK before going over. Never invent a source, URL or quote; a claim
    with no source is `unverified`. Say honestly when a page could not be opened.
-7. **A scene must show its narration.** Coverage (`semantics.coverage`) is checked before rendering; do not lower the gate to
+7. **A scene must be composed, not just filled** (`studio/engine/layout.py`, `docs/layout.md`). Collisions, margins, character scale,
+   hierarchy, bubbles and close-ups are checked and repaired locally BEFORE rendering; a repair may never create a new problem.
+   Fix layout in the pattern/composer source first, runtime repair is the safety net. Spend Claude on a new layout only for what
+   is still `escalate` afterwards. Look at real frames after any layout change.
+8. **A scene must show its narration.** Coverage (`semantics.coverage`) is checked before rendering; do not lower the gate to
    get green. Look at real frames (`previews/`) after changing how scenes look: numbers do not see an oversized ship.
 
 ## Where things are
@@ -43,6 +47,7 @@ in `web/` (built copy in `web/dist`, rebuild with `cd web && npm run build`). Fu
 | Research engine (budget, cache, sources, claims, approval) | `studio/research/{engine,budget,sources,claims,store}.py`; cache `data/research_cache/` |
 | Meaning: what must be SEEN, coverage score, curated regions/events/documents | `studio/knowledge/semantics.py`, `context.json`; `studio/pipeline/coverage.py` |
 | World state, scene specs + preview page, muted-video test, asset lookup, reference images | `pipeline/{world,spec,muted,assets,reference}.py` |
+| Layout validation + local repair (collisions, margins, scale, bubbles, camera, consistency) | `studio/engine/layout.py`; used in `pipeline/review.py` and `stages.layout_prepare` |
 | Hand-written visual library + tool to extend it (reference videos) | `research/`, `studio/research_cli.py` |
 | Demo (American Revolution, no AI, no cost) | `scripts/demo/run_american_revolution.py` |
 
@@ -61,7 +66,7 @@ retrieval, prop text, character looks, continuity, review fixes, flow seam detec
 file conversion. AI: the script, fact-check (needs web), choosing patterns + jokes + slot text, odd scenes, titles/description.
 
 ## Tests
-`python -m pytest -q tests` (about 520 tests, ~1.5 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
+`python -m pytest -q tests` (about 560 tests, ~1.5 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
 Rendering checks: `python -m studio research build-docs` regenerates `research/scene-patterns.md` after editing patterns.json.
 Speed work: measure first with `python scripts/bench_render.py` (`--profile frames|build`), prove the picture is unchanged with `--save`/`--check`, and read `docs/performance.md` for what was already tried. Only speed-ups that leave the picture unchanged keep `ENGINE_VERSION` as is.
 When you change how scenes look, bump `ENGINE_VERSION` in `studio/engine/render.py` (it is part of the render cache key).

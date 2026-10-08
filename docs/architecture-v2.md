@@ -31,7 +31,8 @@ Weak, and what was done:
 | "Colonies" meant nothing without Claude writing the scene | curated `context.json` (regions, documents, events, synonyms) + typed `needs` from the director |
 | No record of where/when each scene is | `world_state.json`, scene specs, time-jump checks |
 | Looks written by the researcher ("red coat") were thrown away | `people.look_from_text`: hat + coat for people `people.json` does not know |
-| A close-up could cut a label or bubble in half | camera crop QC rule in `review.check_camera` |
+| A close-up could cut a label or bubble in half | camera crop rule, now part of the layout validator |
+| A scene could be filled instead of composed (a bubble over a title, text on a face, a head on a document, a character half the size of its neighbour) | `studio/engine/layout.py`: one geometry model for the report and the repair, local repair in a fixed order that can never create a new problem, a render gate for what is left; see `docs/layout.md` |
 
 Removed: nothing was deleted. The old "write every scene" path stays (`storyboard_engine: classic`) and is the "before"
 column in the usage table. Replaced in behaviour: the Deep-only research brief, the unconditional fact-check call, and

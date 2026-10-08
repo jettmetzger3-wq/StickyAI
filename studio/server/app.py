@@ -613,7 +613,7 @@ def put_options(slug: str, body: dict):
     if hosted_user():
         # plan users can change how it looks and sounds, not the tools or the length they reserved
         o = body.get("options") or {}
-        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx", "mascot", "allow_low_coverage", "research_mode") if k in o}
+        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx", "mascot", "allow_low_coverage", "allow_layout_issues", "research_mode") if k in o}
         if "voice" in o:
             safe["voice"] = _clean_voice(o["voice"])
         body = dict(options=safe, **({"title": body["title"]} if "title" in body else {}))

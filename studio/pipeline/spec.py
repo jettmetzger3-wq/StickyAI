@@ -85,7 +85,7 @@ def build(i, beat, scene, a, info, cov, world, duration, registry, claims_by_bea
     return spec
 
 
-def write_all(pr, beats, scenes, analyses, plan_info, covs, worlds, durations, registry, claims_by_beat=None):
+def write_all(pr, beats, scenes, analyses, plan_info, covs, worlds, durations, registry, claims_by_beat=None, layout=None):
     """Write storyboard/specs/NNN.json for every scene and the preview page. Returns the specs {i: spec}."""
     d = pr.p("storyboard", "specs")
     os.makedirs(d, exist_ok=True)
@@ -98,6 +98,8 @@ def write_all(pr, beats, scenes, analyses, plan_info, covs, worlds, durations, r
         beat = beats[i]
         spec = build(i, beat, sc, analyses[i] if i < len(analyses) else {}, (plan_info or {}).get(i) or {}, covs.get(i), worlds.get(i),
                      durations[i] if i < len(durations) else 0, registry, claims_by_beat, i + 1 if i + 1 < n else None)
+        if layout and str(i) in (layout.get("per_beat") or {}):
+            spec["layout"] = dict(score=layout["per_beat"][str(i)], open=[x["msg"] for x in layout.get("open") or [] if x["beat"] == i])
         if beat.get("host"):
             spec["template"] = "HOST_" + str(beat["host"]).upper()
         specs[i] = spec
@@ -125,6 +127,10 @@ def preview_html(title, specs, muted=None, sources=None, rel_previews="../previe
         mt = ""
         if m:
             mt = '<div class="muted">muted test: ' + " ".join(f'<span class="{"ok" if m[k] else "no"}">{k}</span>' for k in ("who", "where", "what", "when", "change")) + "</div>"
+        lay = s.get("layout")
+        lt = ""
+        if lay:
+            lt = f'<div class="cov">Layout {_bar(lay["score"])}</div>' + "".join(f'<div class="muted"><span class="no">{html.escape(m)}</span></div>' for m in lay["open"][:3])
         chars = ", ".join(html.escape(str(c["name"])) for c in s["characters"]) or "none"
         loc = html.escape(" / ".join(x for x in (s["location"].get("name"), s["location"].get("type")) if x))
         rows.append(f"""<article>
@@ -133,7 +139,7 @@ def preview_html(title, specs, muted=None, sources=None, rel_previews="../previe
 <p class="nar">“{html.escape(str(s['narration']))}”</p>
 <p class="vis">{html.escape(str(s.get('visual') or ' · '.join(s['actions'][:5])))}</p>
 <div class="meta"><span>Location: {loc or '-'}</span><span>Characters: {chars}</span><span>Transition: {html.escape(str(s['transition']['type']))} → {('scene ' + str(s['transition']['target_scene'] + 1)) if s['transition']['target_scene'] is not None else 'end'}</span></div>
-<div class="cov">Coverage {_bar(cov['score'])}</div><div class="reqs">{reqs}</div>{mt}</div></article>""")
+<div class="cov">Coverage {_bar(cov['score'])}</div><div class="reqs">{reqs}</div>{lt}{mt}</div></article>""")
     src = ""
     if sources:
         src = "<h2>Sources used</h2><ol>" + "".join(

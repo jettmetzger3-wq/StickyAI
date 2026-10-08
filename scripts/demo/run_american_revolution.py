@@ -166,6 +166,10 @@ def main():
     for i, v in sorted(rv["coverage"]["per_beat"].items(), key=lambda kv: int(kv[0])):
         print(f"  beat {i}: coverage {v:.0%}  missing={rv['coverage']['missing'].get(i, [])}")
     print("muted test: score %.2f" % rv["muted"]["score"], json.dumps(rv["muted"].get("weak") or rv["muted"].get("issues") or [])[:300])
+    lay = rv.get("layout") or {}
+    print("layout: mean %.0f%%, %d open, escalate=%s, per scene %s" % (100 * lay.get("mean", 1), len(lay.get("open") or []), lay.get("escalate"), lay.get("per_beat")))
+    for x in [i for i in rv["issues"] if i["check"] == "layout"][:12]:
+        print("   layout %s #%s: %s" % ("fixed" if x["fixed"] else x["severity"], x["beat"], x["msg"]))
     sb = json.load(open(pr.p("storyboard.json")))
     print("patterns:", [sb["scenes"][str(i)].get("pattern") for i in range(len(script["beats"]))])
     ws = json.load(open(pr.p("world_state.json")))

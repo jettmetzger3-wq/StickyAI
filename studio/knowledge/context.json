@@ -30,7 +30,7 @@
    "width": 90,
    "label": "THE 13 COLONIES",
    "label_at": [
-    -76.5,
+    -73.5,
     38.2
    ],
    "phrases": [
@@ -451,13 +451,13 @@
    "props": [
     {
      "name": "galleon",
-     "x": 1500,
+     "x": 1610,
      "y": 690,
-     "scale": 1.05
+     "scale": 0.92
     },
     {
      "name": "crate",
-     "x": 1020,
+     "x": 1140,
      "y": 840,
      "scale": 1.0
     },
@@ -737,9 +737,9 @@
      "props": [
       {
        "name": "flag",
-       "x": 960,
-       "y": 560,
-       "scale": 1.0
+       "x": 940,
+       "y": 520,
+       "scale": 0.8
       },
       {
        "name": "cannon",

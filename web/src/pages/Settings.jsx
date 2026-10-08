@@ -393,6 +393,12 @@ function ResearchCard({ s, set }) {
             <option value="warn">Warn only</option>
           </select>
         </Field>
+        <Field label="Scenes with a layout problem that can't be fixed" hint="Overlapping text, a speech bubble over a title, something cut off by the edge. The studio moves things first; this only applies when that was not enough.">
+          <select className="w-full" value={s.layout_gate || "block"} onChange={(e) => set({ layout_gate: e.target.value })}>
+            <option value="block">Block rendering</option>
+            <option value="warn">Warn only</option>
+          </select>
+        </Field>
       </div>
       {topics && topics.length > 0 && (
         <details className="mt-3">
