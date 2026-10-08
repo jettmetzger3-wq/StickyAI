@@ -824,8 +824,14 @@ export default function Settings() {
           <Toggle
             checked={s.custom_props !== false}
             onChange={(v) => set({ custom_props: v })}
-            label="Draw extra props for each video"
-            hint="Before the storyboard, the writer designs a few props this story needs (one more AI call, free on Claude Code)."
+            label="Draw props the library doesn't have"
+            hint="Props are picked from the shared library (it grows with every video). Only objects the plan needs that no library prop shows are drawn, in one short request; none when the library covers the story."
+          />
+          <Toggle
+            checked={s.plan_skip_easy !== false}
+            onChange={(v) => set({ plan_skip_easy: v })}
+            label="Easy scenes skip the AI plan (Normal mode)"
+            hint="When the studio's own scene already shows what the narration says, it does not ask the AI to plan that scene. Fewer tokens; the AI's extra jokes and dialogue lines are only added to the scenes it plans."
           />
           <Field label={`Music level: ${s.music_db} dB`} hint="Relative to full scale; the voice sits at about -1 dB, so -13 is ~12 dB under it.">
             <input type="range" min="-24" max="-6" step="1" value={s.music_db} onChange={(e) => set({ music_db: Number(e.target.value) })} className="w-full" />
@@ -838,6 +844,16 @@ export default function Settings() {
               <option value={720}>720p (recommended)</option>
               <option value={480}>480p (smallest)</option>
               <option value={0}>Same as the video (1080p)</option>
+            </select>
+          </Field>
+          <Field label="Video encoder" hint="Drawing always uses the CPU. A graphics card can do the final compression and take about 40% of the work off the CPU. If the card does not work on this PC, the CPU is used. Switching re-renders the scenes.">
+            <select className="w-full" value={s.video_encoder || "cpu"} onChange={(e) => set({ video_encoder: e.target.value })}>
+              <option value="cpu">CPU (default, what every video so far used)</option>
+              <option value="auto">Graphics card if one works, else CPU</option>
+              <option value="h264_nvenc">NVIDIA (NVENC)</option>
+              <option value="h264_qsv">Intel (Quick Sync)</option>
+              <option value="h264_amf">AMD (AMF)</option>
+              <option value="h264_videotoolbox">Apple (VideoToolbox)</option>
             </select>
           </Field>
           <Field label="Render workers (0 = CPU cores minus one)">

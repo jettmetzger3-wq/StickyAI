@@ -23,10 +23,10 @@ from ..engine.pen import resolve_kind
 from ..engine import layout as LY
 from .. import prompts as PR
 from .. import cache as CA, usage as UG
-from . import flow as FL, research as RS, director as DR, characters as CH, continuity as CT, review as RV, modes as MD
+from . import flow as FL, quality as QL, research as RS, director as DR, characters as CH, continuity as CT, review as RV, modes as MD
 from . import rules, costs, themes as TH, mascot as MA, writers as WR
 from .project import read_json, write_json
-from ..engine import prop_library as PL
+from ..engine import encoders as EN, prop_library as PL
 from ..engine.custom_props import clean_kit, kit_sheet
 from ..knowledge import semantics as SM
 from ..research import budget as RB, engine as RE, claims as CL
@@ -364,6 +364,7 @@ def stage_script(ctx):
                 ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
     if llm.id != "offline" and profile["smooth"] and opts.get("smooth_flow", True) is not False:
         smooth_flow(ctx, llm, script)
+    script["quality"] = QL.report(script)             # local, free: what an editor would circle (the Script tab shows it)
     MA.add_host_beats(script, load_settings(), mascot=opts.get("mascot", True) is not False)
     brief = read_json(pr.p("research.json"))
     if brief:                                        # people the research found that the script's cast doesn't list
@@ -382,31 +383,33 @@ def stage_script(ctx):
 
 
 def smooth_flow(ctx, llm, script, force=False):
-    """Find the beats that don't connect to the one before them (free, local check), and when there are several ask
-    the writer to reword just those so the story flows. Only for writers that cost nothing extra (your Claude plan,
-    Gemini, Groq, Ollama): a paid writer is left alone and the Script tab offers a "Smooth the flow" button that shows
-    its price first. Changes `script` in place; returns the beats that were reworded."""
+    """Find the beats that need rewording (free, local checks: beats that don't connect to the one before them, and what
+    the quality pass flags: a flat opening, a trailing ending, repeated phrases, machine-sounding words, a beat too long
+    to say) and when several do, or the opening or ending is bad, ask the writer to reword just those in ONE request.
+    Only for writers that cost nothing extra (your Claude plan, Gemini, Groq, Ollama): a paid writer is left alone and the
+    Script tab offers a "Smooth the flow" button that shows its price first. Changes `script` in place; returns the beats
+    that were reworded."""
     beats = script.get("beats") or []
-    seams = FL.seams(beats)
-    ctx.log(f"flow: {len(seams)} beat(s) that don't connect to the one before")
-    if not seams or (not force and (len(seams) < 3 or len(seams) < 0.1 * len(beats))):
+    items = QL.fix_list(beats)
+    ctx.log(f"script check: {len(items)} beat(s) to reword (flow, repeats, opening, ending, filler, length)")
+    if not items or (not force and not QL.worth_asking(items, beats)):
         return []
     if getattr(llm, "paid", False) and not force:
-        ctx.warn(f"{len(seams)} beats jump from one point to another. Use 'Smooth the flow' in the Script tab "
-                 f"to reword them (it shows the price first).")
+        ctx.warn(f"{len(items)} beats need rewording (they jump from one point to another or read badly). Use 'Smooth the flow' "
+                 f"in the Script tab to reword them (it shows the price first).")
         return []
-    ctx.progress(0.85, "smoothing the flow between beats")
-    todo = seams[:16]
+    ctx.progress(0.85, "smoothing the script")
+    todo = items[:16]
     try:
         data = call_llm(ctx, llm, PR.SCRIPT_SYSTEM, PR.smooth_prompt(script, todo), schema=PR.SMOOTH_SCHEMA,
                         label="flow", tries=1, until=0.95)
     except P.ProviderError as e:
-        ctx.warn(f"couldn't smooth the flow (the script was kept as written): {str(e)[:200]}")
+        ctx.warn(f"couldn't smooth the script (it was kept as written): {str(e)[:200]}")
         return []
     fixed = FL.apply_rewrites(beats, (data or {}).get("rewrites") if isinstance(data, dict) else None,
                               {i for i, _ in todo}, clean_line)
-    script["flow"] = dict(at=time.time(), before=len(seams), fixed=fixed)
-    ctx.log(f"flow: reworded {len(fixed)} beat(s) so they connect")
+    script["flow"] = dict(at=time.time(), before=len(items), fixed=fixed)
+    ctx.log(f"script check: reworded {len(fixed)} beat(s)")
     return fixed
 
 
@@ -1027,6 +1030,47 @@ def coverage_gate(pr, idxs, opts, settings):
                           f"Redraw them in the Storyboard tab, or choose 'Render anyway'.")
 
 
+def render_key(i, beats, scenes, frames, durs, vb, wm, cap_style, use_tr, encoder):
+    """(cache key, transition, previous-scene job) of scene `i`: a finished segment is reused when this is unchanged.
+    The one place the key is made, so the render stage and the 'which scenes changed' check can never disagree."""
+    b, scene = beats[i], scenes[i]
+    prev = scenes[i - 1] if i > 0 else None
+    kind = pick_transition(prev, scene, i, b["mood"], beats[i - 1]["mood"] if i else "fun") if use_tr else "cut"
+    prev_job = None
+    if kind != "cut" and prev is not None:
+        prev_job = dict(idx=i - 1, scene=prev, dur=durs[i - 1], mood=beats[i - 1]["mood"], text=beats[i - 1]["text"],
+                        word_times=vb[i - 1].get("word_times"))
+    key = h(scene, b, frames[i], vb[i].get("word_times"), wm, engine_key([scene, prev]), cap_style, kind,
+            h(prev_job) if prev_job else None, *([encoder] if encoder != EN.CPU else []))
+    return key, kind, prev_job
+
+
+def render_status(pr):
+    """Read-only: which scenes the Render stage would draw again right now (their picture, words, timing or the look of the
+    engine changed since the last render, or their segment is missing). Shown in the Storyboard tab."""
+    beats = (pr.script() or {}).get("beats") or []
+    vb = (pr.voice() or {}).get("beats") or []
+    if not beats or len(vb) != len(beats) or any(not e or e.get("text") != b["text"] for e, b in zip(vb, beats)):
+        return dict(ready=False, stale=[], total=len(beats), rendered=0, why="the voice is missing or out of date")
+    settings, opts = load_settings(), (pr.meta() or {}).get("options") or {}
+    frames, starts, durs = plan_timeline([e["dur"] for e in vb])
+    cameos = MA.cameo_plan(beats, settings) if opts.get("mascot", True) is not False else {}
+    scenes = [as_rendered(read_json(pr.scene_path(i)), i, beats, settings, cameos, opts) for i in range(len(beats))]
+    if any(sc is None for sc in scenes):
+        return dict(ready=False, stale=[], total=len(beats), rendered=0, why="some scenes are not drawn yet")
+    manifest = read_json(pr.p("segments", "manifest.json"), {}) or {}
+    wm = opts.get("watermark") or ""
+    cap_style = opts.get("caption_style") or settings.get("caption_style", "highlight")
+    use_tr = opts.get("transitions", settings.get("transitions", True)) is not False
+    encoder = EN.resolve(opts.get("video_encoder") or settings.get("video_encoder"))
+    stale = []
+    for i in range(len(beats)):
+        key = render_key(i, beats, scenes, frames, durs, vb, wm, cap_style, use_tr, encoder)[0]
+        if manifest.get(str(i)) != key or not os.path.exists(pr.segment_path(i)):
+            stale.append(i)
+    return dict(ready=True, stale=stale, total=len(beats), rendered=len(beats) - len(stale), why="")
+
+
 def stage_render(ctx, only=None, force=False):
     pr = ctx.project
     beats = pr.script()["beats"]
@@ -1046,6 +1090,9 @@ def stage_render(ctx, only=None, force=False):
     wm = opts.get("watermark") or ""
     cap_style = opts.get("caption_style") or settings.get("caption_style", "highlight")
     use_tr = opts.get("transitions", settings.get("transitions", True)) is not False
+    encoder = EN.resolve(opts.get("video_encoder") or settings.get("video_encoder"))
+    if encoder != EN.CPU:
+        ctx.log(f"render: video encoder {encoder} (graphics card; falls back to the CPU if it fails)")
     cameos = MA.cameo_plan(beats, settings) if opts.get("mascot", True) is not False else {}
     unresolved = layout_prepare(ctx, pr, beats)
     scenes = [as_rendered(read_json(pr.scene_path(i)), i, beats, settings, cameos, opts) for i in range(len(beats))]
@@ -1053,21 +1100,14 @@ def stage_render(ctx, only=None, force=False):
         scene = scenes[i]
         if scene is None:
             raise P.ProviderError(f"scene {i} is missing; run the Storyboard stage first")
-        prev = scenes[i - 1] if i > 0 else None
-        kind = pick_transition(prev, scene, i, b["mood"], beats[i - 1]["mood"] if i else "fun") if use_tr else "cut"
-        prev_job = None
-        if kind != "cut" and prev is not None:
-            prev_job = dict(idx=i - 1, scene=prev, dur=durs[i - 1], mood=beats[i - 1]["mood"], text=beats[i - 1]["text"],
-                            word_times=vb[i - 1].get("word_times"))
-        key = h(scene, b, frames[i], vb[i].get("word_times"), wm, engine_key([scene, prev]), cap_style, kind,
-                h(prev_job) if prev_job else None)
+        key, kind, prev_job = render_key(i, beats, scenes, frames, durs, vb, wm, cap_style, use_tr, encoder)
         up_to_date = manifest.get(str(i)) == key and os.path.exists(pr.segment_path(i))
         if not (force or not up_to_date or (only is not None and i in only)):
             continue
         jobs.append((key, dict(idx=i, scene=scene, dur=durs[i], mood=b["mood"], text=b["text"],
                                word_times=vb[i].get("word_times"), frames=frames[i], out=pr.segment_path(i),
                                captions=opts.get("captions", True), watermark=wm, caption_style=cap_style,
-                               transition=kind, prev=prev_job)))
+                               transition=kind, prev=prev_job, encoder=encoder)))
     coverage_gate(pr, [j["idx"] for _, j in jobs], opts, settings)
     layout_gate(unresolved, [j["idx"] for _, j in jobs], opts, settings)
     ctx.log(f"render: {len(jobs)} of {len(beats)} scenes need rendering ({workers()} workers)")

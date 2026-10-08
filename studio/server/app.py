@@ -25,9 +25,9 @@ from ..pipeline import (Project, new_project, list_projects, STAGES, STAGE_LABEL
                         is_running, queue_position, cancel, mark_reviewed, mark_stale, costs, recover_all)
 from ..pipeline.events import bus
 from ..pipeline.project import read_json, write_json
-from ..pipeline import estimate as est_mod, modes as modes_mod, flow as flow_mod, characters as chars_mod
+from ..pipeline import estimate as est_mod, modes as modes_mod, flow as flow_mod, characters as chars_mod, quality as quality_mod
 from .. import cache as cache_mod, usage as usage_mod
-from ..pipeline.stages import beat_durations, scene_job, provider as stage_provider, normalize_script, clean_line
+from ..pipeline.stages import beat_durations, scene_job, provider as stage_provider, normalize_script, clean_line, render_status
 from ..providers.llm import using_model
 from ..hosted import user as current_user, is_admin
 from .auth import Guard
@@ -459,7 +459,8 @@ def project_detail(slug: str):
     review = read_json(pr.p("review.json"))
     plan = read_json(pr.p("plan.json"))
     chars = chars_mod.load(pr)
-    seams = [dict(beat=i, why=w) for i, w in flow_mod.seams((script or {}).get("beats") or [])]
+    seams = [dict(beat=i, why=w) for i, w in quality_mod.fix_list((script or {}).get("beats") or [])]
+    script_quality = quality_mod.report(script) if script else None
     for sc_ in scenes:
         pi = ((plan or {}).get("beats") or {}).get(str(sc_["i"]))
         sc_["pattern"] = (pi or {}).get("pattern")
@@ -468,7 +469,7 @@ def project_detail(slug: str):
     except Exception:
         uest = None
     return dict(meta=m, running=is_running(slug), queue_position=queue_position(slug), script=script, scenes=scenes,
-                short=short, usage=usage_mod.summary(pr), usage_estimate=uest, review=review, characters=chars, seams=seams,
+                short=short, usage=usage_mod.summary(pr), usage_estimate=uest, review=review, characters=chars, seams=seams, quality=script_quality,
                 mode=modes_mod.name_of(m),
                 source=src, spent_usd=costs.spent(m), budget_usd=costs.budget(m),
                 voice=dict(provider=v.get("provider"), voice=v.get("voice"), total=v.get("total"),
@@ -756,7 +757,7 @@ def smooth_script(slug: str, b: RegenBeat):
     script = pr.script()
     if not script:
         raise HTTPException(404, "no script yet")
-    seams = flow_mod.seams(script["beats"])
+    seams = quality_mod.fix_list(script["beats"])
     if not seams:
         return dict(rewrites=[], seams=[])
     prompt = PR.smooth_prompt(script, seams[:16])
@@ -851,6 +852,36 @@ def regen_scene(slug: str, i: int, b: RegenScene):
     start_background(slug, start="storyboard", stop_after="storyboard",
                      stage_kwargs={"storyboard": dict(only=[i], force=True, instruction=b.instruction)})
     return dict(ok=True)
+
+
+@app.get("/api/projects/{slug}/render-status")
+def get_render_status(slug: str):
+    """Which scenes the Render stage would draw again right now (nothing is changed)."""
+    return render_status(proj(slug))
+
+
+@app.post("/api/projects/{slug}/render-changed")
+def render_changed_scenes(slug: str):
+    """Draw only the scenes that changed since the last render (the Render stage always skips finished ones), then re-assemble."""
+    pr = proj(slug)
+    ensure_idle(pr)
+    start_background(slug, start="render", stop_after="mix")
+    return dict(ok=True)
+
+
+@app.post("/api/projects/{slug}/animatic")
+def make_animatic(slug: str):
+    """A preview video in seconds: the storyboard pictures held for the narration, with the voice and the words. Free; no drawing."""
+    from ..pipeline import animatic
+    pr = proj(slug)
+    try:
+        r = animatic.build(pr)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except (RuntimeError, OSError) as e:
+        raise HTTPException(500, str(e))
+    return dict(ok=True, path="final/animatic.mp4", v=int(os.path.getmtime(r["path"])), seconds=r["seconds"], scenes=r["scenes"],
+                missing=r["missing_pictures"])
 
 
 @app.post("/api/projects/{slug}/scenes/{i}/rerender")

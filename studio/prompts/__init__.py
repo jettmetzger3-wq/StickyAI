@@ -200,7 +200,8 @@ SMOOTH_SCHEMA = {
 
 
 def smooth_prompt(script, seams):
-    """Ask for new wording for the beats that don't connect to the one before them. `seams` = [(beat index, why)]."""
+    """Ask for new wording for the beats that need it. `seams` = [(beat index, why)]: a beat that doesn't connect to the
+    one before it, or a quality problem (flat opening, trailing ending, repeated phrase, machine-sounding word, too long)."""
     beats = script.get("beats") or []
     want = {i for i, _ in seams}
     show = sorted({j for i in want for j in (i - 2, i - 1, i, i + 1) if 0 <= j < len(beats)})
@@ -212,19 +213,22 @@ def smooth_prompt(script, seams):
         lines.append(f"{tag} [{j}] {beats[j]['text']}")
         last = j
     why = "\n".join(f"- beat {i}: {w}" for i, w in seams)
-    return f"""Here is part of a narration script for the video "{script.get('title', '')}". The beats marked >>> don't
-connect well to the beat before them (the viewer is dragged from one point to another).
+    return f"""Here is part of a narration script for the video "{script.get('title', '')}". The beats marked >>> have the
+problems listed below (they don't connect to the beat before them, or they read badly).
 
 {chr(10).join(lines)}
 
 WHAT'S WRONG
 {why}
 
-Rewrite ONLY the >>> beats so each one flows out of the beat before it: pick up its last idea, name or question in the
-first words, use a clear cause-and-effect link ("so", "but", "which meant") or a short bridge for a change of place or
-time ("Three years later, in Moscow..."), and say who or what any new name is in a few words. Keep every date, number
-and fact exactly as it is, keep the voice and the jokes, keep it spoken (15 to 30 words, never more than 35), no em
-dashes, no AI filler words. Don't touch beats that aren't marked.
+Rewrite ONLY the >>> beats and fix exactly what is listed. To connect: pick up the last idea, name or question of the beat
+before in the first words, use a clear cause-and-effect link ("so", "but", "which meant") or a short bridge for a change of
+place or time ("Three years later, in Moscow..."), and say who or what any new name is in a few words. A flat opening
+becomes a hook in its first six words (a surprising fact, a bold claim or a question: no greeting, no "in this video"). A
+trailing ending lands on a clear payoff or punchline. A repeated phrase or a machine-sounding word gets fresh, plain
+wording. A beat that is too long is tightened to one idea. Keep every date, number and fact exactly as it is, keep the
+voice and the jokes, keep it spoken (15 to 30 words, never more than 35), no em dashes, no AI filler words. Don't touch
+beats that aren't marked.
 
 Answer with JSON only: {{"rewrites": [{{"beat": n, "text": "..."}}]}}"""
 

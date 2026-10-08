@@ -119,8 +119,8 @@ export default function ScriptTab({ d, slug, reload, running }) {
         actions={
           <>
             {(d.seams || []).length > 0 && (
-              <Button disabled={smoothing || running} onClick={smooth} title="Reword only the beats that don't connect to the one before">
-                {smoothing ? <Spinner /> : null} Smooth the flow ({d.seams.length})
+              <Button disabled={smoothing || running} onClick={smooth} title="Reword only the beats that don't connect to the one before or read badly (repeated phrases, a flat opening, a weak ending, machine-sounding words, too long)">
+                {smoothing ? <Spinner /> : null} Smooth the flow and wording ({d.seams.length})
               </Button>
             )}
             {dirty && <span className="text-xs text-amber-600">unsaved changes</span>}
@@ -130,6 +130,13 @@ export default function ScriptTab({ d, slug, reload, running }) {
           </>
         }
       >
+        {(d.quality?.notes || []).length > 0 && (
+          <ul className="mb-2 list-disc pl-5 text-xs text-stone-500 dark:text-zinc-400">
+            {d.quality.notes.map((n, k) => (
+              <li key={k}>{n.msg}</li>
+            ))}
+          </ul>
+        )}
         <input
           className="mb-3 w-full text-lg font-semibold"
           value={title}

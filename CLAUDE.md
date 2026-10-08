@@ -43,7 +43,11 @@ in `web/` (built copy in `web/dist`, rebuild with `cd web && npm run build`). Fu
 | Usage ledger + estimate | `studio/usage.py`, `studio/pipeline/estimate.py`, `projects/<slug>/usage.json` |
 | Script structure, flow check and smoothing | `studio/prompts/__init__.py`, `studio/pipeline/flow.py` |
 | Scene language + auto-repair (the contract with the engine) | `studio/engine/schema.py` (`check_scene`) |
-| Renderer, props (~230), places, puppets, camera | `studio/engine/*` |
+| Renderer, props (~230 in code), places, puppets, camera | `studio/engine/*` |
+| Props are ASSETS: shared library (43 hand-drawn + every AI-drawn prop, kept for good), word index, missing-props list | `studio/engine/prop_library.py`, `studio/knowledge/propindex.py` + `prop_words.json`, `studio/props_cli.py`; `docs/props.md` |
+| Script quality pass (flat opening, trailing ending, repeats, filler, long beats) joins the one smoothing request | `studio/pipeline/quality.py`, `stages.smooth_flow` |
+| Encoder choice (CPU default, opt-in graphics card with CPU fallback), "which scenes changed", quick preview video | `studio/engine/encoders.py`, `stages.render_key/render_status`, `studio/pipeline/animatic.py` |
+| Setup check and updater (ZIP-friendly, never touches data/projects/.env) | `studio/doctor.py`, `studio/updater.py` |
 | Research engine (budget, cache, sources, claims, approval) | `studio/research/{engine,budget,sources,claims,store}.py`; cache `data/research_cache/` |
 | Meaning: what must be SEEN, coverage score, curated regions/events/documents | `studio/knowledge/semantics.py`, `context.json`; `studio/pipeline/coverage.py` |
 | World state, scene specs + preview page, muted-video test, asset lookup, reference images | `pipeline/{world,spec,muted,assets,reference}.py` |
@@ -60,13 +64,20 @@ check/repair -> continuity -> **review (local fixes)** -> previews -> voice -> r
 `gen_mode` fast = no research/fact-check/props, plan only; normal = research (10 searches) ; deep = 20 searches + AI polish. `storyboard_engine: classic` is the
 old write-every-scene path (kept; costs ~2x more).
 
+9. **Props are picked from the library, never drawn per use.** Add words/designs to the index first; the AI draws a prop only for an
+   object the plan needs that `propindex.covers()` says nothing shows, once, in one short request, and the result is kept for good.
+   Never add an AI call for props, wording or layout that a lookup can answer.
+10. Normal mode: scenes the studio already draws well ("easy": confident pattern + coverage) skip the AI plan. Do not make the
+    plan step per-beat; keep it batched.
+
 ## Which tasks are local (never ask the AI) and which need it
 Local: JSON/scene validation and repair, duplicate/existing-asset checks, timing and durations, entity extraction, pattern
 retrieval, prop text, character looks, continuity, review fixes, flow seam detection, caching, estimates, rendering, audio sync,
 file conversion. AI: the script, fact-check (needs web), choosing patterns + jokes + slot text, odd scenes, titles/description.
 
 ## Tests
-`python -m pytest -q tests` (about 560 tests, ~1.5 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
+`python -m pytest -q tests` (about 640 tests, ~2 minutes). `tests/conftest.py` makes a bug in a scene layout fail loudly.
 Rendering checks: `python -m studio research build-docs` regenerates `research/scene-patterns.md` after editing patterns.json.
 Speed work: measure first with `python scripts/bench_render.py` (`--profile frames|build`), prove the picture is unchanged with `--save`/`--check`, and read `docs/performance.md` for what was already tried. Only speed-ups that leave the picture unchanged keep `ENGINE_VERSION` as is.
-When you change how scenes look, bump `ENGINE_VERSION` in `studio/engine/render.py` (it is part of the render cache key).
+When you change how scenes look, bump `ENGINE_VERSION` in `studio/engine/render.py` (it is part of the render cache key; now 10: long document titles wrap onto two lines).
+`python -m studio doctor` checks a PC; `python -m studio props gaps` lists missing props.

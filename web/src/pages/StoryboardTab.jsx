@@ -96,8 +96,79 @@ function ReviewCard({ review, usage, slug }) {
     </Card>
   );
 }
+function RenderBar({ slug, d, running, rs, reload, onStatus }) {
+  const [busy, setBusy] = useState(null);
+  const [anim, setAnim] = useState(null);
+  const [err, setErr] = useState(null);
+  const hasVoice = d.meta?.stages?.voice?.status === "done";
+  async function preview() {
+    setBusy("anim");
+    setErr(null);
+    try {
+      setAnim(await api.post(`/api/projects/${encodeURIComponent(slug)}/animatic`));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  async function renderChanged() {
+    setBusy("render");
+    setErr(null);
+    try {
+      await api.post(`/api/projects/${encodeURIComponent(slug)}/render-changed`);
+      reload();
+      setTimeout(onStatus, 1500);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(null);
+    }
+  }
+  const stale = rs?.ready && rs.rendered > 0 ? rs.stale : [];
+  if (!hasVoice && !stale.length) return null;
+  return (
+    <Card className="mb-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-stone-600 dark:text-zinc-400">
+        {stale.length > 0 && (
+          <span>
+            <b>{stale.length}</b> of {rs.total} scenes changed since the last render. Only those are drawn again ({Math.round((100 * stale.length) / rs.total)}% of a full render).
+          </span>
+        )}
+        <span className="ml-auto flex gap-2">
+          {hasVoice && (
+            <Button disabled={!!busy || running} onClick={preview} title="Free and quick: the storyboard pictures held for the narration, with the voice and the words. Nothing moves; use it to check pacing before a long render.">
+              {busy === "anim" ? <Spinner /> : null} ▶ Quick preview video
+            </Button>
+          )}
+          {stale.length > 0 && (
+            <Button variant="primary" disabled={!!busy || running} onClick={renderChanged}>
+              {busy === "render" ? <Spinner /> : null} Re-render the {stale.length} changed {stale.length === 1 ? "scene" : "scenes"}
+            </Button>
+          )}
+        </span>
+      </div>
+      {err && <p className="mt-2 text-sm text-red-700 dark:text-red-400">{err}</p>}
+      {anim && (
+        <div className="mt-3">
+          <video src={fileUrl(slug, anim.path, anim.v)} controls className="w-full max-w-3xl rounded-xl bg-black" />
+          <p className="mt-1 text-xs text-stone-500">
+            {anim.scenes} scenes, {fmtTime(anim.seconds)}. A slideshow of the storyboard pictures: no movement, transitions or music.
+            {anim.missing?.length ? ` ${anim.missing.length} scene(s) have no picture yet.` : ""}
+          </p>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function StoryboardTab({ d, slug, reload, running }) {
   const [open, setOpen] = useState(null);
+  const [rs, setRs] = useState(null);
+  const loadStatus = () => api.get(`/api/projects/${encodeURIComponent(slug)}/render-status`).then(setRs).catch(() => {});
+  useEffect(() => {
+    loadStatus();
+  }, [slug, d.meta?.updated, running]);
   const beats = d.script?.beats || [];
   if (!d.scenes.some((s) => s.has_scene))
     return (
@@ -109,6 +180,7 @@ export default function StoryboardTab({ d, slug, reload, running }) {
   return (
     <>
       <ReviewCard review={d.review} usage={d.usage} slug={slug} />
+      <RenderBar slug={slug} d={d} running={running} rs={rs} reload={reload} onStatus={loadStatus} />
       {(world.themes?.length > 0 || world.sheet) && (
         <Card className="mb-3">
           {world.themes?.length > 0 && (
@@ -144,6 +216,11 @@ export default function StoryboardTab({ d, slug, reload, running }) {
                 #{s.i}
                 {s.start != null ? ` · ${fmtTime(s.start)}` : ""}
               </span>
+              {rs?.ready && rs.rendered > 0 && rs.stale.includes(s.i) && (
+                <span className="absolute bottom-2 right-2 rounded bg-sky-600 px-1.5 py-0.5 text-xs text-white" title="Changed since the last render: it will be drawn again">
+                  re-render
+                </span>
+              )}
               {(s.warnings?.length > 0 || s.source === "rules") && (
                 <span className="absolute right-2 top-2 rounded bg-amber-500 px-1.5 py-0.5 text-xs text-black" title={(s.warnings || []).join("\n")}>
                   {s.source === "rules" ? "simple scene" : "⚠"}

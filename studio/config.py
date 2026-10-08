@@ -123,6 +123,7 @@ DEFAULT_SETTINGS = {
     "reuse_music_beds": True,          # pay for each ElevenLabs music mood once, reuse it in later videos
     "custom_props": True,              # let the writer draw props the shared library doesn't have (only those, in one call)
     "plan_skip_easy": True,            # normal mode: scenes the studio can already draw well from the narration skip the AI plan
+    "video_encoder": "cpu",            # cpu (default) | auto (graphics card if one works) | h264_nvenc | h264_qsv | h264_amf | h264_videotoolbox
     "transitions": True,               # slides, wipes, zooms and fades between scenes
     "caption_style": "highlight",      # "highlight" = the spoken word lights up, "plain" = white captions
     "ambience": True,                  # background sound for each place (waves, wind, crowds, battle)

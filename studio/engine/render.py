@@ -3,6 +3,7 @@ import os
 import subprocess
 import time
 
+from . import encoders as EN
 from .core import W, H, FPS
 from .compiler import build_scene
 from .captions import make_captions, paste_caption
@@ -172,31 +173,41 @@ def render_segment(job):
     if n_tr and TRANSITION_SFX.get(kind):
         sc.sfx.append((0.02, TRANSITION_SFX[kind]))
     tmp = job["out"] + ".part.mp4"
-    cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
-           "-r", str(FPS), "-i", "-", "-c:v", "libx264", "-preset", job.get("preset", "veryfast"),
-           "-crf", str(job.get("crf", 20)), "-pix_fmt", "yuv420p", "-threads", str(job.get("threads", 1)),
-           "-movflags", "+faststart", tmp]
-    p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        for fi in range(job["frames"]):
-            tt = fi / FPS
-            fr = sc.render_at(tt)
-            if fi < n_tr:
-                if zoom_info is not None:
-                    from .livemap import compose_mapzoom
-                    fr = compose_mapzoom(before, fr, zoom_info, (fi + 1) / (n_tr + 1))
-                else:
-                    fr = compose_transition(before, fr, kind, (fi + 1) / (n_tr + 1))
-            paste_caption(fr, caps, tt)
-            if wm is not None:
-                fr.paste(wm, (W - wm.width - 24, 22), wm)
-            p.stdin.write(fr.convert("RGB").tobytes())
-        p.stdin.close()
-    except BrokenPipeError:
-        pass
-    err = p.stderr.read().decode(errors="ignore")
-    p.wait()
-    if p.returncode != 0:
+
+    def encode(encoder):
+        """Draw every frame and pipe it into ffmpeg with `encoder`. Returns (ffmpeg return code, its error text)."""
+        cmd = ["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}",
+               "-r", str(FPS), "-i", "-",
+               *EN.video_args(encoder, job.get("preset", "veryfast"), job.get("crf", 20), job.get("threads", 1)),
+               "-movflags", "+faststart", tmp]
+        p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            for fi in range(job["frames"]):
+                tt = fi / FPS
+                fr = sc.render_at(tt)
+                if fi < n_tr:
+                    if zoom_info is not None:
+                        from .livemap import compose_mapzoom
+                        fr = compose_mapzoom(before, fr, zoom_info, (fi + 1) / (n_tr + 1))
+                    else:
+                        fr = compose_transition(before, fr, kind, (fi + 1) / (n_tr + 1))
+                paste_caption(fr, caps, tt)
+                if wm is not None:
+                    fr.paste(wm, (W - wm.width - 24, 22), wm)
+                p.stdin.write(fr.convert("RGB").tobytes())
+            p.stdin.close()
+        except BrokenPipeError:
+            pass
+        err = p.stderr.read().decode(errors="ignore")
+        p.wait()
+        return p.returncode, err
+
+    encoder = job.get("encoder") or EN.CPU
+    rc, err = encode(encoder)
+    if rc != 0 and encoder != EN.CPU:                      # the graphics card said no: do this scene on the CPU instead
+        sc.warn(f"the {encoder} video encoder failed ({err.strip()[-120:]}); this scene was encoded on the CPU instead")
+        rc, err = encode(EN.CPU)
+    if rc != 0:
         raise RuntimeError(f"ffmpeg failed for scene {job['idx']}: {err[-400:]}")
     os.replace(tmp, job["out"])
     return dict(idx=job["idx"], sfx=sc.sfx, warnings=sc.warnings, seconds=time.time() - t0)

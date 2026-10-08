@@ -119,8 +119,8 @@ Scores and weak scenes are in `review.json`. Per-scene repair: fixes are applied
 re-composed or re-rendered (`POST /api/projects/{slug}/scenes/{i}/preview`, `stage_render(only=...)`).
 
 **Determinism:** the render cache key is the scene JSON + `ENGINE_VERSION`; film grain is seeded; the same scene gives the
-same pixels. `scripts/bench_render.py --check` proves it. `ENGINE_VERSION` stays 9 (new scene looks come from new
-layouts, not from changed pixels).
+same pixels. `scripts/bench_render.py --check` proves it. `ENGINE_VERSION` is 10 (long document and scroll titles wrap onto two lines instead of
+being cut; new scene looks otherwise come from new layouts, not from changed pixels).
 
 ## 6. Reference images
 
@@ -172,6 +172,6 @@ cache. Rendering, animation, audio and video are local in every row.
    stand-in writer; the first run on your PC is the first real test of the research prompt's JSON.
 7. Claim <-> scene linking is word/number overlap, not understanding; a paraphrase can be missed (it errs towards
    "unused", never towards listing a source that is not used).
-8. No GPU encode; a 10-minute video still takes minutes of CPU (`docs/performance.md`).
+8. Graphics-card encoding exists but is opt-in and untested on a real card (`docs/performance.md`); the pictures are always drawn on the CPU, so a 10-minute video still takes minutes of CPU.
 9. Copyright: sources are listed, nothing from other creators is stored. Quotes from sources are short evidence
    phrases, not page copies.

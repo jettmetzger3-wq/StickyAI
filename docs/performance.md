@@ -49,8 +49,24 @@ Frame comparison against the original renderer (same grain): 591 identical, 189 
   is the segments, so the size cost is real; left at `veryfast` crf 20.
 * **NEAREST camera at 2x then reduce**: fast, but changes the look of slow pans; needs a human to judge motion first.
 
+## Added since (not measured on a real graphics card)
+
+Checked with `--save` / `--check` against the commit before the shared prop library, the prop index, the quality pass and the
+encoder choice: 780 frames of the 26 example scenes, 780 identical, 0 changed (the only look change since is the two-line
+title on long documents and scrolls, which none of the examples has).
+
+* **Hardware H.264 encoders** (NVENC, QSV, AMF, VideoToolbox), opt-in (Settings > Video encoder, default CPU): `studio/engine/encoders.py`
+  runs a real half-second test encode per encoder and only offers the ones that work; a scene whose hardware encode fails is
+  encoded on the CPU instead; the encoder is part of the render key (so switching re-renders, and the CPU key is unchanged).
+  Tested here with ffmpeg's CPU encoder and with mocked detection; **no graphics card was available**, so the quality settings
+  (`-cq 23`, `global_quality 23`, `qp 22/24`, `-q:v 55`) are untuned guesses. Encode is ~40% of the CPU per frame above, so the
+  best case is roughly that much faster; measure with `scripts/bench_render.py` and compare file sizes before trusting it.
+* **Quick preview video** (`studio/pipeline/animatic.py`): storyboard stills + narration + the words, ~3 s for a 44 s video
+  (ffmpeg only, nothing drawn). A slideshow, not a draft of the real picture; a real low-resolution draft would need the
+  1920x1080 / supersampling constants (`engine/doodle.py`) to become parameters, which was not attempted.
+* **Which scenes changed** (`stages.render_status`, shown in the Storyboard tab): the render key is made in one place
+  (`stages.render_key`), so the check and the Render stage cannot disagree.
+
 ## Ideas not done (need a machine to test on)
 
-* Hardware H.264 encoders (NVENC, QSV, AMF, VideoToolbox) as an opt-in: could take the encode off the CPU almost entirely.
-  Needs a test encode at startup and a GPU to try it on.
 * Rendering the Short's scenes together with the main video (they are drawn twice today: with and without the baked-in captions).

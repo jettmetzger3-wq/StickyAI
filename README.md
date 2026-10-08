@@ -154,6 +154,38 @@ once its connector works.
 
 ---
 
+## Props are picked, not drawn
+
+Every scene uses props (a cannon, a scroll, a printing press). They are **assets, not AI work**: about 230 are drawn in code,
+43 more are hand-drawn vector props in the shared library (`studio/knowledge/prop_library.json`), and every prop the AI ever
+draws for a video is kept for good in `data/prop_library/` and is just another prop from then on. A local index
+(`studio/knowledge/propindex.py`, about 1,250 words such as "troops", "treaty", "gunpowder", "duel") finds the right one from the
+narration, knows what did not exist yet in a given year, and never asks the AI. The AI draws a prop only for an object the
+plan says must be seen and no library prop shows, in one short request, and not at all when the library covers the story.
+`python -m studio props gaps` lists what stories wanted and the library lacked; `props seed` draws the most wanted in one request
+(it shows the estimate and asks first). Details: `docs/props.md`.
+
+## Using less of your Claude plan
+
+* Props: picked from the library (see above); the AI draws only what is truly missing.
+* Normal mode: "easy" scenes (the studio's own scene already shows what the narration says) are not planned by the AI
+  (Settings > "Easy scenes skip the AI plan"). The Storyboard tab shows how much was spared (estimates).
+* The script is checked locally for a flat opening, a trailing ending, repeated phrases, machine-sounding words and beats too
+  long to say; only those beats are reworded, in the same single request that smooths the flow.
+* Everything the AI answers is cached; topic research is reused; a second video on the same topic skips the research call.
+
+## Faster, with less waiting
+
+* The Storyboard tab says which scenes **changed since the last render** and re-renders only those (the Render stage always
+  skipped finished scenes; now you can see and start it).
+* **Quick preview video**: the storyboard pictures held for the narration with the voice and the words, in seconds, free. Use it
+  to check pacing and order before a long render. It is a slideshow (no movement, transitions or music).
+* Settings > **Video encoder**: opt-in graphics-card encoding (NVIDIA / Intel / AMD / Apple). `python -m studio doctor` tells you
+  whether one works on your PC; if it fails during a render, that scene is encoded on the CPU instead. Not tested on a real
+  graphics card by the developer (no card was available): treat it as experimental until it works for you.
+
+---
+
 ## Using the dashboard
 
 - **New video**: paste a YouTube link (or switch to "Start from a topic"). Choose how closely to follow the
@@ -199,7 +231,10 @@ python -m studio make "..." --llm claude_cli --voice kokoro --music synth --imag
 python -m studio make "..." --checkpoints                        # pause after script/storyboard/voice
 python -m studio resume <project-folder-name>                    # continue after a pause or error
 python -m studio rerender <project-folder-name> 4 7               # re-render scenes 4 and 7
-python -m studio list | doctor | serve
+python -m studio list | serve
+python -m studio doctor                                          # is this PC ready? says what is wrong and how to fix it
+python -m studio update --zip <downloaded ZIP>                   # update the studio files, keeping your videos, settings and keys
+python -m studio props list | gaps | seed | sheet                # the shared prop library (docs/props.md)
 python -m studio online                                          # your studio + a free private link for your phone
 python -m studio admin you@example.com                           # website (hosted mode): make an admin
 ```
@@ -242,10 +277,15 @@ the Kokoro model in `data/models/`.
   from the short folder with `.venv\Scripts\python -m pip install -r requirements-paid.txt`, or turn on Windows long paths
   (an administrator's PowerShell: `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force`,
   then restart the PC).
-- **Updating when you downloaded a ZIP**: a ZIP has no history, so `git pull` does not work in it. Either download the ZIP of the
-  branch again into a new short folder (copy your old `data` and `projects` folders and `.env` across to keep your work), or
-  install Git (`winget install --id Git.Git -e`) and clone once: `git clone -b claude/stickman-video-generator-ox3n1n https://github.com/jettmetzger3-wq/StickyAI C:\StickyAI`,
-  then update any time with `git pull`.
+- **Updating when you downloaded a ZIP**: download the new ZIP of the branch (anywhere), then run
+  `.venv\Scripts\python -m studio update --zip "C:\Users\you\Downloads\StickyAI-claude-stickman-video-generator-ox3n1n.zip"`.
+  It copies only the files that changed over the install, runs pip if the package list changed, and **never touches** `data\`
+  (settings, caches, your prop library), `projects\` (your videos), `.env` (your keys) or `.venv\`. Add `--check` first to see
+  what would change. If a start script changed it tells you to close the window and open `start.bat` again. With a git clone
+  (`git clone -b claude/stickman-video-generator-ox3n1n https://github.com/jettmetzger3-wq/StickyAI C:\StickyAI`) just run
+  `python -m studio update`.
+- **Not sure what is wrong?** `python -m studio doctor` checks Python, the packages, ffmpeg, disk space, folders, the website
+  files, the prop library and the graphics-card encoder, and prints what to do about each problem (it never prints a key).
 
 - **`DLL load failed ... An Application Control policy has blocked this file`** (Windows, Smart App Control / WDAC / AppLocker):
   Windows is blocking one of the compiled files inside a Python package. The studio no longer needs scipy's `_stats_pythran`
