@@ -232,6 +232,14 @@ the Kokoro model in `data/models/`.
 
 ## Troubleshooting
 
+- **`DLL load failed ... An Application Control policy has blocked this file`** (Windows, Smart App Control / WDAC / AppLocker):
+  Windows is blocking one of the compiled files inside a Python package. The studio no longer needs scipy's `_stats_pythran`
+  file (it starts without `scipy.stats`, and without scipy's signal code entirely if that is blocked too: `studio/engine/dsp.py`),
+  so `git pull` and start again. If the message names a different file (for example from `onnxruntime`, `soundfile` or `shapely`),
+  try in PowerShell from the studio folder: `Get-ChildItem .venv -Recurse -Include *.pyd,*.dll | Unblock-File` and start again.
+  If it is still blocked, the policy is on your PC or managed by your school/work: Windows Security -> App & browser control ->
+  Smart App Control (turning it off is permanent until Windows is reset), or ask whoever manages the PC to allow the `.venv` folder.
+
 - **"ffmpeg not found"**: install it (see Quick start), then open a *new* terminal so PATH updates.
 - **"Couldn't watch the video frames … Requested format is not available"**: YouTube now makes downloaders solve
   a small JavaScript puzzle. Install Node.js (`winget install --id OpenJS.NodeJS.LTS -e`) or Deno

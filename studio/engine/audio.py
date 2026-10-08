@@ -11,7 +11,7 @@ import tempfile
 
 import numpy as np
 import soundfile as sf
-from scipy.signal import butter, lfilter
+from .dsp import butter, lfilter       # scipy.signal, or a stand-in when Windows blocks one of scipy's compiled files
 
 SR = 44100
 rng = np.random.default_rng(7)

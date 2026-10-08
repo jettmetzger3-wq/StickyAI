@@ -1070,7 +1070,7 @@ def stage_render(ctx, only=None, force=False):
 def resample(x, sr):
     if sr == SR:
         return np.asarray(x, dtype=np.float64)
-    from scipy.signal import resample_poly
+    from ..engine.dsp import resample_poly
     from math import gcd
     g = gcd(SR, sr)
     return resample_poly(np.asarray(x, dtype=np.float64), SR // g, sr // g)
