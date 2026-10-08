@@ -1,0 +1,28 @@
+STICKMAN STUDIO - start here (Windows)
+
+1. Install two things once (skip what you already have). In PowerShell:
+     winget install --id Python.Python.3.12 -e
+     winget install --id Gyan.FFmpeg -e
+   Then close PowerShell and open it again.
+
+2. Put this folder somewhere SHORT and NOT inside OneDrive, for example:
+     C:\StickyAI          (so that C:\StickyAI\start.bat exists)
+   Long folder names and OneDrive are what broke the package install before.
+
+3. Double-click start.bat.
+   The first start installs the packages (a few minutes). Then your browser opens
+   http://localhost:8765 . Keep the black window open while you use the studio:
+   the page only works while that window is running.
+
+4. Something not working? Open PowerShell in this folder and run:
+     .venv\Scripts\python -m studio doctor
+   It checks Python, the packages, ffmpeg, disk space and folders, and says how to fix each problem.
+
+5. Already have an older copy? Copy these three from the old folder into this one first, so you keep your work:
+     projects   (your videos)      data   (settings, caches, your prop library)      .env   (your keys, if any)
+   Later updates: download the new ZIP, then run
+     .venv\Scripts\python -m studio update --zip "C:\Users\YOU\Downloads\THE-NEW.zip"
+   It only copies changed studio files and never touches projects, data or .env.
+
+Nothing here costs money. A paid service is only used if you add its key AND click OK on the price shown first.
+More detail: README.md   Props: docs/props.md
