@@ -298,6 +298,51 @@ function PendingBanner({ slug, pend, onDone, setTab, canApprove }) {
       </div>
     );
   }
+  if (pend.type === "research") {
+    const pr_ = pend.proposal || {};
+    const b = pend.budget || {};
+    return (
+      <div className="rounded-2xl border border-sky-300 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-500/10">
+        <div className="font-semibold">The research budget is used up and the evidence still has gaps</div>
+        <p className="mt-1 text-sm text-stone-600 dark:text-zinc-400">
+          Used {b.queries} of {b.max_queries} searches and {b.sources} of {b.max_sources} sources ({pend.claims} claims saved from {pend.sources} sources). Still missing:
+        </p>
+        <ul className="mt-1 text-sm text-stone-700 dark:text-zinc-300">
+          {(pend.gaps || []).map((g, i) => <li key={i}>• {g}</li>)}
+        </ul>
+        {!canApprove ? (
+          <p className="mt-2 text-sm">Ask the site admin to approve more research.</p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              variant="primary"
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await api.post(`/api/projects/${encodeURIComponent(slug)}/research/approve`, { queries: pr_.queries, sources: pr_.sources, seconds: pr_.seconds });
+                setBusy(false);
+                onDone();
+              }}
+            >
+              Research {pr_.queries} more searches / {pr_.sources} sources
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                await api.post(`/api/projects/${encodeURIComponent(slug)}/research/approve`, { use_what_we_have: true });
+                setBusy(false);
+                onDone();
+              }}
+            >
+              Use what we have
+            </Button>
+          </div>
+        )}
+        <p className="mt-2 text-xs text-stone-500">Research uses your Claude plan's web search (no extra charge). It never goes past the budget without asking.</p>
+      </div>
+    );
+  }
   const total = pend.estimate;
   if (!canApprove) {
     return (

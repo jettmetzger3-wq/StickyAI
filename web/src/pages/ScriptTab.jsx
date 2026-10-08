@@ -284,6 +284,60 @@ export default function ScriptTab({ d, slug, reload, running }) {
           </Button>
         </div>
       </Card>
+
+      <ResearchPanel slug={slug} running={running} />
     </div>
+  );
+}
+
+/** What the research found for this video: the budget it used, every claim with its source and the scenes that use it,
+ *  and the final list of sources the script really relies on (the same list goes into the YouTube description). */
+function ResearchPanel({ slug, running }) {
+  const [r, setR] = useState(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    api.get(`/api/projects/${encodeURIComponent(slug)}/research`).then(setR).catch(() => setR(null));
+  }, [slug, running]);
+  if (!r || !(r.claims || []).length) return null;
+  const b = r.report?.budget || {};
+  return (
+    <Card
+      title={
+        <span>
+          Research and sources <span className="text-sm font-normal text-stone-500">· {r.claims.length} claims · {(r.sources_used || []).length} sources used</span>
+        </span>
+      }
+      actions={<Button size="sm" onClick={() => setOpen(!open)}>{open ? "Hide claims" : "Show claims"}</Button>}
+    >
+      <p className="text-xs text-stone-500 dark:text-zinc-400">
+        {r.report?.cached ? "Reused from an earlier video: 0 searches. " : `Searched ${b.queries ?? 0} of ${b.max_queries ?? "?"} allowed, opened ${b.sources ?? 0} of ${b.max_sources ?? "?"} sources. `}
+        {(b.overrun || []).length > 0 && <span className="text-amber-700">Over budget: {(b.overrun || []).join("; ")}. </span>}
+        {(r.report?.gaps || []).length > 0 && <span>Still missing: {(r.report.gaps || []).join("; ")}.</span>}
+      </p>
+      <div className="mt-2 space-y-1 text-sm">
+        {(r.sources_used || []).map((s) => (
+          <div key={s.url}>
+            <a className="underline" href={s.url} target="_blank" rel="noreferrer">{s.organization || s.title || s.url}</a>
+            <span className="text-xs text-stone-500"> · {s.tier} · {s.claims.length} claim{s.claims.length === 1 ? "" : "s"} used</span>
+          </div>
+        ))}
+      </div>
+      {open && (
+        <div className="mt-3 space-y-1">
+          {r.claims.map((c) => (
+            <div key={c.id} className="rounded border border-stone-200 p-2 text-xs dark:border-zinc-700">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge kind={c.confidence === "unverified" ? "low" : c.confidence}>{c.confidence}</Badge>
+                <span className="text-stone-500">{c.tier}</span>
+                <span className="text-stone-500">{(c.used_in_scenes || []).length ? "scenes " + c.used_in_scenes.map((i) => i + 1).join(", ") : "not used"}</span>
+              </div>
+              <div className="mt-1 text-sm">{c.claim}</div>
+              {c.url ? <a className="underline" href={c.url} target="_blank" rel="noreferrer">{c.source || c.url}</a> : <span className="text-red-700">no source</span>}
+              {c.evidence && <div className="text-stone-500">{c.evidence}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+    </Card>
   );
 }

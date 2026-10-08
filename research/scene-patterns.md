@@ -818,3 +818,53 @@ Provenance: every pattern lists the videos it was verified against. `seed` means
 - **Narration cues:** events -; words -
 - **Example narration:** "He kept losing at chess to a pigeon."
 - **Provenance:** seed: documented technique, not yet frame-verified
+
+## COLONIZATION: A country founds colonies
+
+**Use when:** a country settles or founds colonies somewhere: show where the colonies were, where the settlers came from, and the ship crossing
+
+**Visual sequence**
+
+1. A dark map zooms to the region.
+2. The relevant countries tint in their color one by one on their names.
+3. City markers pop in on their names.
+4. A year counter in the corner; borders change if time passes.
+5. Zoom into the one place the next beat is about.
+
+- **Characters:** none (or a small narrator char in the corner)
+- **Actions:** -
+- **Background:** map (dark style)
+- **Props:** city markers, labels, year counter
+- **Camera:** Map view moves to fit the countries; mapzoom into the next place.
+- **Timing:** each country on its name; cities on their names.
+- **Transitions:** zoom, auto
+- **Tone:** neutral
+- **Slots:** `origin` (the country the settlers came from); `region` (the region they settled); `label` (map label, max 28 characters)
+- **Narration cues:** events colonization; words colony, colonies, colonised, colonized, settled, settlers, founded, established
+- **Example narration:** "England established 13 colonies along the Atlantic coast."
+- **Provenance:** seed: documented technique, not yet frame-verified
+
+## FAMOUS_EVENT: A famous event, in its real place
+
+**Use when:** a named historical event (the Boston Tea Party, Valley Forge, Yorktown): show its real place, date, people and objects
+
+**Visual sequence**
+
+1. Establish the setting with the place and year.
+2. The main character appears with a pose that matches the feeling of the line.
+3. The one prop that matters pops in on its word.
+4. A short label or line lands on the key word.
+5. A second character reacts.
+
+- **Characters:** 1-2 characters
+- **Actions:** one action matching the verb
+- **Background:** the setting the line suggests
+- **Props:** one meaningful prop
+- **Camera:** Slow push-in; close-up on the punchline word.
+- **Timing:** object on its name; line on the key verb.
+- **Transitions:** auto
+- **Tone:** neutral, humor, tension, triumph, tragedy
+- **Slots:** `say` (an in-character line, max 6 words)
+- **Narration cues:** events event_tableau; words -
+- **Example narration:** "The colonists dumped the tea into Boston Harbor."
+- **Provenance:** seed: documented technique, not yet frame-verified

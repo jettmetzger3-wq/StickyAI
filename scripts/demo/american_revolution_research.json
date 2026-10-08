@@ -1,0 +1,392 @@
+{
+ "summary": "Thirteen British colonies on the Atlantic coast of North America protested taxes imposed by Parliament, declared independence in 1776, won the war at Yorktown in 1781 and wrote the Constitution in 1787.",
+ "timeline": [
+  {
+   "year": 1607,
+   "event": "Jamestown founded in Virginia"
+  },
+  {
+   "year": 1620,
+   "event": "Pilgrims reach Plymouth"
+  },
+  {
+   "year": 1733,
+   "event": "Georgia founded, the last of the 13 colonies"
+  },
+  {
+   "year": 1765,
+   "event": "Parliament passes the Stamp Act"
+  },
+  {
+   "year": 1766,
+   "event": "Stamp Act repealed"
+  },
+  {
+   "year": 1773,
+   "event": "Boston Tea Party in Boston Harbor"
+  },
+  {
+   "year": 1774,
+   "event": "Intolerable Acts close the port of Boston"
+  },
+  {
+   "year": 1776,
+   "event": "Declaration of Independence adopted"
+  },
+  {
+   "year": 1781,
+   "event": "Cornwallis surrenders at Yorktown"
+  },
+  {
+   "year": 1787,
+   "event": "Constitution written and signed in Philadelphia"
+  },
+  {
+   "year": 1788,
+   "event": "Constitution ratified"
+  }
+ ],
+ "people": [
+  {
+   "name": "George Washington",
+   "role": "Continental Army commander, first US president",
+   "years": "1732-1799",
+   "look": "blue coat, tricorn hat",
+   "trait": "calm and stubborn"
+  },
+  {
+   "name": "King George III",
+   "role": "British king during the Revolution",
+   "years": "1738-1820",
+   "look": "crown and red robe",
+   "trait": "proud and stubborn"
+  },
+  {
+   "name": "Thomas Jefferson",
+   "role": "main author of the Declaration",
+   "years": "1743-1826",
+   "look": "tricorn hat, brown coat",
+   "trait": "thoughtful"
+  },
+  {
+   "name": "Benjamin Franklin",
+   "role": "diplomat and inventor",
+   "years": "1706-1790",
+   "look": "round glasses",
+   "trait": "witty"
+  },
+  {
+   "name": "John Adams",
+   "role": "delegate who backed independence",
+   "years": "1735-1826",
+   "look": "gray coat, tricorn hat",
+   "trait": "blunt"
+  },
+  {
+   "name": "James Madison",
+   "role": "main architect of the Constitution",
+   "years": "1751-1836",
+   "look": "black coat, tricorn hat",
+   "trait": "quiet and sharp"
+  },
+  {
+   "name": "Charles Cornwallis",
+   "role": "British general who surrendered at Yorktown",
+   "years": "1738-1805",
+   "look": "red coat",
+   "trait": "proud"
+  },
+  {
+   "name": "Patrick Henry",
+   "role": "Virginia orator against the Stamp Act",
+   "years": "1736-1799",
+   "look": "plain coat",
+   "trait": "fiery"
+  }
+ ],
+ "places": [
+  {
+   "name": "Boston Harbor",
+   "note": "Massachusetts colony, site of the Tea Party"
+  },
+  {
+   "name": "Philadelphia",
+   "note": "Pennsylvania; Independence Hall"
+  },
+  {
+   "name": "Yorktown",
+   "note": "Virginia coast"
+  },
+  {
+   "name": "Jamestown",
+   "note": "Virginia"
+  }
+ ],
+ "documents": [
+  {
+   "name": "Declaration of Independence",
+   "lines": [
+    "WHEN IN THE COURSE OF",
+    "HUMAN EVENTS"
+   ]
+  },
+  {
+   "name": "Constitution",
+   "lines": [
+    "WE THE PEOPLE OF THE",
+    "UNITED STATES"
+   ]
+  },
+  {
+   "name": "Stamp Act",
+   "lines": [
+    "A TAX ON PAPER"
+   ]
+  }
+ ],
+ "numbers": [
+  {
+   "claim": "Colonies on the Atlantic coast",
+   "value": "13"
+  },
+  {
+   "claim": "Chests of tea dumped",
+   "value": "342"
+  },
+  {
+   "claim": "Delegates who signed the Constitution",
+   "value": "39"
+  }
+ ],
+ "visuals": [
+  "Colonists tipping tea chests into Boston Harbor at night",
+  "The 13 colonies along the Atlantic coast, England across the ocean",
+  "Delegates signing in the Assembly Room"
+ ],
+ "claims": [
+  {
+   "claim": "Jamestown, founded in 1607 near present-day Williamsburg, Virginia, was the first permanent English settlement in what became the United States.",
+   "url": "https://www.britannica.com/summary/American-colonies",
+   "evidence": "Britannica's summary places the first lasting English foothold at Jamestown in 1607. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The Pilgrims reached Plymouth in 1620, and Puritans founded the Massachusetts Bay Colony in 1630.",
+   "url": "https://kids.britannica.com/students/article/13-colonies/338325",
+   "evidence": "1620: the Pilgrims arrive in what is now Plymouth, Massachusetts; 1630: Puritans found Massachusetts Bay. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Georgia, founded by James Oglethorpe in 1733, was the last of the thirteen colonies to be settled.",
+   "url": "https://kids.britannica.com/students/article/13-colonies/338325",
+   "evidence": "Georgia was the last of the 13 colonies to be settled; Oglethorpe founded it in 1733. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "By 1729 Carolina had been divided into North Carolina and South Carolina.",
+   "url": "https://kids.britannica.com/students/article/13-colonies/338325",
+   "evidence": "In 1729 Carolina was split into North and South Carolina. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The thirteen colonies along the Atlantic coast are grouped into the New England, middle and southern colonies.",
+   "url": "https://kids.britannica.com/students/article/13-colonies/338325",
+   "evidence": "Traditionally divided into New England, middle and southern colonies. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "On the night of December 16, 1773, disguised colonists boarded three East India Company ships in Boston Harbor and dumped 342 chests of tea into the water.",
+   "url": "https://www.nps.gov/articles/000/boston-tea-party-in-real-time.htm",
+   "evidence": "Costumed participants emptied all 342 chests from the Dartmouth, Beaver and Eleanor on December 16, 1773. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The tea ships were docked at Griffin's Wharf, and the crowd came straight from a meeting at the Old South Meeting House.",
+   "url": "https://www.nps.gov/articles/000/boston-tea-party-in-real-time.htm",
+   "evidence": "The crowd streams out of Old South and chases men dressed as Indians down to Griffin's Wharf. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The Boston Tea Party did not get that name until about fifty years later.",
+   "url": "https://visit.archives.gov/whats-on/explore-exhibits/250th-anniversary-boston-tea-party",
+   "evidence": "It wouldn't be known as the 'Boston Tea Party' for another 50 years. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Parliament answered the Tea Party with the Intolerable Acts, including the Boston Port Bill that closed Boston's sea trade until the tea was paid for.",
+   "url": "https://blogs.loc.gov/law/2023/12/the-250th-anniversary-of-the-boston-tea-party/",
+   "evidence": "Parliament passed the punitive Intolerable Acts, including the Boston Port Bill. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The Stamp Act of 1765 was Parliament's first direct tax on the American colonies, taxing legal papers, newspapers, pamphlets, almanacs, dice and playing cards.",
+   "url": "https://www.britannica.com/event/Stamp-Act-Great-Britain-1765",
+   "evidence": "The duty applied to legal papers, newspapers, pamphlets, almanacs, dice and playing cards. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Colonists objected to taxation without representation, because they had no members in Parliament.",
+   "url": "https://www.loc.gov/exhibitions/two-georges/access-text/the-stamp-act-and-the-start-of-resistance/",
+   "evidence": "Colonists summed up the grievance as taxation without representation. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Before the Stamp Act took effect, all the appointed stamp agents in the colonies had resigned, and merchants agreed not to import British goods.",
+   "url": "https://www.britannica.com/event/Stamp-Act-Great-Britain-1765",
+   "evidence": "All the appointed stamp agents resigned; merchants agreed not to import goods from Britain. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Parliament repealed the Stamp Act in March 1766.",
+   "url": "https://www.britannica.com/event/Stamp-Act-Great-Britain-1765",
+   "evidence": "Parliament eventually repealed the Stamp Act in March 1766. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "The Second Continental Congress approved the Declaration of Independence on July 4, 1776, and Thomas Jefferson wrote most of the text.",
+   "url": "https://www.archives.gov/milestone-documents/declaration-of-independence",
+   "evidence": "The Second Continental Congress approved the Declaration on July 4, 1776; Jefferson did the composition. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Congress voted for independence on July 2, 1776, and spent July 4 revising the text of the Declaration.",
+   "url": "https://www.britannica.com/topic/Declaration-of-Independence",
+   "evidence": "The day final separation was voted was July 2; delegates spent most of July 4 revising the text. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "medium"
+  },
+  {
+   "claim": "The Constitution was drafted and signed in the Assembly Room of the Pennsylvania State House in Philadelphia, now Independence Hall.",
+   "url": "https://www.archives.gov/milestone-documents/constitution",
+   "evidence": "Drafted and signed in the Assembly Room of the Pennsylvania State House, now known as Independence Hall. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "On September 17, 1787, 39 of the 42 delegates still at the Constitutional Convention signed the Constitution.",
+   "url": "https://www.loc.gov/exhibits/creating-the-united-states/convention-and-ratification.html",
+   "evidence": "Of the 42 men present, 39 affixed their signatures to the document. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "George Mason, Edmund Randolph and Elbridge Gerry refused to sign the Constitution.",
+   "url": "https://www.archives.gov/milestone-documents/constitution",
+   "evidence": "Three delegates refused to sign: Mason and Randolph of Virginia and Gerry of Massachusetts. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "medium"
+  },
+  {
+   "claim": "The Constitution was ratified on June 21, 1788, after nine of the thirteen states approved it.",
+   "url": "https://www.archives.gov/milestone-documents/constitution",
+   "evidence": "It would go into effect when nine of thirteen states ratified; ratified June 21, 1788. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "medium"
+  },
+  {
+   "claim": "Cornwallis surrendered his army to Washington at Yorktown, Virginia, on October 19, 1781, ending the main fighting of the Revolutionary War.",
+   "url": "https://www.loc.gov/item/today-in-history/october-19/",
+   "evidence": "Cornwallis's surrender at Yorktown on October 19, 1781 ended the British army's realistic chance of winning. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "French and American forces under Washington and Rochambeau trapped Cornwallis at Yorktown while Admiral de Grasse's French fleet blocked the sea.",
+   "url": "https://www.loc.gov/exhibitions/two-georges/access-text/the-british-surrender/",
+   "evidence": "Franco-American forces blocked escape by land while the French fleet kept up a sea blockade. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "high"
+  },
+  {
+   "claim": "Cornwallis did not attend the surrender ceremony; Brigadier General Charles O'Hara surrendered for him.",
+   "url": "https://www.loc.gov/exhibitions/two-georges/access-text/the-british-surrender/",
+   "evidence": "Cornwallis refused to attend, citing illness, and delegated the surrender to Brig. Gen. Charles O'Hara. [from the search-result summary (page not opened: this sandbox blocks fetching it)]",
+   "confidence": "medium"
+  }
+ ],
+ "sources": [
+  {
+   "url": "https://www.britannica.com/summary/American-colonies",
+   "title": "A brief history of the American colonies",
+   "organization": "Encyclopaedia Britannica",
+   "date": ""
+  },
+  {
+   "url": "https://kids.britannica.com/students/article/13-colonies/338325",
+   "title": "13 colonies",
+   "organization": "Britannica Students",
+   "date": ""
+  },
+  {
+   "url": "https://www.nps.gov/articles/000/boston-tea-party-in-real-time.htm",
+   "title": "Boston Tea Party Timeline",
+   "organization": "U.S. National Park Service",
+   "date": ""
+  },
+  {
+   "url": "https://visit.archives.gov/whats-on/explore-exhibits/250th-anniversary-boston-tea-party",
+   "title": "250th Anniversary of the Boston Tea Party",
+   "organization": "U.S. National Archives",
+   "date": ""
+  },
+  {
+   "url": "https://blogs.loc.gov/law/2023/12/the-250th-anniversary-of-the-boston-tea-party/",
+   "title": "The 250th Anniversary of the Boston Tea Party",
+   "organization": "Library of Congress",
+   "date": "2023-12"
+  },
+  {
+   "url": "https://www.archives.gov/milestone-documents/constitution",
+   "title": "Constitution of the United States (1787)",
+   "organization": "U.S. National Archives",
+   "date": ""
+  },
+  {
+   "url": "https://www.loc.gov/exhibits/creating-the-united-states/convention-and-ratification.html",
+   "title": "Convention and Ratification - Creating the United States",
+   "organization": "Library of Congress",
+   "date": ""
+  },
+  {
+   "url": "https://www.archives.gov/milestone-documents/declaration-of-independence",
+   "title": "Declaration of Independence (1776)",
+   "organization": "U.S. National Archives",
+   "date": ""
+  },
+  {
+   "url": "https://www.britannica.com/topic/Declaration-of-Independence",
+   "title": "Declaration of Independence",
+   "organization": "Encyclopaedia Britannica",
+   "date": ""
+  },
+  {
+   "url": "https://www.loc.gov/item/today-in-history/october-19/",
+   "title": "Today in History - October 19",
+   "organization": "Library of Congress",
+   "date": ""
+  },
+  {
+   "url": "https://www.loc.gov/exhibitions/two-georges/access-text/the-british-surrender/",
+   "title": "The British Surrender",
+   "organization": "Library of Congress",
+   "date": ""
+  },
+  {
+   "url": "https://www.britannica.com/event/Stamp-Act-Great-Britain-1765",
+   "title": "Stamp Act",
+   "organization": "Encyclopaedia Britannica",
+   "date": ""
+  },
+  {
+   "url": "https://www.loc.gov/exhibitions/two-georges/access-text/the-stamp-act-and-the-start-of-resistance/",
+   "title": "The Stamp Act and the Start of Resistance",
+   "organization": "Library of Congress",
+   "date": ""
+  }
+ ],
+ "queries_used": [
+  "thirteen colonies Atlantic coast Jamestown 1607 Georgia 1732 British North America",
+  "Boston Tea Party December 16 1773 342 chests of tea Griffin's Wharf",
+  "Constitutional Convention 1787 Philadelphia Independence Hall delegates signed September 17 1787",
+  "Siege of Yorktown 1781 Cornwallis surrender October 19",
+  "Declaration of Independence adopted July 4 1776 Second Continental Congress Thomas Jefferson",
+  "Stamp Act 1765 Parliament taxation without representation colonial protest"
+ ],
+ "gaps": [
+  "Georgia's charter date (1732) was not in the sources; the video uses 1733, when settlement began",
+  "pages could not be opened in the research sandbox, so evidence is from search-result summaries"
+ ]
+}

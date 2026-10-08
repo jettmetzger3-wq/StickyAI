@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "patterns": [
   {
    "id": "PERSON_INTRODUCTION",
@@ -1959,6 +1959,106 @@
    "props": "one meaningful prop",
    "examples": [
     "He kept losing at chess to a pigeon."
+   ],
+   "prior": 0.5,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "COLONIZATION",
+   "label": "A country founds colonies",
+   "layout": "map_story",
+   "when": "a country settles or founds colonies somewhere: show where the colonies were, where the settlers came from, and the ship crossing",
+   "triggers": {
+    "events": [
+     "colonization"
+    ],
+    "words": [
+     "colony",
+     "colonies",
+     "colonised",
+     "colonized",
+     "settled",
+     "settlers",
+     "founded",
+     "established"
+    ],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral"
+   ],
+   "slots": {
+    "origin": "the country the settlers came from",
+    "region": "the region they settled",
+    "label": "map label, max 28 characters"
+   },
+   "sequence": [
+    "A dark map zooms to the region.",
+    "The relevant countries tint in their color one by one on their names.",
+    "City markers pop in on their names.",
+    "A year counter in the corner; borders change if time passes.",
+    "Zoom into the one place the next beat is about."
+   ],
+   "camera": "Map view moves to fit the countries; mapzoom into the next place.",
+   "timing": "each country on its name; cities on their names.",
+   "transitions": [
+    "zoom",
+    "auto"
+   ],
+   "characters": "none (or a small narrator char in the corner)",
+   "actions": "",
+   "background": "map (dark style)",
+   "props": "city markers, labels, year counter",
+   "examples": [
+    "England established 13 colonies along the Atlantic coast."
+   ],
+   "prior": 1.0,
+   "verified": [],
+   "source": "seed: documented technique, not yet frame-verified"
+  },
+  {
+   "id": "FAMOUS_EVENT",
+   "label": "A famous event, in its real place",
+   "layout": "event_scene",
+   "when": "a named historical event (the Boston Tea Party, Valley Forge, Yorktown): show its real place, date, people and objects",
+   "triggers": {
+    "events": [
+     "event_tableau"
+    ],
+    "words": [],
+    "docs": [],
+    "needs": []
+   },
+   "tone": [
+    "neutral",
+    "humor",
+    "tension",
+    "triumph",
+    "tragedy"
+   ],
+   "slots": {
+    "say": "an in-character line, max 6 words"
+   },
+   "sequence": [
+    "Establish the setting with the place and year.",
+    "The main character appears with a pose that matches the feeling of the line.",
+    "The one prop that matters pops in on its word.",
+    "A short label or line lands on the key word.",
+    "A second character reacts."
+   ],
+   "camera": "Slow push-in; close-up on the punchline word.",
+   "timing": "object on its name; line on the key verb.",
+   "transitions": [
+    "auto"
+   ],
+   "characters": "1-2 characters",
+   "actions": "one action matching the verb",
+   "background": "the setting the line suggests",
+   "props": "one meaningful prop",
+   "examples": [
+    "The colonists dumped the tea into Boston Harbor."
    ],
    "prior": 0.5,
    "verified": [],

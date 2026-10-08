@@ -6,6 +6,7 @@ import threading
 import time
 import traceback
 
+from ..research import budget as RB
 from . import costs
 from .events import bus
 from .project import Project, STAGES, CHECKPOINTS, STAGE_LABELS
@@ -220,6 +221,15 @@ def _run(project, start, stop_after, approve_cb, echo, stage_kwargs):
                         project.set_stage(st, status="pending", message="waiting for your OK")
                         return "awaiting_approval"
             after_stage(project, st)
+        except RB.ResearchBudgetReached as rb:
+            info = rb.info
+            project.set_stage(st, status="pending", message="waiting for your OK to research more")
+            _status(project, "awaiting_approval", pending=dict(type="research", stage=st, **info))
+            bus.publish(project.slug, dict(type="stage", stage=st, status="pending"))
+            if echo:
+                echo(f"The research budget is used up ({info['budget']['queries']} searches) and the evidence still has gaps: "
+                     + "; ".join(info["gaps"]) + ". Approve more research or use what we have.")
+            return "awaiting_approval"
         except Cancelled:
             project.set_stage(st, status="pending", message="cancelled")
             _status(project, "paused")

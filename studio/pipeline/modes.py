@@ -23,7 +23,7 @@ MODES = {
         review_ai=False, package_ai=False, short_ai=False, plan_examples=0),
     "normal": dict(
         label="Normal", blurb="Everyday quality with low usage: a compact plan, AI only where it matters.",
-        research=False, factcheck=True, smooth=True, props_ai=True, plan_batch=16, custom_ai=True,
+        research=True, factcheck=True, smooth=True, props_ai=True, plan_batch=16, custom_ai=True,
         review_ai=False, package_ai=True, short_ai=True, plan_examples=2),
     "deep": dict(
         label="Deep", blurb="Best quality: topic research, web fact-check, richer plan, AI polish. Uses the most.",

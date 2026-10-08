@@ -11,7 +11,7 @@ import re
 from ..knowledge import composer as CO, props_intel as PI
 from . import continuity as CT
 
-CHECKS = ("narration", "history", "continuity", "characters", "props", "action", "camera", "pacing", "emotion",
+CHECKS = ("narration", "coverage", "history", "continuity", "characters", "props", "action", "camera", "pacing", "emotion",
           "redundancy", "usage")
 # the first year a prop can appear in a story without being an anachronism
 ERA_PROPS = {"tank": 1915, "plane": 1903, "biplane": 1903, "helicopter": 1936, "rocket": 1944, "satellite": 1957,
@@ -209,12 +209,48 @@ def check_action(i, sc, a, out):
         issue(out, i, "action", "low", f"everyone was standing still: gave the main character a '{act}'", fixed=True)
 
 
+READABLE = ("text", "bubble", "note", "board", "sign", "counter")      # things the viewer has to be able to read
+
+
+def cropped_text(sc, zoom, focus):
+    """The readable elements a punch-in to `zoom` on `focus` would cut in half (partly in the picture, partly out)."""
+    from ..engine.schema import element_bbox
+    hw, hh = 960 / zoom, 540 / zoom
+    fx, fy = (focus if isinstance(focus, (list, tuple)) and len(focus) >= 2 else (960, 540))[:2]
+    fx, fy = min(max(float(fx), hw), 1920 - hw), min(max(float(fy), hh), 1080 - hh)
+    x0, y0, x1, y1 = fx - hw, fy - hh, fx + hw, fy + hh
+    cut = []
+    for el in sc.get("elements") or []:
+        if el.get("type") not in READABLE:
+            continue
+        b = element_bbox(el)
+        if not b:
+            continue
+        inside = b[0] >= x0 - 6 and b[2] <= x1 + 6 and b[1] >= y0 - 6 and b[3] <= y1 + 6
+        outside = b[2] <= x0 or b[0] >= x1 or b[3] <= y0 or b[1] >= y1
+        if not inside and not outside:
+            cut.append(el)
+    return cut
+
+
 def check_camera(i, sc, a, out):
     cam = sc.get("camera")
     key = has_type(sc, "counter") or any(n in ("document", "scroll", "newspaper") for n in props_of(sc))
     if key and not cam:
         sc["camera"] = {"zoom": [1.0, 1.08]}
         issue(out, i, "camera", "low", "an important number or document had no camera move: added a slow push-in", fixed=True)
+    for sh in (cam or {}).get("shots") or []:           # a punch-in must never leave a label or speech bubble half cut off
+        z = float(sh.get("zoom") or 1.0)
+        if z < 1.25 or not cropped_text(sc, z, sh.get("focus")):
+            continue
+        was = z
+        while z > 1.25 and cropped_text(sc, z, sh.get("focus")):
+            z = round(z - 0.1, 2)
+        if cropped_text(sc, z, sh.get("focus")):
+            z = 1.0
+        sh["zoom"] = z
+        issue(out, i, "camera", "medium", "the camera zoom cut a label or speech bubble in half: " +
+              (f"eased it from {was:g}x to {z:g}x" if z > 1.0 else "removed that close-up"), fixed=True)
 
 
 def check_emotion(i, sc, a, beat, out):
@@ -240,10 +276,13 @@ def sig_of(sc):
 
 
 # ------------------------------------------------------------------ the whole storyboard
-def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, usage=None, only=None):
+def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, usage=None, only=None, reqs=None):
     """Review `scenes` ({index: scene}) in place. Returns the report dict. `only` limits the per-scene fixes to those
     beats (the others are still read for the redundancy and pacing checks)."""
+    from . import coverage as CV
+    from ..knowledge import semantics as SM
     out = []
+    covs = {}
     year = None
     score_n = {k: [0, 0] for k in CHECKS}
     last_sig = None
@@ -268,6 +307,10 @@ def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, u
             check_action(i, sc, a, local)
             check_camera(i, sc, a, local)
             check_emotion(i, sc, a, beat, local)
+            if reqs and reqs.get(i) is not None:
+                covs[i] = CV.check(i, sc, a, reqs[i], registry, local)
+        elif reqs and reqs.get(i) is not None:
+            covs[i] = SM.coverage(reqs[i], sc)
         out += local
         sig = sig_of(sc)
         if sig == last_sig:
@@ -300,5 +343,10 @@ def run(scenes, beats, analyses, registry=None, durations=None, patterns=None, u
         scores[k] = round(max(0.0, 1.0 - bad / total), 2)
     if score_n["narration"][1]:
         scores["narration"] = round(score_n["narration"][0] / score_n["narration"][1], 2)
+    cov_sum = CV.summary(covs)
+    if covs:
+        scores["coverage"] = cov_sum["mean"]
     return dict(scores=scores, issues=out, fixed=len([x for x in out if x["fixed"]]),
-                open=len([x for x in out if not x["fixed"] and x["severity"] in ("medium", "high")]))
+                open=len([x for x in out if not x["fixed"] and x["severity"] in ("medium", "high")]),
+                coverage=dict(cov_sum, per_beat={str(i): c["score"] for i, c in covs.items()},
+                              missing={str(i): [f"{m['value']} ({m['kind']})" for m in c["must_missing"]] for i, c in covs.items() if c["must_missing"]}))

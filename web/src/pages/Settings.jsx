@@ -356,6 +356,60 @@ function WriterCard({ s, set, catalog }) {
   );
 }
 
+function ResearchCard({ s, set }) {
+  const r = { enabled: true, mode: "", reuse_cached_research: true, require_approval_for_extra_research: true, ...(s.research || {}) };
+  const setR = (patch) => set({ research: { ...r, ...patch } });
+  const [topics, setTopics] = useState(null);
+  useEffect(() => { api.get("/api/research/cache").then((d) => setTopics(d.topics)).catch(() => setTopics([])); }, []);
+  const num = (k, ph) => (
+    <input type="number" min="0" className="w-full" placeholder={ph} value={r[k] ?? ""} onChange={(e) => setR({ [k]: e.target.value === "" ? "" : Number(e.target.value) })} />
+  );
+  return (
+    <Card title="Research">
+      <p className="mb-3 text-xs text-stone-500 dark:text-zinc-400">
+        Before the script, Claude searches the web (your plan's own web search: no MCP server or API key needed), reads reliable sources and records every
+        fact with its source. The research is saved per topic and reused, so a second video on the same topic only researches what is missing. It stops when the
+        evidence is enough and asks before it goes over these limits. Empty boxes use the mode's own numbers (Fast 4/6, Normal 10/15, Deep 20/30 searches/sources).
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Toggle checked={r.enabled !== false} onChange={(v) => setR({ enabled: v })} label="Research the topic before writing" />
+        <Field label="Research mode">
+          <select className="w-full" value={r.mode || ""} onChange={(e) => setR({ mode: e.target.value })}>
+            <option value="">Same as the quality mode</option>
+            <option value="fast">Fast</option>
+            <option value="normal">Normal</option>
+            <option value="deep">Deep</option>
+          </select>
+        </Field>
+        <Field label="Max searches">{num("max_queries", "mode default")}</Field>
+        <Field label="Max sources">{num("max_sources", "mode default")}</Field>
+        <Field label="Max research time (seconds)">{num("max_research_time", "mode default")}</Field>
+        <div />
+        <Toggle checked={r.reuse_cached_research !== false} onChange={(v) => setR({ reuse_cached_research: v })} label="Reuse saved research" hint="Only the missing parts of a topic are researched again." />
+        <Toggle checked={r.require_approval_for_extra_research !== false} onChange={(v) => setR({ require_approval_for_extra_research: v })} label="Ask before going over the budget" />
+        <Field label="Scenes that don't show their narration" hint="Block = don't render them until redrawn or you click Render anyway.">
+          <select className="w-full" value={s.coverage_gate || "block"} onChange={(e) => set({ coverage_gate: e.target.value })}>
+            <option value="block">Block rendering</option>
+            <option value="warn">Warn only</option>
+          </select>
+        </Field>
+      </div>
+      {topics && topics.length > 0 && (
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-medium">{topics.length} saved topic{topics.length === 1 ? "" : "s"}</summary>
+          <ul className="mt-1 space-y-0.5 text-xs text-stone-600 dark:text-zinc-400">
+            {topics.map((t) => (
+              <li key={t.slug}>
+                <b>{t.topic || t.slug}</b>: {t.claims} claims, {t.sources} sources ({t.mode || "?"}){(t.gaps || []).length ? `, ${t.gaps.length} known gap${t.gaps.length === 1 ? "" : "s"}` : ""}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Card>
+  );
+}
+
 function GenerationCard({ s, set }) {
   const [cache, setCache] = useState(null);
   const refresh = () => api.get("/api/modes").then((d) => setCache(d.cache)).catch(() => {});
@@ -638,6 +692,7 @@ export default function Settings() {
       <WriterCard s={s} set={set} catalog={catalog} />
 
       <GenerationCard s={s} set={set} />
+      <ResearchCard s={s} set={set} />
 
       <Card title="Writer models">
         <div className="grid gap-3 sm:grid-cols-2">

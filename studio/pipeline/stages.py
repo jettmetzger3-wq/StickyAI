@@ -26,6 +26,9 @@ from . import flow as FL, research as RS, director as DR, characters as CH, cont
 from . import rules, costs, themes as TH, mascot as MA, writers as WR
 from .project import read_json, write_json
 from ..engine.custom_props import clean_kit, kit_sheet
+from ..knowledge import semantics as SM
+from ..research import budget as RB, engine as RE, claims as CL
+from . import spec as SP, muted as MU, world as WD, coverage as CVG
 from ..knowledge import props_intel as PI
 from ..engine.registry import PROPS
 from .source import (fetch_meta, transcript_text, download_lowres, extract_frames, thumbnail_frames, contact_sheets,
@@ -234,6 +237,11 @@ def normalize_script(data, fallback_title=""):
             continue
         mood = b.get("mood") if b.get("mood") in ("fun", "tense", "somber") else "fun"
         beat = {"mood": mood, "text": t}
+        for k, n_ in (("purpose", 90), ("location", 60), ("visual", 140)):      # the animator's notes (kept, never spoken)
+            if isinstance(b.get(k), str) and b[k].strip():
+                beat[k] = clean_line(b[k])[:n_]
+        if isinstance(b.get("claims"), list):
+            beat["claims"] = [str(x)[:12] for x in b["claims"] if isinstance(x, str)][:4]
         if b.get("host") in ("intro", "outro", "end"):          # the channel host's own lines (see mascot.py)
             beat["host"] = b["host"]
         if b.get("part") in ("hook", "intro", "story", "payoff"):
@@ -270,6 +278,17 @@ def source_bundle(pr, meta):
                 transcript_text=transcript_text(segs), visual_notes=vn)
 
 
+def save_research(pr, research):
+    """The research this video used, in its project folder (the topic cache keeps the full copy)."""
+    write_json(pr.p("research.json"), research.brief)
+    d = pr.p("research")
+    os.makedirs(d, exist_ok=True)
+    write_json(os.path.join(d, "claims.json"), research.claims)
+    write_json(os.path.join(d, "sources.json"), research.sources)
+    write_json(os.path.join(d, "report.json"), dict(topic=research.topic, slug=research.slug, cached=research.cached,
+                                                    sufficient=research.sufficient, gaps=research.gaps, budget=research.report))
+
+
 def stage_script(ctx):
     pr, meta = ctx.project, ctx.project.meta()
     opts = meta.get("options") or {}
@@ -278,6 +297,7 @@ def stage_script(ctx):
     youtube = meta.get("mode") == "youtube"
     src = source_bundle(pr, meta) if (youtube or opts.get("style_url")) else None
     ctx.progress(0.05, "writing the script")
+    research = None
     if llm.id == "offline":
         script = rules.offline_script(meta.get("topic"), minutes, src if youtube else None)
         ctx.warn("Basic mode wrote a placeholder script. Pick an AI writer (Claude, Gemini, Groq...) for a real one.")
@@ -291,13 +311,16 @@ def stage_script(ctx):
             style_notes = f"Reference video: {src['title']} by {src['channel']}. Visual style: {vn.get('style', '')}. " \
                           f"Copy the pacing and humor style only, not the content."
         brief_notes = ""
-        if MD.profile(meta)["research"] and meta.get("topic"):
+        rcfg = RB.resolve_config(load_settings(), opts, MD.name_of(meta))
+        run_research = rcfg["enabled"] and meta.get("topic") and (MD.profile(meta)["research"] or opts.get("research_mode") in RB.MODES)
+        if run_research:
             try:
-                brief, _ = RS.get_brief(ctx, llm, meta["topic"], minutes,
-                                        lambda l, sy, pr_, lb, web: call_llm(ctx, l, sy, pr_, label=lb, web=web, tries=1))
-                if brief:
-                    write_json(pr.p("research.json"), brief)
-                    brief_notes = RS.notes_for_script(brief)
+                research = RE.research_topic(
+                    ctx, llm, lambda l, sy, pr_, lb, web: call_llm(ctx, l, sy, pr_, label=lb, web=web, tries=1),
+                    meta["topic"], minutes, rcfg, grant=meta.get("research_grant"))
+                if research:
+                    save_research(pr, research)
+                    brief_notes = RS.notes_for_script(research.brief) + "\n" + "RESEARCH (cite the ids in each beat's claims):\n" + CL.prompt_lines(research.claims)
             except P.ProviderError as e:
                 ctx.warn(f"couldn't research the topic first (the script is written from the model's own knowledge): {str(e)[:160]}")
         prompt = PR.script_prompt(meta.get("topic") or "", minutes, opts.get("tone") or "funny but respectful",
@@ -309,15 +332,27 @@ def stage_script(ctx):
     script["generated_by"] = llm.id
     script["created"] = time.time()
     profile = MD.profile(meta)
+    if research:
+        CL.link_scenes(research.claims, script["beats"])
+        write_json(pr.p("research", "claims.json"), research.claims)
+        unsupported = CL.unsupported_items(script["beats"], research.claims, research.brief)
+        script["evidence"] = dict(claims=len(research.claims), sources=len(research.sources), unsupported=unsupported[:40],
+                                  research=research.report)
     if llm.id != "offline" and profile["factcheck"] and opts.get("fact_check", load_settings().get("fact_check", True)) is not False:
         ctx.progress(0.6, "fact-checking")
-        try:
-            fc = provider(meta, "llm", ctx, task="factcheck")
-            if fc.id == "offline" or not fc.available()[0]:
-                fc = llm
-            fact_check(ctx, fc, script)
-        except P.ProviderError as e:
-            ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
+        backed = bool(research and research.claims and sum(1 for c in research.claims if c.get("url")) >= max(3, len(research.claims) // 2))
+        unsupported = (script.get("evidence") or {}).get("unsupported")
+        if backed and unsupported is not None and not unsupported:
+            ctx.log("fact-check: every year, number and name in the script appears in the sourced research: no AI call needed")
+            script["factcheck"] = dict(at=time.time(), web=True, checks=[], fixed=[], counts=dict(correct=0, wrong=0, unsure=0), by="research")
+        else:
+            try:
+                fc = provider(meta, "llm", ctx, task="factcheck")
+                if fc.id == "offline" or not fc.available()[0]:
+                    fc = llm
+                fact_check(ctx, fc, script, items=unsupported if backed else None)
+            except P.ProviderError as e:
+                ctx.warn(f"couldn't fact-check the script (it was kept as written): {str(e)[:200]}")
     if llm.id != "offline" and profile["smooth"] and opts.get("smooth_flow", True) is not False:
         smooth_flow(ctx, llm, script)
     MA.add_host_beats(script, load_settings(), mascot=opts.get("mascot", True) is not False)
@@ -366,13 +401,13 @@ def smooth_flow(ctx, llm, script, force=False):
     return fixed
 
 
-def fact_check(ctx, llm, script):
+def fact_check(ctx, llm, script, items=None):
     """Double-check the claims the writer wasn't sure about (Claude Code searches the web for them), fix beats
     that got something wrong, and keep a report in script["factcheck"]. Changes `script` in place."""
     facts = script.get("facts") or []
     beats = script.get("beats") or []
     web = bool(getattr(llm, "supports_web", False))
-    data = call_llm(ctx, llm, PR.FACTCHECK_SYSTEM, PR.factcheck_prompt(script, web), schema=PR.FACTCHECK_SCHEMA,
+    data = call_llm(ctx, llm, PR.FACTCHECK_SYSTEM, PR.factcheck_prompt(script, web, items), schema=PR.FACTCHECK_SCHEMA,
                     label="facts", tries=1, until=0.95, web=web)
     checks, fixed = [], []
     for c in (data.get("checks") if isinstance(data, dict) else None) or []:
@@ -451,7 +486,8 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
     if not CH.load(pr):
         CH.save(pr, registry)
     cast = CH.as_cast(registry) or script.get("cast") or []
-    analyses = DR.analyses_for(beats, cast)
+    topic_text = f"{script.get('title', '')} {script.get('topic', '')} {meta.get('topic', '')}"
+    analyses = DR.analyses_for(beats, cast, topic_text)
     tracker = CT.Tracker(pr)
     host_beats = {i for i in todo if beats[i].get("host")}
     ai_todo = [i for i in todo if i not in host_beats]
@@ -594,10 +630,29 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
     if finished:
         ctx.progress(0.66, "reviewing the storyboard")
         durs = [d for d, _ in beat_durations(pr, beats)]
-        report = RV.run({i: sc for i, sc in everything.items() if sc}, beats, analyses, registry, durs,
-                        usage=UG.summarize(UG.calls(pr)), only=set(finished))
-        if profile["review_ai"] and ai_ok:
+        old_plan = (read_json(pr.p("plan.json"), {}) or {}).get("beats") or {}
+        reqs = {}
+        for i in range(n):
+            if beats[i].get("host") or not everything.get(i):
+                continue
+            pi = plan_info.get(i) or old_plan.get(str(i)) or {}
+            reqs[i] = pi.get("reqs") or SM.requirements(analyses[i], beats[i]["text"])
+        scenes_now = {i: sc for i, sc in everything.items() if sc}
+        report = RV.run(scenes_now, beats, analyses, registry, durs, usage=UG.summarize(UG.calls(pr)), only=set(finished), reqs=reqs)
+        failed_cov = [i for i in (report.get("coverage") or {}).get("failed", []) if i in finished]
+        if ai_ok and profile["name"] != "fast" and (profile["review_ai"] or failed_cov):
             ai_fix_open(ctx, llm, report, finished, beats, custom, cast)
+            if failed_cov:          # the writer redrew some of them: score them again
+                from . import coverage as CVG
+                again = {}
+                for i in failed_cov:
+                    again[i] = CVG.check(i, finished[i], analyses[i], reqs[i], registry, [])
+                    report["coverage"]["per_beat"][str(i)] = again[i]["score"]
+                report["coverage"]["failed"] = [i for i in report["coverage"]["failed"] if i not in again or again[i]["score"] < SM.COVERAGE_FAIL]
+                report["coverage"]["blocked"] = [i for i in report["coverage"]["blocked"] if i not in again or again[i]["score"] < SM.COVERAGE_BLOCK]
+        for i, pi_ in plan_info.items():
+            if pi_.get("reqs") is not None and str(i) in made:
+                made[str(i)]["coverage"] = (report.get("coverage") or {}).get("per_beat", {}).get(str(i))
         for iss in report["issues"]:
             if iss["fixed"] and iss["beat"] in made:
                 made[str(iss["beat"])]["fixes"] = made[str(iss["beat"])]["fixes"] + ["review: " + iss["msg"]]
@@ -607,6 +662,9 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
         ctx.log(f"review: {report['fixed']} problems fixed automatically, {report['open']} left for you to look at")
     for i, fixed in finished.items():
         pr.save_scene(i, fixed)
+    if finished:
+        finish_storyboard(ctx, pr, script, beats, {**{i: sc for i, sc in everything.items() if sc}, **finished}, analyses, plan_info,
+                          tracker, registry, reqs, report if finished else None, made)
     info["scenes"] = made
     info["themes"] = vthemes
     info["engine"] = engine
@@ -620,6 +678,39 @@ def stage_storyboard(ctx, only=None, force=False, instruction=""):
     ctx.progress(0.7, "rendering previews")
     render_previews(ctx, [i for i in range(n) if i in todo or not os.path.exists(pr.preview_path(i))], 0.7, 1.0)
     ctx.progress(1.0, f"{n} scenes")
+
+
+def finish_storyboard(ctx, pr, script, beats, final, analyses, plan_info, tracker, registry, reqs, report, made):
+    """After the review: time-jump checks on the world state, the muted-video test, the structured scene specs, the
+    storyboard preview page and the used-sources file. All local; nothing here asks the AI anything."""
+    durs = [d for d, _ in beat_durations(pr, beats)]
+    extra = WD.check(tracker.worlds, beats, final)
+    covs = {i: SM.coverage(reqs[i], final[i]) for i in reqs if final.get(i)}
+    muted = MU.run(final, analyses, beats, tracker.worlds, {str(i): c["score"] for i, c in covs.items()})
+    if report is not None:
+        report["issues"] += extra
+        report["open"] += len([x for x in extra if x["severity"] in ("medium", "high")])
+        report["muted"] = muted
+        report["coverage"]["per_beat"] = {str(i): c["score"] for i, c in covs.items()}
+        report["coverage"].update(CVG.summary(covs))
+        report["coverage"]["missing"] = {str(i): [f"{m['value']} ({m['kind']})" for m in c["must_missing"]] for i, c in covs.items() if c["must_missing"]}
+        write_json(pr.p("review.json"), report)
+    claims = read_json(pr.p("research", "claims.json"), []) or []
+    claims_by_beat = {}
+    for c in claims:
+        for b in c.get("used_in_scenes") or []:
+            claims_by_beat.setdefault(b, []).append(c["id"])
+    old_plan = (read_json(pr.p("plan.json"), {}) or {}).get("beats") or {}
+    plan_all = {int(k): v for k, v in old_plan.items()}
+    plan_all.update(plan_info or {})
+    specs = SP.write_all(pr, beats, final, analyses, plan_all, covs, tracker.worlds, durs, registry, claims_by_beat)
+    used = used_sources(pr)
+    page = SP.preview_html(script.get("title") or "", specs, muted, used)
+    os.makedirs(pr.p("storyboard"), exist_ok=True)
+    with open(pr.p("storyboard", "preview.html"), "w", encoding="utf-8") as f:
+        f.write(page)
+    ctx.log(f"storyboard check: coverage {int(round(100 * CVG.summary(covs)['mean']))}%, muted-video test {int(round(100 * muted['score']))}%, "
+            f"{len(muted['weak'])} weak scene(s); specs and preview.html written")
 
 
 def ai_fix_open(ctx, llm, report, finished, beats, custom, cast, limit=8):
@@ -844,6 +935,20 @@ def narration(mood, speed, provider_id):
 
 
 # ================================================================== render
+def coverage_gate(pr, idxs, opts, settings):
+    """Don't render scenes that obviously don't show what the narration says (the review's coverage below COVERAGE_BLOCK
+    after every repair). 'Render anyway' (options.allow_low_coverage) or Settings > coverage_gate: warn lets them through."""
+    cov = (read_json(pr.p("review.json"), {}) or {}).get("coverage") or {}
+    blocked = [i for i in idxs if i in set(cov.get("blocked") or [])]
+    if not blocked or opts.get("allow_low_coverage") or settings.get("coverage_gate", "block") != "block":
+        return
+    miss = cov.get("missing") or {}
+    lines = "; ".join(f"scene {i + 1} covers {cov.get('per_beat', {}).get(str(i), 0):.0%} (missing: "
+                      + ", ".join(miss.get(str(i), [])[:3]) + ")" for i in blocked[:4])
+    raise P.ProviderError(f"{len(blocked)} scene(s) don't show what the narration says, so they were not rendered: {lines}. "
+                          f"Redraw them in the Storyboard tab, or choose 'Render anyway'.")
+
+
 def stage_render(ctx, only=None, force=False):
     pr = ctx.project
     beats = pr.script()["beats"]
@@ -884,6 +989,7 @@ def stage_render(ctx, only=None, force=False):
                                word_times=vb[i].get("word_times"), frames=frames[i], out=pr.segment_path(i),
                                captions=opts.get("captions", True), watermark=wm, caption_style=cap_style,
                                transition=kind, prev=prev_job)))
+    coverage_gate(pr, [j["idx"] for _, j in jobs], opts, settings)
     ctx.log(f"render: {len(jobs)} of {len(beats)} scenes need rendering ({workers()} workers)")
     t0 = time.time()
     total_frames = sum(j["frames"] for _, j in jobs) or 1
@@ -1062,6 +1168,20 @@ def build_chapters(chapters, starts, total, min_gap=10.0, beat_texts=None):
     return out
 
 
+def used_sources(pr):
+    """The sources behind claims the finished script actually uses (links claims to beats again, in case the script was
+    edited since the research)."""
+    d = pr.p("research")
+    claims = read_json(os.path.join(d, "claims.json"), []) or []
+    sources = read_json(os.path.join(d, "sources.json"), []) or []
+    if not claims:
+        return []
+    beats = (pr.script() or {}).get("beats") or []
+    CL.link_scenes(claims, beats)
+    write_json(os.path.join(d, "claims.json"), claims)
+    return CL.used_sources(claims, sources)
+
+
 def stage_package(ctx):
     pr, meta = ctx.project, ctx.project.meta()
     opts = meta.get("options") or {}
@@ -1089,6 +1209,13 @@ def stage_package(ctx):
         sm = read_json(pr.p("source", "meta.json"), {}) or {}
         if sm.get("title"):
             lines.append(f"Inspired by \"{sm['title']}\" by {sm.get('channel', '')}: {sm.get('webpage_url') or meta.get('source_url')}")
+    used = used_sources(pr)
+    if used:                                           # only sources a scene really uses, written next to the video
+        md, txt = SP.sources_markdown(script.get("title") or meta.get("title") or "", used)
+        os.makedirs(pr.p("final"), exist_ok=True)
+        with open(pr.p("final", "sources.md"), "w", encoding="utf-8") as f:
+            f.write(md)
+        lines += ["", txt]
     lines.append("The narration in this video is an AI-generated voice.")
     tags = [clean_line(t) for t in data.get("tags") or [] if t][:15]
     hashtags = [("#" + re.sub(r"[^A-Za-z0-9]", "", str(t).lstrip("#"))) for t in data.get("hashtags") or [] if t][:3]

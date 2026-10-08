@@ -5,6 +5,7 @@ import { withApproval } from "./Project.jsx";
 
 const CHECK_LABEL = {
   narration: "Narration match",
+  coverage: "Shows the narration",
   history: "History",
   continuity: "Continuity",
   characters: "Characters",
@@ -17,7 +18,8 @@ const CHECK_LABEL = {
   usage: "AI usage",
 };
 
-function ReviewCard({ review, usage }) {
+function ReviewCard({ review, usage, slug }) {
+  const [allowed, setAllowed] = useState(false);
   if (!review) return null;
   const open = (review.issues || []).filter((i) => !i.fixed);
   return (
@@ -38,6 +40,24 @@ function ReviewCard({ review, usage }) {
             </span>
           </div>
         ))}
+      </div>
+      {review.coverage && (
+        <p className="mt-2 text-sm text-stone-600 dark:text-zinc-400">
+          Narration-to-picture coverage <b>{Math.round((review.coverage.mean ?? 1) * 100)}%</b>
+          {review.muted && <> · muted-video test <b>{Math.round(review.muted.score * 100)}%</b> (who, where, what, when, what changed)</>}
+          {(review.coverage.failed || []).length > 0 && (
+            <span className="text-red-700 dark:text-red-400"> · scenes {(review.coverage.failed || []).map((i) => i + 1).join(", ")} don't show what is said</span>
+          )}
+          {(review.muted?.weak || []).length > 0 && <> · hard to follow muted: {(review.muted.weak || []).map((i) => i + 1).join(", ")}</>}
+        </p>
+      )}
+      <div className="mt-2 flex flex-wrap gap-2">
+        <a className="text-sm underline" href={fileUrl(slug, "storyboard/preview.html")} target="_blank" rel="noreferrer">Open the storyboard preview page</a>
+        {(review.coverage?.blocked || []).length > 0 && !allowed && (
+          <Button size="sm" onClick={async () => { await api.put(`/api/projects/${encodeURIComponent(slug)}/options`, { options: { allow_low_coverage: true } }); setAllowed(true); }}>
+            Render anyway
+          </Button>
+        )}
       </div>
       {(review.issues || []).length > 0 && (
         <details className="mt-2">
@@ -67,7 +87,7 @@ export default function StoryboardTab({ d, slug, reload, running }) {
   const world = d.world || {};
   return (
     <>
-      <ReviewCard review={d.review} usage={d.usage} />
+      <ReviewCard review={d.review} usage={d.usage} slug={slug} />
       {(world.themes?.length > 0 || world.sheet) && (
         <Card className="mb-3">
           {world.themes?.length > 0 && (

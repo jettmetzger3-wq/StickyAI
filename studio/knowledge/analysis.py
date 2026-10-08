@@ -202,6 +202,15 @@ REGIONY = {"europe", "asia", "africa", "america", "americas", "east", "west", "n
            "treaty", "war", "front", "wall", "plan", "doctrine", "crisis", "race", "bloc", "pact"}
 
 
+# the last word of a capitalised pair that names a place, a happening or a thing, not a person ("Boston Harbor", "Boston Tea")
+PLACE_OR_EVENT = {"harbor", "harbour", "bay", "river", "lake", "sea", "ocean", "island", "islands", "valley", "mountain", "mountains",
+                  "street", "square", "city", "town", "village", "county", "colony", "colonies", "province", "territory", "state",
+                  "party", "massacre", "act", "acts", "war", "wars", "battle", "siege", "treaty", "revolution", "rebellion", "uprising",
+                  "crisis", "doctrine", "plan", "pact", "accord", "conference", "congress", "convention", "declaration", "constitution",
+                  "tea", "empire", "kingdom", "republic", "army", "navy", "fleet", "company", "church", "palace", "castle", "fort",
+                  "forge", "bridge", "road", "route", "trail", "pass", "gulf", "strait", "canal", "coast", "wall", "tower", "market"}
+
+
 def _titled_names(text):
     """'General Howe', 'Lord Cornwallis', and capitalised pairs in the middle of a sentence ('Benedict Arnold')."""
     out = []
@@ -210,7 +219,7 @@ def _titled_names(text):
     for m in re.finditer(r"(?<=[a-z,;] )([A-Z][a-z]+ [A-Z][a-z]+)\b", text):
         w1, w2 = m.group(1).lower().split()
         if w1 not in NOT_NAMES and w2 not in NOT_NAMES and not PE.find(m.group(1)) and not GZ.find(m.group(1)) \
-                and w1 not in REGIONY and w2 not in REGIONY:
+                and w1 not in REGIONY and w2 not in REGIONY and w2 not in PLACE_OR_EVENT and not GZ.find(w1.title()):
             out.append(m.group(1))
     return out
 

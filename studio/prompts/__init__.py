@@ -31,7 +31,9 @@ SCRIPT_SCHEMA = {
         "beats": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["mood", "text"],
             "properties": {"mood": {"type": "string", "enum": ["fun", "tense", "somber"]}, "text": {"type": "string"},
-                           "part": {"type": "string", "enum": ["hook", "intro", "story", "payoff"]}}}},
+                           "part": {"type": "string", "enum": ["hook", "intro", "story", "payoff"]},
+                           "purpose": {"type": "string"}, "location": {"type": "string"}, "visual": {"type": "string"},
+                           "claims": {"type": "array", "items": {"type": "string"}}}}},
         "facts": {"type": "array", "items": {
             "type": "object", "additionalProperties": False, "required": ["beat", "claim", "confidence", "note"],
             "properties": {"beat": {"type": "integer"}, "claim": {"type": "string"},
@@ -92,6 +94,16 @@ FLOW (the video must feel like ONE story, never a list of facts)
   Soviet leader with a famous temper"). Don't mention something the viewer was never told about.
 - Close every section by naming what happens next or what is at stake, and open the next section by answering it.
 - No "and then" chains and no beat that could be moved elsewhere without anyone noticing.
+
+STORY SHAPE AND THE PICTURE (every beat also carries four short notes for the animator)
+- Tell it as Context -> Event -> Consequence -> Next event. Each beat answers: what is happening, who is involved,
+  where, why it matters, and what changes because of it. Cut any fact that has no job in the story.
+- "purpose": what this beat does for the story, max 10 words ("explain why the colonies grew apart").
+- "location": where it happens, max 6 words, specific ("Boston Harbor", "Atlantic coast of North America", "Independence Hall, Philadelphia").
+- "visual": what the viewer should SEE, max 16 words, described by what the sentence MEANS and not by its keywords
+  ("a map of the 13 colonies along the Atlantic coast, England far across the ocean"; "delegates writing the Constitution in a hot room").
+- "claims": the ids of the research facts (the [c...] ids in the RESEARCH block, if there is one) this beat uses.
+- One beat can carry two or three related sentences when they make one picture; do not split a single idea into several beats.
 
 FACT LIST
 - Alongside the script, list EVERY date, number and factual claim as a checklist item with the beat index it
@@ -243,7 +255,7 @@ FACTCHECK_SCHEMA = {
 }
 
 
-def factcheck_prompt(script, web=False):
+def factcheck_prompt(script, web=False, items=None):
     beats = "\n".join(f"[{i}] {b['text']}" for i, b in enumerate(script.get("beats") or []))
     facts = "\n".join(f"#{i} (beat {f.get('beat')}, {f.get('confidence', '?')}): {f.get('claim')}"
                       + (f" -- writer's note: {f['note']}" if f.get("note") else "")
@@ -252,7 +264,11 @@ def factcheck_prompt(script, web=False):
            "references; name the source you used in a few words.") if web else \
         ("You can't browse the web here, so check them against what you know; if you are not confident, say "
          "\"unsure\" rather than guessing, and use the source field for what the mainstream view is.")
-    return f"""Fact-check this narration script for a history video titled "{script.get('title', '')}".
+    only = ""
+    if items:
+        only = ("\nThe studio already verified everything else against sourced research. Check ONLY these items that the "
+                "research does not mention (beat: item):\n" + "\n".join(f"- beat {x['beat']}: {x['kind']} {x['item']}" for x in items[:30]) + "\n")
+    return f"""Fact-check this narration script for a history video titled "{script.get('title', '')}".{only}
 
 SCRIPT (beat number in brackets):
 {beats}

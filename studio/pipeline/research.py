@@ -70,11 +70,15 @@ def notes_for_script(brief, limit=1800):
 def cast_from_brief(brief):
     """Cast entries (name, role, period, trait, look hints) for the people in the brief; looks are resolved by the
     character registry (people.json first, then the AI's own hat choice)."""
+    from ..knowledge import people as PE
     out = []
     for p in (brief or {}).get("people") or []:
         if isinstance(p, dict) and p.get("name"):
-            out.append(dict(name=str(p["name"])[:40], role=str(p.get("role") or "")[:60], period=str(p.get("years") or ""),
-                            trait=str(p.get("trait") or "")[:60]))
+            ent = dict(name=str(p["name"])[:40], role=str(p.get("role") or "")[:60], period=str(p.get("years") or ""),
+                       trait=str(p.get("trait") or "")[:60])
+            if not PE.find(p["name"]):          # someone people.json doesn't know: the researcher's words become the look
+                ent.update(PE.look_from_text(p.get("look"), p.get("years")))
+            out.append(ent)
     return out
 
 

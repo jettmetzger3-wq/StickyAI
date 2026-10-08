@@ -7,7 +7,7 @@ one specific video (its characters, plan, review, usage) lives in `projects/<slu
 | File | What it holds |
 |---|---|
 | `visual-storytelling.md` | "WHEN the narrator says X, the animation does Y" rules, the backbone |
-| `scene-patterns.md` | the 33 reusable scene templates (generated from `studio/knowledge/patterns.json`) |
+| `scene-patterns.md` | the 35 reusable scene templates (generated from `studio/knowledge/patterns.json`) |
 | `character-patterns.md` | how people, groups, crowds and recurring characters are drawn and staged |
 | `prop-patterns.md` | what a prop must say; documents, newspapers, signs, numbers, money, weapons |
 | `camera-patterns.md` | shots, zooms, pans, when the camera moves |

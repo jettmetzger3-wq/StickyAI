@@ -336,9 +336,21 @@ the Kokoro model in `data/models/`.
 - **Nothing covers a character**: labels, signs, notes and speech bubbles are moved off every character's head, hat and
   body (and bubbles are placed away from the other characters); a camera close-up frames the speaker's head, hat and
   bubble together; free-standing props that overlap a character go behind them.
+- **Research you can trust and afford** (`docs/architecture-v2.md`): before the script, the studio researches the topic on the
+  web inside a **budget** you can see and change (Fast 4 / Normal 10 / Deep 20 searches, sources and seconds in Settings →
+  Research). It first looks in `data/research_cache/` (a second video on the same topic does **0 searches**), researches only
+  the gaps, stops when the evidence is enough, and **pauses to ask** before going over. Every claim keeps its source, a quality
+  tier that caps its confidence, and the scenes that use it; the Script tab shows them, and only the sources the script really
+  uses go into `final/sources.md` and the video description. The fact-check call only runs for what the research does not cover.
+- **Scenes that show what the narration says**: each beat gets typed visual requirements (the 13 colonies on the Atlantic
+  coast, the Constitution in Philadelphia 1787, the Boston Tea Party in the harbor, ...). A **coverage score** is computed
+  before rendering, the local composer picks and patches the pattern that covers the most, and scenes that do not show their
+  narration are blocked from rendering (Settings → coverage gate). A **muted-video test** (who, where, what, when, what
+  changed), a **world state** per scene, **scene specs** and a one-page **storyboard preview** are written for review.
+  A reference **image** can be turned into a scene with the studio's own props (`python -m studio research reference add <image>`).
 - **Less Claude usage: the director, modes and the cache** (`docs/architecture-upgrade.md`, `CLAUDE.md`): the AI decides
   WHAT happens in a scene, the studio decides HOW it is drawn. The storyboard first analyses every beat locally (who is named,
-  places, documents, numbers, event type, emotion), picks one of 33 scene patterns (person introduction, battle,
+  places, documents, numbers, event type, emotion), picks one of 35 scene patterns (person introduction, battle,
   signing a treaty, speech to a crowd, ...) and asks the writer for one short "director plan" per ~16 beats (pattern + slot
   fills: which person, which document, which line). A local composer builds the scene JSON; only beats no pattern
   fits go through the full scene writer. Then a local review checks narration match, history (era props), characters,

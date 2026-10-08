@@ -271,6 +271,7 @@ class NewProject(BaseModel):
     credit_source: bool = True
     mascot: bool = True           # the channel host greets, signs off and pops in (Settings > Channel mascot)
     gen_mode: str = ""            # fast | normal | deep ("" = Settings > gen_mode): how much AI this video uses
+    research_mode: str = ""       # fast | normal | deep ("" = follows gen_mode): how much web research this video may do
     providers: dict = {}
     voice: dict = {}
     approve: dict = {}            # {stage: cost dict} the user saw and confirmed
@@ -371,6 +372,8 @@ def create_project(b: NewProject):
                 mascot=b.mascot, captions=True, voice=b.voice or {})
     if b.gen_mode in modes_mod.MODES:
         opts["gen_mode"] = b.gen_mode
+    if b.research_mode in ("fast", "normal", "deep"):
+        opts["research_mode"] = b.research_mode
     pr = new_project(b.title or (b.topic if b.mode == "topic" else ""), b.mode,
                      source_url=b.url if b.mode == "youtube" else "", topic=b.topic, options=opts, providers=prov)
     if config.hosted():
@@ -541,6 +544,62 @@ def approve(slug: str, b: ApproveBody):
     return dict(ok=True)
 
 
+@app.get("/api/projects/{slug}/research")
+def project_research(slug: str):
+    """What this video's research found and used: budget report, claims with their sources and scenes, sources used."""
+    from ..research import claims as CL
+    pr = proj(slug)
+    d = pr.p("research")
+    claims = read_json(os.path.join(d, "claims.json"), []) or []
+    sources = read_json(os.path.join(d, "sources.json"), []) or []
+    return dict(report=read_json(os.path.join(d, "report.json"), {}), claims=claims, sources=sources,
+                sources_used=CL.used_sources(claims, sources), pending=(pr.meta().get("pending") or {}) if (pr.meta().get("pending") or {}).get("type") == "research" else None,
+                grant=pr.meta().get("research_grant"))
+
+
+class ResearchGrant(BaseModel):
+    queries: int = 0
+    sources: int = 0
+    seconds: int = 0
+    use_what_we_have: bool = False     # stop researching: write the script with the evidence already gathered
+
+
+@app.post("/api/projects/{slug}/research/approve")
+def research_approve(slug: str, b: ResearchGrant):
+    """The research budget was used up and the evidence has gaps: approve a small extra budget (or say 'use what we have')."""
+    pr = proj(slug)
+    if hosted_user():
+        raise HTTPException(403, "ask the site admin to approve more research")
+    ensure_idle(pr)
+
+    def f(m):
+        if b.use_what_we_have:
+            o = m.setdefault("options", {})
+            o.setdefault("research", {})["require_approval_for_extra_research"] = False
+            m.pop("research_grant", None)
+        else:
+            m["research_grant"] = dict(queries=max(1, min(b.queries or 5, 40)), sources=max(1, min(b.sources or 8, 60)),
+                                       seconds=max(30, min(b.seconds or 180, 1200)))
+        m["pending"] = None
+    pr.update(f)
+    start_background(slug)
+    return dict(ok=True)
+
+
+@app.get("/api/research/cache")
+def research_cache():
+    """The topics researched so far (reused by every later video on the same topic)."""
+    from ..research import store as RST
+    out = []
+    root = RST.root()
+    if os.path.isdir(root):
+        for d in sorted(os.listdir(root)):
+            m = read_json(os.path.join(root, d, "metadata.json"), {}) or {}
+            out.append(dict(slug=d, topic=m.get("topic"), claims=m.get("claims"), sources=m.get("sources"), mode=m.get("mode"),
+                            updated=m.get("updated"), gaps=m.get("gaps") or []))
+    return dict(topics=out)
+
+
 @app.get("/api/projects/{slug}/estimate")
 def project_estimate(slug: str):
     pr = proj(slug)
@@ -554,7 +613,7 @@ def put_options(slug: str, body: dict):
     if hosted_user():
         # plan users can change how it looks and sounds, not the tools or the length they reserved
         o = body.get("options") or {}
-        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx", "mascot") if k in o}
+        safe = {k: o[k] for k in ("autopilot", "tone", "extra", "credit_source", "share_copy", "sfx", "mascot", "allow_low_coverage", "research_mode") if k in o}
         if "voice" in o:
             safe["voice"] = _clean_voice(o["voice"])
         body = dict(options=safe, **({"title": body["title"]} if "title" in body else {}))

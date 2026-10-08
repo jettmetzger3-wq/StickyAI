@@ -13,6 +13,7 @@ from ..knowledge import patterns as PT
 from ..prompts import target_beats
 from ..usage import tokens
 from . import modes as MD
+from ..research import budget as RB, engine as RS_EN, store as RS_ST
 from .project import read_json
 
 SCENE_LANGUAGE_TOK = 9400       # the full scene-language manual (33.6k chars) every classic batch re-sends
@@ -57,11 +58,22 @@ def estimate_video(project, meta=None):
     items = []
     if youtube and opts.get("watch", True):
         items.append(item("watch", "watching the source video", 1, 5000, 1000))
-    if prof["research"]:
+    research = None
+    rc = RB.resolve_config(st, opts, prof["name"])
+    if rc["enabled"] and (prof["research"] or opts.get("research_mode") in RB.MODES) and meta.get("topic"):
         topic = str(meta.get("topic") or script.get("title") or "")
-        hit = CA.has("research", CA.key("brief", topic.lower().strip()))
-        items.append(item("research", "topic research brief", 0 if hit else 1, 1200, 2500, cached=1 if hit else 0,
-                          note="answered from an earlier video on this topic" if hit else ""))
+        slug_, extra = RS_ST.find(topic)
+        saved = RS_ST.load(slug_) if slug_ else None
+        covered = False
+        if saved:
+            enough, gaps = RS_EN.assess(saved["brief"], saved["claims"], saved["sources"], rc, True)
+            covered = enough and not RS_EN.focus_gaps([w for w in extra if len(w) > 3], saved["brief"], saved["claims"])
+        research = dict(mode=rc["mode"], max_queries=rc["max_queries"], max_sources=rc["max_sources"], saved=bool(saved), covered=covered,
+                        searches=0 if covered else rc["max_queries"])
+        items.append(item("research", f"web research ({rc['mode']}: up to {rc['max_queries']} searches, {rc['max_sources']} sources)",
+                          0 if covered else 1, 1500, 3500 + 120 * rc["min_claims"], cached=1 if covered else 0,
+                          note="answered from the saved research on this topic: 0 searches" if covered else
+                          ("part of the topic is saved: only the gaps are researched" if saved else "")))
     tr = 0
     if meta.get("mode") == "youtube":
         segs = read_json(project.p("source", "transcript.json"), []) if hasattr(project, "p") else []
@@ -69,7 +81,8 @@ def estimate_video(project, meta=None):
         tr = min(tr, 33000)
     items.append(item("script", "writing the script", 1, 1600 + tr, n * 60 + 1500))
     if prof["factcheck"] and opts.get("fact_check", st.get("fact_check", True)) is not False:
-        items.append(item("factcheck", "fact-check", 1, tokens(n * 260 + 4000), 1500, note="with web search"))
+        items.append(item("factcheck", "fact-check", 1, tokens(n * 260 + 4000), 1500,
+                          note="with web search; 0 calls when the sourced research already covers every year, number and name" if research else "with web search"))
     if prof["smooth"]:
         items.append(item("script", "smoothing the flow (only if the script jumps around)", 0, 2000, 1000, note="0-1 calls"))
     if engine == "director":
@@ -121,4 +134,22 @@ def estimate_video(project, meta=None):
         warn.append(f"This is a big video for your Claude plan (about {tot['tokens']:,} tokens in {tot['calls']} calls). "
                     f"Fast mode uses far less.")
     return dict(mode=prof["name"], mode_label=prof["label"], beats=n, engine=engine, items=items, total=tot,
-                old_way=base, saved_pct=round(100 * (1 - tot["tokens"] / base["tokens"])) if base["tokens"] else 0, warnings=warn)
+                old_way=base, saved_pct=round(100 * (1 - tot["tokens"] / base["tokens"])) if base["tokens"] else 0, warnings=warn,
+                research=research, levels=levels(items), usage_level=level(tot["tokens"]))
+
+
+def level(tokens_):
+    return "LOW" if tokens_ < 30_000 else "MEDIUM" if tokens_ < 90_000 else "HIGH"
+
+
+def levels(items):
+    """LOW / MEDIUM / HIGH per kind of work, plus the parts that never use the AI (rendering is always local)."""
+    def toks(*tasks):
+        return sum(i["in_tok"] + i["out_tok"] for i in items if i["task"] in tasks and i["calls"])
+    out = {}
+    for name, tasks in (("Research", ("research",)), ("Script", ("script",)), ("Fact check", ("factcheck",)),
+                        ("Storyboard and scene planning", ("storyboard",)), ("Props, titles and Short", ("props", "package", "short"))):
+        t = toks(*tasks)
+        out[name] = "NONE" if not t else "LOW" if t < 8_000 else "MEDIUM" if t < 25_000 else "HIGH"
+    out["Rendering, animation, audio, video"] = "LOCAL (no AI)"
+    return out

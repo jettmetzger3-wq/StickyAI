@@ -1,0 +1,937 @@
+{
+ "_note": "Curated seed knowledge (US founding era + the geography it needs). It lets the studio know WHAT a phrase means visually, with no AI call. Anything not listed here is handled by Claude's per-scene 'needs'. Region extents are approximate doodle-map shapes.",
+ "topic_words": {
+  "american": [
+   "american",
+   "america",
+   "united states",
+   "usa",
+   "founding",
+   "continental",
+   "patriot",
+   "loyalist",
+   "washington",
+   "jefferson",
+   "franklin",
+   "boston",
+   "philadelphia",
+   "13 colonies",
+   "thirteen colonies"
+  ]
+ },
+ "regions": [
+  {
+   "id": "thirteen_colonies",
+   "territory": "thirteen_colonies",
+   "center": [
+    -60,
+    40
+   ],
+   "width": 90,
+   "label": "THE 13 COLONIES",
+   "label_at": [
+    -76.5,
+    38.2
+   ],
+   "phrases": [
+    "13 colonies",
+    "thirteen colonies",
+    "13 british colonies",
+    "british colonies in north america",
+    "american colonies",
+    "original colonies",
+    "colonial america",
+    "english colonies",
+    "thirteen british colonies",
+    "13 american colonies"
+   ],
+   "generic_phrases": [
+    "the colonies",
+    "colonies"
+   ],
+   "generic_gate": "american",
+   "concepts": [
+    "13 colonies",
+    "colonies",
+    "colonial territory",
+    "colonial region",
+    "north america",
+    "eastern north america",
+    "atlantic coast",
+    "east coast"
+   ],
+   "must": [
+    "13 colonies",
+    "colonial territory",
+    "north america",
+    "atlantic coast"
+   ]
+  },
+  {
+   "id": "new_england",
+   "territory": "new_england",
+   "center": [
+    -71.5,
+    43
+   ],
+   "width": 24,
+   "label": "NEW ENGLAND",
+   "label_at": [
+    -71.5,
+    43.4
+   ],
+   "phrases": [
+    "new england"
+   ],
+   "concepts": [
+    "new england",
+    "massachusetts",
+    "northern colonies",
+    "north america",
+    "atlantic coast"
+   ],
+   "must": [
+    "new england",
+    "north america"
+   ]
+  },
+  {
+   "id": "middle_colonies",
+   "territory": "middle_colonies",
+   "center": [
+    -75.5,
+    40
+   ],
+   "width": 22,
+   "label": "MIDDLE COLONIES",
+   "label_at": [
+    -75.5,
+    40.5
+   ],
+   "phrases": [
+    "middle colonies",
+    "mid-atlantic colonies"
+   ],
+   "concepts": [
+    "middle colonies",
+    "pennsylvania",
+    "new york",
+    "north america",
+    "atlantic coast"
+   ],
+   "must": [
+    "middle colonies",
+    "north america"
+   ]
+  },
+  {
+   "id": "southern_colonies",
+   "territory": "southern_colonies",
+   "center": [
+    -79.5,
+    34.5
+   ],
+   "width": 24,
+   "label": "SOUTHERN COLONIES",
+   "label_at": [
+    -80,
+    34.5
+   ],
+   "phrases": [
+    "southern colonies"
+   ],
+   "concepts": [
+    "southern colonies",
+    "virginia",
+    "carolina",
+    "georgia",
+    "north america",
+    "atlantic coast"
+   ],
+   "must": [
+    "southern colonies",
+    "north america"
+   ]
+  },
+  {
+   "id": "atlantic_coast",
+   "territory": "",
+   "center": [
+    -62,
+    38
+   ],
+   "width": 80,
+   "label": "",
+   "label_at": [
+    -55,
+    35
+   ],
+   "phrases": [
+    "atlantic coast",
+    "atlantic seaboard",
+    "eastern seaboard",
+    "atlantic shore",
+    "east coast of north america"
+   ],
+   "concepts": [
+    "atlantic coast",
+    "atlantic ocean",
+    "east coast",
+    "north america",
+    "eastern north america",
+    "coastline"
+   ],
+   "must": [
+    "atlantic coast",
+    "north america"
+   ]
+  }
+ ],
+ "geo_concepts": {
+  "north america": [
+   -170,
+   15,
+   -50,
+   72
+  ],
+  "atlantic ocean": [
+   -60,
+   -40,
+   -10,
+   60
+  ],
+  "eastern north america": [
+   -85,
+   25,
+   -60,
+   50
+  ],
+  "europe": [
+   -10,
+   36,
+   40,
+   70
+  ],
+  "south america": [
+   -82,
+   -56,
+   -34,
+   12
+  ],
+  "africa": [
+   -18,
+   -35,
+   52,
+   37
+  ],
+  "asia": [
+   60,
+   5,
+   150,
+   70
+  ],
+  "pacific ocean": [
+   140,
+   -50,
+   -80,
+   60
+  ],
+  "mediterranean": [
+   -6,
+   30,
+   36,
+   46
+  ],
+  "middle east": [
+   34,
+   12,
+   62,
+   38
+  ],
+  "great britain": [
+   -8,
+   50,
+   2,
+   59
+  ]
+ },
+ "documents": [
+  {
+   "id": "constitution",
+   "phrases": [
+    "constitution",
+    "u.s. constitution",
+    "us constitution",
+    "constitution of the united states"
+   ],
+   "gate": "american",
+   "banner": "Philadelphia, 1787",
+   "year": 1787,
+   "bg": "interior",
+   "who": [
+    "James Madison",
+    "George Washington",
+    "Benjamin Franklin"
+   ],
+   "group": "delegates",
+   "verbs": [
+    "wrote",
+    "write",
+    "drafted",
+    "draft",
+    "signed",
+    "sign",
+    "ratified",
+    "created",
+    "agreed"
+   ],
+   "pattern": "DOCUMENT_SIGNING",
+   "concepts": [
+    "constitution",
+    "founding fathers",
+    "delegates",
+    "constitutional convention",
+    "philadelphia",
+    "1787",
+    "document",
+    "writing"
+   ]
+  },
+  {
+   "id": "declaration_of_independence",
+   "phrases": [
+    "declaration of independence",
+    "the declaration"
+   ],
+   "banner": "Philadelphia, 1776",
+   "year": 1776,
+   "bg": "interior",
+   "who": [
+    "Thomas Jefferson",
+    "Benjamin Franklin",
+    "John Adams"
+   ],
+   "group": "delegates",
+   "verbs": [
+    "wrote",
+    "write",
+    "drafted",
+    "signed",
+    "sign",
+    "adopted",
+    "approved",
+    "declared"
+   ],
+   "pattern": "DOCUMENT_SIGNING",
+   "concepts": [
+    "declaration of independence",
+    "independence",
+    "philadelphia",
+    "1776",
+    "document",
+    "founding fathers",
+    "delegates"
+   ]
+  },
+  {
+   "id": "bill_of_rights",
+   "phrases": [
+    "bill of rights"
+   ],
+   "gate": "american",
+   "banner": "Washington, 1791",
+   "year": 1791,
+   "bg": "interior",
+   "who": [
+    "James Madison"
+   ],
+   "group": "congress",
+   "verbs": [
+    "wrote",
+    "added",
+    "ratified",
+    "passed",
+    "adopted"
+   ],
+   "pattern": "DOCUMENT_SIGNING",
+   "concepts": [
+    "bill of rights",
+    "amendments",
+    "1791",
+    "document",
+    "rights"
+   ]
+  },
+  {
+   "id": "treaty_of_paris",
+   "phrases": [
+    "treaty of paris"
+   ],
+   "banner": "Paris, 1783",
+   "year": 1783,
+   "bg": "palace",
+   "who": [
+    "Benjamin Franklin",
+    "John Adams"
+   ],
+   "group": "british delegates",
+   "verbs": [
+    "signed",
+    "sign",
+    "ended",
+    "agreed",
+    "recognized"
+   ],
+   "pattern": "PEACE_TREATY",
+   "concepts": [
+    "treaty of paris",
+    "paris",
+    "1783",
+    "peace",
+    "treaty",
+    "independence"
+   ]
+  },
+  {
+   "id": "stamp_act",
+   "phrases": [
+    "stamp act"
+   ],
+   "banner": "London, 1765",
+   "year": 1765,
+   "bg": "parliament",
+   "who": [],
+   "group": "parliament",
+   "verbs": [
+    "passed",
+    "imposed",
+    "created",
+    "required"
+   ],
+   "pattern": "LAW_BEING_PASSED",
+   "concepts": [
+    "stamp act",
+    "parliament",
+    "tax",
+    "1765",
+    "london"
+   ]
+  }
+ ],
+ "events": [
+  {
+   "id": "boston_tea_party",
+   "phrases": [
+    "boston tea party",
+    "tea party",
+    "dumped tea",
+    "dumped chests of tea",
+    "chests of tea",
+    "tea into boston harbor",
+    "tea overboard",
+    "threw tea"
+   ],
+   "year": 1773,
+   "banner": "Boston Harbor, 1773",
+   "bg": {
+    "type": "harbor",
+    "time": "night"
+   },
+   "label": "THE BOSTON TEA PARTY",
+   "crowds": [
+    {
+     "who": "Colonists",
+     "x": 600,
+     "count": 14,
+     "width": 760,
+     "kind": "tricorn",
+     "coat": "#7A4B2A"
+    }
+   ],
+   "props": [
+    {
+     "name": "galleon",
+     "x": 1500,
+     "y": 690,
+     "scale": 1.05
+    },
+    {
+     "name": "crate",
+     "x": 1020,
+     "y": 840,
+     "scale": 1.0
+    },
+    {
+     "name": "teapot",
+     "x": 1020,
+     "y": 560,
+     "scale": 1.0
+    }
+   ],
+   "concepts": [
+    "boston tea party",
+    "boston",
+    "harbor",
+    "tea",
+    "ship",
+    "colonists",
+    "1773",
+    "protest"
+   ]
+  },
+  {
+   "id": "boston_massacre",
+   "phrases": [
+    "boston massacre"
+   ],
+   "year": 1770,
+   "banner": "Boston, 1770",
+   "bg": {
+    "type": "street"
+   },
+   "label": "THE BOSTON MASSACRE",
+   "crowds": [
+    {
+     "who": "Colonists",
+     "x": 520,
+     "count": 12,
+     "width": 640,
+     "kind": "tricorn",
+     "coat": "#7A4B2A"
+    },
+    {
+     "who": "British soldiers",
+     "x": 1480,
+     "count": 6,
+     "width": 380,
+     "kind": "britain",
+     "coat": "#C8302B",
+     "flip": true
+    }
+   ],
+   "props": [
+    {
+     "name": "musket",
+     "x": 1250,
+     "y": 770,
+     "scale": 0.9
+    }
+   ],
+   "concepts": [
+    "boston massacre",
+    "boston",
+    "1770",
+    "british soldiers",
+    "colonists",
+    "street"
+   ]
+  },
+  {
+   "id": "lexington_concord",
+   "phrases": [
+    "lexington and concord",
+    "battles of lexington",
+    "shot heard round the world",
+    "battle of lexington"
+   ],
+   "year": 1775,
+   "banner": "Lexington, 1775",
+   "bg": {
+    "type": "field"
+   },
+   "label": "LEXINGTON & CONCORD",
+   "crowds": [
+    {
+     "who": "Minutemen",
+     "x": 560,
+     "count": 10,
+     "width": 560,
+     "kind": "tricorn",
+     "coat": "#7A4B2A"
+    },
+    {
+     "who": "British soldiers",
+     "x": 1480,
+     "count": 10,
+     "width": 560,
+     "kind": "britain",
+     "coat": "#C8302B",
+     "flip": true
+    }
+   ],
+   "props": [
+    {
+     "name": "musket",
+     "x": 960,
+     "y": 780,
+     "scale": 0.9
+    }
+   ],
+   "concepts": [
+    "lexington",
+    "concord",
+    "minutemen",
+    "1775",
+    "british soldiers",
+    "battle",
+    "field"
+   ]
+  },
+  {
+   "id": "crossing_delaware",
+   "phrases": [
+    "crossed the delaware",
+    "crossing the delaware",
+    "delaware river",
+    "washington crossed"
+   ],
+   "year": 1776,
+   "banner": "Delaware River, 1776",
+   "bg": {
+    "type": "sea",
+    "time": "night"
+   },
+   "label": "CROSSING THE DELAWARE",
+   "people": [
+    "George Washington"
+   ],
+   "props": [
+    {
+     "name": "rowboat",
+     "x": 960,
+     "y": 760,
+     "scale": 1.7
+    },
+    {
+     "name": "flag",
+     "x": 1400,
+     "y": 600,
+     "scale": 1.0
+    }
+   ],
+   "concepts": [
+    "delaware river",
+    "george washington",
+    "1776",
+    "boat",
+    "river",
+    "night"
+   ]
+  },
+  {
+   "id": "valley_forge",
+   "phrases": [
+    "valley forge"
+   ],
+   "year": 1777,
+   "banner": "Valley Forge, 1777",
+   "bg": {
+    "type": "snow"
+   },
+   "label": "VALLEY FORGE",
+   "crowds": [
+    {
+     "who": "Continental Army",
+     "x": 700,
+     "count": 12,
+     "width": 700,
+     "kind": "tricorn",
+     "coat": "#2B3F8C"
+    }
+   ],
+   "people": [
+    "George Washington"
+   ],
+   "props": [
+    {
+     "name": "tent",
+     "x": 1450,
+     "y": 760,
+     "scale": 1.5
+    },
+    {
+     "name": "fire",
+     "x": 1130,
+     "y": 850,
+     "scale": 1.0
+    }
+   ],
+   "concepts": [
+    "valley forge",
+    "winter",
+    "snow",
+    "continental army",
+    "george washington",
+    "1777",
+    "tent"
+   ]
+  },
+  {
+   "id": "yorktown",
+   "phrases": [
+    "yorktown",
+    "siege of yorktown",
+    "surrender at yorktown",
+    "cornwallis surrendered at yorktown"
+   ],
+   "year": 1781,
+   "banner": "Yorktown, 1781",
+   "bg": {
+    "type": "battlefield"
+   },
+   "label": "YORKTOWN",
+   "crowds": [
+    {
+     "who": "Continental Army",
+     "x": 560,
+     "count": 12,
+     "width": 640,
+     "kind": "tricorn",
+     "coat": "#2B3F8C"
+    },
+    {
+     "who": "British soldiers",
+     "x": 1500,
+     "count": 8,
+     "width": 460,
+     "kind": "britain",
+     "coat": "#C8302B",
+     "flip": true
+    }
+   ],
+   "props": [
+    {
+     "name": "cannon",
+     "x": 980,
+     "y": 770,
+     "scale": 1.3
+    }
+   ],
+   "concepts": [
+    "yorktown",
+    "siege",
+    "cannon",
+    "continental army",
+    "british soldiers",
+    "1781",
+    "battle"
+   ],
+   "variants": [
+    {
+     "when": [
+      "surrender",
+      "surrendered",
+      "capitulat"
+     ],
+     "label": "THE SURRENDER AT YORKTOWN",
+     "people": [
+      {
+       "name": "George Washington",
+       "x": 700
+      },
+      {
+       "name": "Charles Cornwallis",
+       "x": 1220
+      }
+     ],
+     "props": [
+      {
+       "name": "flag",
+       "x": 960,
+       "y": 560,
+       "scale": 1.0
+      },
+      {
+       "name": "cannon",
+       "x": 960,
+       "y": 900,
+       "scale": 0.9
+      }
+     ],
+     "crowds": [
+      {
+       "who": "Continental soldiers",
+       "x": 300,
+       "count": 8,
+       "width": 420,
+       "kind": "tricorn",
+       "coat": "#2B3F8C"
+      },
+      {
+       "who": "British soldiers",
+       "x": 1620,
+       "count": 7,
+       "width": 420,
+       "kind": "britain",
+       "coat": "#C8302B",
+       "flip": true
+      }
+     ],
+     "concepts": [
+      "surrender",
+      "cornwallis",
+      "washington",
+      "victory"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "french_indian_war",
+   "phrases": [
+    "french and indian war",
+    "seven years' war",
+    "seven years war"
+   ],
+   "year": 1754,
+   "banner": "North America, 1754",
+   "bg": {
+    "type": "field"
+   },
+   "label": "FRENCH & INDIAN WAR",
+   "crowds": [
+    {
+     "who": "British soldiers",
+     "x": 600,
+     "count": 9,
+     "width": 520,
+     "kind": "britain",
+     "coat": "#C8302B"
+    },
+    {
+     "who": "French soldiers",
+     "x": 1450,
+     "count": 9,
+     "width": 520,
+     "kind": "france",
+     "coat": "#2B3F8C",
+     "flip": true
+    }
+   ],
+   "props": [
+    {
+     "name": "fort",
+     "x": 1000,
+     "y": 640,
+     "scale": 1.3
+    }
+   ],
+   "concepts": [
+    "french and indian war",
+    "british soldiers",
+    "french soldiers",
+    "fort",
+    "1754",
+    "battle"
+   ]
+  },
+  {
+   "id": "midnight_ride",
+   "phrases": [
+    "midnight ride",
+    "paul revere"
+   ],
+   "year": 1775,
+   "banner": "Boston, 1775",
+   "bg": {
+    "type": "street",
+    "time": "night"
+   },
+   "label": "THE MIDNIGHT RIDE",
+   "props": [
+    {
+     "name": "horse",
+     "x": 960,
+     "y": 760,
+     "scale": 1.6
+    },
+    {
+     "name": "church",
+     "x": 1450,
+     "y": 660,
+     "scale": 1.2
+    },
+    {
+     "name": "bell",
+     "x": 1450,
+     "y": 330,
+     "scale": 0.8
+    }
+   ],
+   "concepts": [
+    "paul revere",
+    "midnight ride",
+    "horse",
+    "boston",
+    "1775",
+    "church",
+    "night"
+   ]
+  }
+ ],
+ "synonyms": [
+  [
+   "document",
+   "scroll",
+   "paper",
+   "parchment",
+   "newspaper"
+  ],
+  [
+   "13 colonies",
+   "thirteen colonies",
+   "original colonies"
+  ],
+  [
+   "colonist",
+   "colonists",
+   "settlers",
+   "patriots"
+  ],
+  [
+   "british soldiers",
+   "redcoats",
+   "british army"
+  ],
+  [
+   "boat",
+   "ship",
+   "sailboat",
+   "rowboat",
+   "vessel"
+  ],
+  [
+   "founding fathers",
+   "delegates",
+   "framers",
+   "founders"
+  ],
+  [
+   "tax",
+   "taxes",
+   "taxation",
+   "stamp act"
+  ],
+  [
+   "coast",
+   "coastline",
+   "seaboard",
+   "shore"
+  ],
+  [
+   "tea chests",
+   "tea chest",
+   "chests of tea",
+   "crate",
+   "crates",
+   "chests"
+  ],
+  [
+   "england",
+   "great britain",
+   "britain",
+   "british isles",
+   "united kingdom"
+  ]
+ ]
+}

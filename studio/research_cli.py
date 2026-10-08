@@ -185,6 +185,101 @@ def cmd_learn(a):
     print(f"{len(new)} pattern(s) saved in {path}")
 
 
+# ---------------------------------------------------------------- topic research and reference images (no project needed)
+class _Ctx:
+    def log(self, m):
+        print("  " + str(m))
+
+    warn = log
+
+
+def _llm(name):
+    from . import providers as P
+    llm = P.get("llm", name or "claude_cli")
+    ok, why = llm.available()
+    if not ok:
+        raise SystemExit(f"{llm.label} is not available: {why}")
+    return llm
+
+
+def _call_factory(llm):
+    from .providers import extract_json
+
+    def call(l, system, prompt, label, web):
+        text, _ = l.complete(system, prompt, label=label, web=bool(web))
+        return extract_json(text) if isinstance(text, str) else text
+    return call
+
+
+def cmd_topic(a):
+    """Research a topic inside the budget and keep it for every later video (data/research_cache/<topic>/)."""
+    from .research import budget as BD, engine as EN, store as ST
+    cfg = BD.resolve_config(config.load_settings(), {"research_mode": a.mode} if a.mode else {}, "normal")
+    if a.max_queries:
+        cfg["max_queries"] = a.max_queries
+    if a.max_sources:
+        cfg["max_sources"] = a.max_sources
+    llm = _llm(a.writer)
+    print(f"Researching {a.topic!r} in {cfg['mode']} mode: up to {cfg['max_queries']} searches, {cfg['max_sources']} sources "
+          f"(Claude Code searches the web on your plan; nothing is charged).")
+    grant = None
+    while True:
+        try:
+            r = EN.research_topic(_Ctx(), llm, _call_factory(llm), a.topic, a.minutes, cfg, focus=a.focus or (), grant=grant)
+            break
+        except BD.ResearchBudgetReached as e:
+            i = e.info
+            print(f"\nThe budget ({i['budget']['queries']} searches, {i['budget']['sources']} sources) is used up and the evidence still has gaps:")
+            for g in i["gaps"]:
+                print("  -", g)
+            pr_ = i["proposal"]
+            ans = input(f"Research {pr_['queries']} more searches / {pr_['sources']} more sources? [y/N] ").strip().lower()
+            if ans != "y":
+                cfg["require_approval_for_extra_research"] = False
+                continue
+            grant = dict(queries=pr_["queries"], sources=pr_["sources"], seconds=pr_["seconds"])
+    print(f"\n{len(r.claims)} claims, {len(r.sources)} sources, {'reused from the saved research' if r.cached else 'new'}; "
+          f"saved in {os.path.join(ST.root(), r.slug)}")
+    if r.gaps:
+        print("Known gaps:", "; ".join(r.gaps))
+
+
+def cmd_cache(a):
+    from .research import store as ST
+    if not os.path.isdir(ST.root()):
+        print("no research saved yet")
+        return
+    for d in sorted(os.listdir(ST.root())):
+        m = ST.load(d)
+        if m:
+            md = m["metadata"]
+            print(f"{d:40s} {md.get('claims', 0):3d} claims {md.get('sources', 0):3d} sources  mode {md.get('mode', '?'):6s} gaps: {len(md.get('gaps') or [])}")
+
+
+def cmd_reference_add(a):
+    """Describe a reference image's composition (one vision request, cached), rebuild it with the studio's own art."""
+    from .pipeline import reference as RF
+    llm = _llm(a.writer)
+    comp, cached = RF.analyze(llm, a.image)
+    scene, rep = RF.to_scene(comp)
+    out = os.path.splitext(a.image)[0] + ".scene.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=1)
+    path = RF.save_pattern(os.path.dirname(RESEARCH), os.path.basename(a.image), comp, rep)
+    print(("reused the saved analysis" if cached else "analysed the image (1 request)") + f"; scene -> {out}; pattern note -> {path}")
+    print("reused:", rep["reused"], "| substituted:", rep["substituted"], "| missing assets:", rep["missing"])
+
+
+def cmd_reference_convert(a):
+    from .pipeline import reference as RF
+    comp = json.load(open(a.composition, encoding="utf-8"))
+    scene, rep = RF.to_scene(comp)
+    out = os.path.splitext(a.composition)[0] + ".scene.json"
+    with open(out, "w", encoding="utf-8") as f:
+        json.dump(scene, f, indent=1)
+    print(f"scene -> {out}\n", rep)
+
+
 def register(sub):
     r = sub.add_parser("research", help="grow the research library from real videos (needs YouTube access)")
     rs = r.add_subparsers(dest="rcmd", required=True)
@@ -197,3 +292,22 @@ def register(sub):
     ln = rs.add_parser("learn")
     ln.add_argument("file")
     ln.set_defaults(fn=cmd_learn)
+    tp = rs.add_parser("topic", help="research a topic inside the budget and save it for later videos")
+    tp.add_argument("topic")
+    tp.add_argument("--mode", choices=["fast", "normal", "deep"])
+    tp.add_argument("--minutes", type=float, default=10)
+    tp.add_argument("--focus", nargs="*", help="angles this video must cover")
+    tp.add_argument("--max-queries", type=int)
+    tp.add_argument("--max-sources", type=int)
+    tp.add_argument("--writer", default="claude_cli")
+    tp.set_defaults(fn=cmd_topic)
+    rs.add_parser("cache", help="list the topics researched so far").set_defaults(fn=cmd_cache)
+    ref = sub.add_parser("reference", help="use a reference image as a blueprint for a scene")
+    rf = ref.add_subparsers(dest="rfcmd", required=True)
+    ra = rf.add_parser("add")
+    ra.add_argument("image")
+    ra.add_argument("--writer", default="claude_cli")
+    ra.set_defaults(fn=cmd_reference_add)
+    rc = rf.add_parser("convert", help="composition JSON -> scene JSON (no AI)")
+    rc.add_argument("composition")
+    rc.set_defaults(fn=cmd_reference_convert)

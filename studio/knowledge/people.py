@@ -111,3 +111,38 @@ def cast_entry(entry, name=None):
     return dict(id=entry["id"], name=name or entry["name"], kind=lk["kind"], hat_color=lk["hat_color"], coat=lk["coat"],
                 look=lk["look"], role=entry["role"], period=f"{entry['born']} to {entry['died']}",
                 trait=entry["trait"], known=True)
+
+
+# ---------------------------------------------------------------- a look written in words -> the stickman's hat and coat
+COAT_COLORS = {"red": "#C8302B", "scarlet": "#C8302B", "blue": "#2B3F8C", "navy": "#1F2F5C", "brown": "#6B3F2A", "black": "#222222",
+               "gray": "#6E6E73", "grey": "#6E6E73", "green": "#3C6E47", "white": "#E6E3DA", "yellow": "#D9B13B",
+               "purple": "#6B3F8C", "orange": "#D9732B", "gold": "#C9A227", "tan": "#B08D57"}
+HAT_WORDS = (("tricorn", "tricorn"), ("three-cornered", "tricorn"), ("bicorne", "bicorne"), ("top hat", "tophat"),
+             ("crown", "crown"), ("laurel", "laurel"), ("helmet", "helmet"), ("bearskin", "bearskin"), ("turban", "turban"),
+             ("cowboy", "cowboy"), ("beret", "beret"), ("pirate", "pirate"), ("miter", "mitre"), ("mitre", "mitre"),
+             ("pharaoh", "pharaoh"), ("viking", "viking"), ("glasses", "glasses"), ("spectacles", "glasses"))
+HAT_COLOR_WORDS = ("black", "brown", "gray", "grey", "white", "red", "blue", "green", "gold")
+
+
+def look_from_text(text, years=""):
+    """The hat and coat for a look described in words ("red coat", "tricorn hat, brown coat", "round glasses") with no AI.
+    Returns {kind, hat_color, coat} with only what the words say ({} when they say nothing usable). A coat with no hat
+    in the 1700s gets the period's tricorn."""
+    t = " " + re.sub(r"[^a-z\- ]+", " ", str(text or "").lower()) + " "
+    out = {}
+    for word, kind in HAT_WORDS:
+        if word in t:
+            out["kind"] = kind
+            break
+    m = re.search(r"\b(" + "|".join(COAT_COLORS) + r")(?:-| )(?:uniform|coat|jacket|robe|cloak|tunic)", t)
+    if m:
+        out["coat"] = COAT_COLORS[m.group(1)]
+    hc = re.search(r"\b(" + "|".join(HAT_COLOR_WORDS) + r") (?:\w+ )?(?:hat|tricorn|cap|helmet)", t)
+    if hc:
+        out["hat_color"] = "gray" if hc.group(1) == "grey" else hc.group(1)
+    if "coat" in out and "kind" not in out:
+        ys = [int(y) for y in re.findall(r"\b(1[0-9]{3})\b", str(years))]
+        if ys and 1690 <= ys[0] <= 1810:
+            out["kind"] = "tricorn"
+    return out
+

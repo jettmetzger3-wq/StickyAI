@@ -120,7 +120,7 @@ def test_retriever_picks_the_expected_pattern_family(pid, text):
 
 
 def test_every_pattern_composes_a_valid_scene():
-    """The 33 patterns each build a scene the engine accepts with no errors and no warnings."""
+    """The 35 patterns each build a scene the engine accepts with no errors and no warnings."""
     texts = {
         "TIMELINE": "From 1914 to 1918, then 1929 and 1939, the world kept falling apart.",
         "ELECTION": "In the election Lincoln won with 40 percent of the vote.",

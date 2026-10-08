@@ -11,6 +11,7 @@ import re
 from ..knowledge import composer as CO
 from .themes import TIME_NEXT
 from .project import read_json, write_json
+from . import world as WD
 
 PAINTED = ("field", "hills", "desert", "snow", "city", "battlefield", "street", "harbor", "beach", "jungle", "mountains",
            "palace")
@@ -37,19 +38,24 @@ class Tracker:
         self.project = project
         self.data = (read_json(project.p("continuity.json"), {}) or {}) if project else {}
         self.states = self.data.get("states") or {}
+        self.worlds = {int(k): v for k, v in ((read_json(project.p("world_state.json"), {}) or {}).get("scenes") or {}).items()} if project else {}
 
     def before(self, i):
         """The composer's state dict to start beat `i` with (the state after beat i-1)."""
         prev = self.states.get(str(i - 1)) or {}
         c = {}
+        w = self.worlds.get(i - 1)
+        if w and w["period"].get("year"):
+            c["year"] = w["period"]["year"]              # the world's year: "Roosevelt" in a 1936 scene is the right Roosevelt
         if prev.get("bg"):
             c["bg"] = copy.deepcopy(prev["bg"])
         if prev.get("banner"):
             c["banner"] = tuple(prev["banner"])
         return c
 
-    def record(self, i, scene, a, pattern, ctx_state=None):
+    def record(self, i, scene, a, pattern, ctx_state=None, beat=None):
         st = state_of(scene, a, pattern, i)
+        self.worlds[i] = WD.update(self.worlds.get(i - 1), scene, a, beat, pattern)
         if ctx_state and ctx_state.get("banner"):
             st["banner"] = list(ctx_state["banner"])
         self.states[str(i)] = st
@@ -57,6 +63,8 @@ class Tracker:
 
     def line(self, i, n=2):
         """'Story so far' for the director prompt: the last n scenes in one short line each."""
+        if any(k in self.worlds for k in range(max(0, i - n), i)):
+            return WD.line(self.worlds, i, n)
         out = []
         for k in range(max(0, i - n), i):
             st = self.states.get(str(k))
@@ -70,6 +78,7 @@ class Tracker:
     def save(self, issues=None):
         if self.project:
             write_json(self.project.p("continuity.json"), dict(states=self.states, issues=issues or self.data.get("issues") or []))
+            write_json(self.project.p("world_state.json"), dict(version=1, scenes={str(k): v for k, v in sorted(self.worlds.items())}))
 
 
 def check(scenes, analyses, registry, beats):

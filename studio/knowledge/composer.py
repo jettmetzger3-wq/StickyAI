@@ -83,7 +83,7 @@ def person(c, who, x, y=FEET, scale=1.0, **kw):
     who = str(who or "").strip()
     el = {"type": "char", "x": x, "y": y, "scale": scale}
     m = cast_member(c.cast, who) if who else None
-    year = kw.pop("year", None)
+    year = kw.pop("year", None) or c.state.get("year")      # the world's year when the beat names none
     if m is not None:
         el["who"] = m.get("name") or who
         el["kind"] = resolve_kind(m.get("kind"))
@@ -122,6 +122,8 @@ def side(c, who, default="civ"):
 def crowd(c, who, x, y, count=14, width=800, scale=0.55, rows=2, **kw):
     kind, coat = side(c, who)
     el = {"type": "crowd", "kind": kind, "count": count, "rows": rows, "x": x, "y": y, "width": width, "scale": scale}
+    if who:
+        el["who"] = str(who)[:30]                     # who they are, so the review can tell the picture shows them
     if coat:
         el["coat"] = coat
     m = cast_member(c.cast, who) if who else None
@@ -380,18 +382,24 @@ def _doc_el(d, x, y, scale, at, **kw):
 
 def L_document(c, a, s, w):
     d = PI.doc_for(a, s)
+    ctx_ = a.get("context") if (a.get("context") or {}).get("kind") == "document" else None
     ppl = [p["name"] for p in a.get("people") or []]
+    if ctx_ and not ppl:
+        ppl = list(ctx_.get("who") or [])           # the people who really made it ("the Constitution" -> Madison, Washington...)
     signer = slot(s, "signer") or (ppl[0] if ppl else None)
     wit = list(slot(s, "witnesses", []) or []) or ppl[1:3]
-    year = (a.get("years") or [None])[0]
-    bg = bg_for(c, a, s, default="palace", indoor=True)
+    year = (a.get("years") or [None])[0] or (ctx_ or {}).get("year")
+    bg = bg_for(c, a, dict(s or {}, place=(s or {}).get("place") or (ctx_ or {}).get("bg") or ""), default="palace", indoor=True)
     at_doc = w.at(*(d["title"].split()[-1:] or ["document"]), "document", "treaty", "constitution", "law", "declaration", default=0.12)
     sign_at = w.at("signed", "signs", "sign", "ratified", "wrote", "drafted", default=0.45)
-    els = banner(a, c, s) + [
+    where = [text(ctx_["banner"], MID, 105, 70, "navy", at=0.0)] if (ctx_ and ctx_.get("banner")) else banner(a, c, s)
+    els = where + [
         _doc_el(d, MID, 520, 2.5 if d["prop"] == "document" else 2.3, at_doc, enter="grow"),
         prop("quill", 1250, 780, 0.95, at=sign_at, idle="bob"),
         prop("check", 1150, 330, 1.0, at=off(sign_at, 0.5)),
     ]
+    if ctx_ and ctx_.get("group"):                  # the room full of the people who made it
+        els.append(crowd(c, ctx_["group"].title(), 1130, 930, 8, 520, 0.46, rows=1, at=0.18, kind="tricorn", coat="#3A3A4A"))
     if signer:
         els.append(person(c, signer, 390, FEET, 1.1, pose="point_right", year=year, at=0.02,
                           do=[{"act": "lean", "amount": 18, "at": sign_at, "dur": 1.4}]))
@@ -566,7 +574,81 @@ def L_battle_clash(c, a, s, w):
     return {"bg": bg, "elements": els + banner(a, c, s), "camera": cam}
 
 
+def _geo_words(name):
+    from ..engine import geo
+    return [k for k, v in geo.ALIASES.items() if v == name or (isinstance(v, list) and name in v)]
+
+
+def L_map_story(c, a, s, w):
+    """A map that tells the sentence: the region the story is about highlighted (the 13 colonies on the Atlantic coast),
+    where the people came from (England) with a ship crossing to it, and the camera closing in on the region."""
+    m = a.get("map")
+    if not m:
+        return None
+    bg = {"type": "map", "style": "dark", "center": m["center"], "width": m["width"]}
+    key = w.at("colonies", "colony", "colonial", "coast", "territory", "stretched", default=0.3)
+    els = []
+    o = m.get("origin")
+    if o:
+        at_o = w.at(*(_geo_words(o["name"])[:3] or [o["name"].split()[0]]), default=0.05)
+        els.append({"type": "territory", "countries": [o["name"]], "color": "#C8302B", "at": at_o})
+        label = (_geo_words(o["name"])[:1] or [o["name"]])[0].upper()
+        els.append({"type": "text", "text": label[:14], "lon": o["lon"], "lat": o["lat"] - 1.5, "size": 40, "color": "white", "at": at_o})
+    if m.get("territory"):
+        els.append({"type": "territory", "region": m["territory"], "color": "#3C8C4A", "at": key})
+    if m.get("label"):
+        lon, lat = m.get("label_at") or m["center"]
+        els.append({"type": "text", "text": m["label"], "lon": lon, "lat": lat, "size": 38, "color": "white", "at": key})
+    names = {r.get("id") for r in a.get("regions") or []}
+    if "atlantic_coast" in names:
+        sea = [-56, 37]
+        if o and m.get("label_at"):                 # between England and the colonies, not on top of the colonies' label
+            sea = [round((o["lon"] + m["label_at"][0]) / 2, 1), round((o["lat"] + m["label_at"][1]) / 2 + 2.5, 1)]
+        els.append({"type": "text", "text": "ATLANTIC OCEAN", "lon": sea[0], "lat": sea[1], "size": 40, "color": "#9DB4D8", "at": w.at("atlantic", default=0.15)})
+        els.append({"type": "text", "text": "ATLANTIC COAST", "lon": -70.5, "lat": 32.5, "size": 34, "color": "white", "at": w.at("coast", "atlantic", default=0.3)})
+    if o and m.get("territory") and m.get("ship"):
+        tgt = m.get("label_at") or m["center"]
+        els.append({"type": "arrow", "from": {"lon": o["lon"], "lat": o["lat"]}, "to": {"lon": tgt[0] + 7.5, "lat": tgt[1] + 1.5},
+                    "color": "red", "curve": -40, "units": "ship", "count": 3, "at": w.at("established", "founded", "settled", "sailed", default=0.2)})
+    year = (a.get("years") or [None])[0]
+    if year:
+        els.append(text(str(year), MID, 105, 84, "white", at=w.at(str(year), default=0.0)))
+    cam = {"zoom": [1.0, 1.05]}
+    if o and m.get("territory") and m.get("ship"):
+        cam = {"shots": [{"at": 0, "zoom": 1.0}, {"at": 0.55, "zoom": 1.5, "region": m["territory"], "move": "pan"}]}
+    return {"bg": bg, "elements": els, "camera": cam}
+
+
+def L_event_scene(c, a, s, w):
+    """A famous event as a tableau: its real place and date, the people and the things that were there."""
+    e = a.get("context")
+    if not e or e.get("kind") != "event":
+        return None
+    bg = dict(e.get("bg") or {"type": "field"})
+    c.state["bg"] = dict(bg)
+    first = (re.findall(r"[A-Za-z]{4,}", e.get("label", "")) or ["event"])[0]
+    els = [text(e["banner"], MID, 105, 70, "navy", at=0.0), text(e["label"], MID, 215, 62, "red", at=w.at(first, default=0.1), enter="pop")]
+    for k, cr in enumerate(e.get("crowds") or []):
+        els.append(crowd(c, cr["who"], cr["x"], 930, cr.get("count", 10), cr.get("width", 600), 0.55, rows=2,
+                         at=0.05 + 0.08 * k, flip=bool(cr.get("flip")), kind=cr.get("kind", "civ"), coat=cr.get("coat", "#555555")))
+    for k, who in enumerate(e.get("people") or []):             # a name, or {"name", "x"} when the spot matters
+        name, px = (who["name"], who.get("x", 560 + 330 * k)) if isinstance(who, dict) else (who, 560 + 330 * k)
+        els.append(person(c, name, px, FEET, 1.15, at=0.04, year=e.get("year"), pose="point_right" if k == 0 else "hips"))
+    for k, pr in enumerate(e.get("props") or []):
+        if pr["name"] in PROPS:
+            els.append(prop(pr["name"], pr["x"], pr["y"], pr.get("scale", 1.0), at=w.at(pr["name"], default=0.12 + 0.1 * k), enter="grow"))
+    n = next(iter(a.get("numbers") or []), None)
+    if n:                                           # a figure the narrator gives ("342 chests of tea") is shown too
+        els.append(text(str(n.get("shown") or n.get("value"))[:18], 1290, 400, 70, "red", at=w.at(str(n.get("shown") or "").split(" ")[0], default=0.3), enter="pop"))
+    say_ = slot(s, "say")
+    if say_ and any(el.get("type") == "char" for el in els):
+        next(el for el in els if el.get("type") == "char")["say"] = [say(str(say_)[:36], 0.3)]
+    return {"bg": bg, "elements": els, "camera": {"zoom": [1.0, 1.06]}}
+
+
 def L_map_region(c, a, s, w):
+    if a.get("map"):
+        return L_map_story(c, a, s, w)
     m = map_elements(c, a, w, s, move=False)
     if not m:
         return None
@@ -575,6 +657,8 @@ def L_map_region(c, a, s, w):
 
 
 def L_map_move(c, a, s, w):
+    if a.get("map"):
+        return L_map_story(c, a, s, w)
     m = map_elements(c, a, w, s, move=True)
     if not m:
         return None
@@ -583,6 +667,8 @@ def L_map_move(c, a, s, w):
 
 
 def L_country_est(c, a, s, w):
+    if a.get("map"):
+        return L_map_story(c, a, s, w)
     m = map_elements(c, a, w, s, move=False)
     if not m:
         return None
@@ -956,6 +1042,7 @@ LAYOUTS = {
     "cause_effect": L_cause_effect, "before_after": L_before_after, "economic": L_economic, "invention": L_invention,
     "death": L_death, "migration": L_migration, "social_change": L_social_change, "two_talk": L_two_talk, "plot": L_plot,
     "celebration": L_celebration, "disaster": L_disaster, "story_moment": L_story_moment,
+    "map_story": L_map_story, "event_scene": L_event_scene,
 }
 
 

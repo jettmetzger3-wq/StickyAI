@@ -13,9 +13,9 @@ import re
 
 from .. import cache as CA
 from ..engine.schema import BG_TYPES
-from ..knowledge import composer as CO, patterns as PT
+from ..knowledge import composer as CO, patterns as PT, semantics as SM
 from ..knowledge.analysis import analyze
-from . import characters as CH, continuity as CT
+from . import characters as CH, continuity as CT, coverage as CV
 
 CONFIDENT_LOCAL = 6.5          # a local match this strong needs no AI in fast mode
 PLACE_NAMES = ", ".join(t for t in BG_TYPES if t not in ("paper", "sunburst", "ground", "sea", "night", "map", "dark"))
@@ -24,10 +24,13 @@ SYSTEM = ("You are the director of a funny stickman history YouTube channel. For
           "happens and never write coordinates or scene code. You only answer with JSON.")
 
 
-def analyses_for(beats, cast):
+def analyses_for(beats, cast, topic=""):
+    """Local analysis of every beat, plus the meaning layer (named regions, the famous document or event behind the
+    sentence, the story-fitted map). `topic` (the video's title/topic) decides what an ambiguous phrase like 'the colonies' means."""
     seen, out = set(), []
     for b in beats:
-        out.append(analyze(b.get("text", ""), b.get("mood", "fun"), cast, seen))
+        a = analyze(b.get("text", ""), b.get("mood", "fun"), cast, seen)
+        out.append(SM.enrich(a, b.get("text", ""), topic))
     return out
 
 
@@ -57,6 +60,12 @@ def hint_line(a, recent):
         bits.append("year: " + str(a["years"][0]))
     if a.get("place_type"):
         bits.append("setting: " + a["place_type"])
+    pin = SM.pattern_hint(a)
+    if pin:
+        bits.append(f"meaning pins this to {pin}")
+    must = [r["value"] for r in SM.requirements(a, a.get("text", "")) if r["need"] == "must"][:4]
+    if must:
+        bits.append("must show: " + ", ".join(must))
     return " | ".join(bits)
 
 
@@ -90,6 +99,9 @@ HOW TO CHOOSE
 - Fill only the slots that matter. Use EXACT cast names for people. Slot text is short: doc_title is the document's real name
   (max 22 characters), doc_lines are 2-4 lines of at most 24 characters that are really written on it, a quote is at most 6 words,
   a label at most 28 characters. "place" is one of: {PLACE_NAMES}.
+- "needs" is what the viewer must SEE to understand the beat (max 5 short phrases: places, regions, people, documents, objects, numbers).
+  Start from the studio's "must show" list; fix it if it is wrong, and add what it missed. Think about what the narrator MEANS, not
+  which words appear: "England founded colonies on the Atlantic coast" is about the colonies on the coast of North America.
 - "say" is for jokes and in-character lines (at most 2 per beat, 4 words each); nobody speaks unless the beat has a reason.
 - Somber beats: no jokes, no parades; tragedy patterns (death, disaster, battle action) with respectful lines.
 {ex}
@@ -100,7 +112,7 @@ CAST (their looks are fixed by the studio; just use the names):
 BEATS (hints from the studio's own analysis after ->):
 {chr(10).join(lines)}
 
-Answer with JSON only: {{"plan": [{{"beat": <index>, "pattern": "<ID or CUSTOM>", "slots": {{...}}, "say": [{{"who": "<name>", "text": "<line>"}}]}}]}}"""
+Answer with JSON only: {{"plan": [{{"beat": <index>, "pattern": "<ID or CUSTOM>", "needs": ["<what must be seen>"], "slots": {{...}}, "say": [{{"who": "<name>", "text": "<line>"}}]}}]}}"""
 
 
 def parse_plan(data, wanted):
@@ -120,7 +132,8 @@ def parse_plan(data, wanted):
             pid = PT.CUSTOM
         slots = it.get("slots") if isinstance(it.get("slots"), dict) else {}
         say = [s for s in (it.get("say") or []) if isinstance(s, dict) and s.get("text")][:2]
-        out[bi] = dict(pattern=pid, slots=slots, say=say)
+        needs = [str(x).strip()[:60] for x in (it.get("needs") or []) if isinstance(x, (str, int)) and str(x).strip()][:6]
+        out[bi] = dict(pattern=pid, slots=slots, say=say, needs=needs)
     return out
 
 
@@ -211,15 +224,20 @@ def build(ctx, llm, script, todo, registry, analyses, tracker, profile, call, hi
     for i in todo:
         a = analyses[i]
         cstate = tracker.before(i) if tracker else {}
-        c = CO.Ctx(cast=cast, idx=i, state=cstate, title=title)
         entry = plans.get(i)
-        sc, pid = compose_one(entry, beats[i], a, c, best[i])
-        if sc is None:
+        reqs = SM.requirements(a, beats[i].get("text", ""), (entry or {}).get("needs"))
+        got = CV.choose(entry, beats[i], a, reqs, cast, i, cstate, title, best[i])
+        if got is None:
             custom.append(i)
-            info[i] = dict(pattern=PT.CUSTOM, source="custom", local=best[i][0], score=round(best[i][1], 1))
+            info[i] = dict(pattern=PT.CUSTOM, source="custom", local=best[i][0], score=round(best[i][1], 1), reqs=reqs)
             continue
+        sc, pid = got["scene"], got["pattern"]
+        if entry and entry.get("say"):
+            apply_say(sc, entry["say"], beats[i].get("text", ""))
         scenes[i] = sc
-        info[i] = dict(pattern=pid, source="plan" if entry else "local", local=best[i][0], score=round(best[i][1], 1))
+        info[i] = dict(pattern=pid, source="plan" if entry else "local", local=best[i][0], score=round(best[i][1], 1),
+                       coverage=got["coverage"]["score"], reqs=reqs, tried=got.get("tried"),
+                       planned=(entry or {}).get("pattern"))
         if tracker:
-            tracker.record(i, sc, a, pid, c.state)
+            tracker.record(i, sc, a, pid, got["state"], beats[i])
     return scenes, custom, info

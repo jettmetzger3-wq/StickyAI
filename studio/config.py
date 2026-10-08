@@ -141,6 +141,8 @@ DEFAULT_SETTINGS = {
                "outro_line": "And that's the story of {title}! I'm {name}. See you next time!"},
     "share_copy": True,
     "share_max_mb": 30,
+    "research": {"enabled": True, "mode": "", "reuse_cached_research": True, "require_approval_for_extra_research": True},
+    "coverage_gate": "block",       # block = don't render scenes that obviously don't show their narration; warn = render them anyway
     "share_height": 720,            # the small share copy is this many pixels tall (0 = same size as the video)
     "render_workers": 0,
     # Local mode safety net: the run pauses and asks again before one video's spending goes over this.

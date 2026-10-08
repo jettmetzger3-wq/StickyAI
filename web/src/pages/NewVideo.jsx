@@ -99,6 +99,22 @@ function UsageCard({ u }) {
           About {u.saved_pct}% less than the old way (~{kfmt(u.old_way.tokens)} tokens, {u.old_way.calls} calls).
         </p>
       )}
+      {u.levels && (
+        <div className="mt-2 grid grid-cols-1 gap-x-4 text-xs sm:grid-cols-2">
+          {Object.entries(u.levels).map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-2">
+              <span className="text-stone-600 dark:text-zinc-400">{k}</span>
+              <b className={v.startsWith("LOCAL") || v === "NONE" ? "text-emerald-700 dark:text-emerald-400" : v === "HIGH" ? "text-red-700 dark:text-red-400" : ""}>{v}</b>
+            </div>
+          ))}
+        </div>
+      )}
+      {u.research && (
+        <p className="mt-2 text-xs text-stone-600 dark:text-zinc-400">
+          Web research: <b>{u.research.mode}</b>, at most {u.research.max_queries} searches and {u.research.max_sources} sources
+          {u.research.covered ? " (already saved from an earlier video: 0 searches)" : u.research.saved ? " (part of it is saved: only the gaps are searched)" : ""}. It stops when the evidence is enough and asks before going over.
+        </p>
+      )}
       {u.total.cached > 0 && <p className="mt-1 text-xs text-stone-500 dark:text-zinc-400">{u.total.cached} steps are already saved from earlier work and cost nothing.</p>}
       {u.warnings?.map((w, i) => (
         <p key={i} className="mt-2 rounded-lg bg-amber-100 p-2 text-xs text-amber-900 dark:bg-amber-900/30 dark:text-amber-200">
@@ -144,6 +160,7 @@ export default function NewVideo() {
   const [shareCopy, setShareCopy] = useState(true);
   const [mascot, setMascot] = useState(true);
   const [genMode, setGenMode] = useState("normal");
+  const [researchMode, setResearchMode] = useState("");
   const [usageByMode, setUsageByMode] = useState(null);
   const [credit, setCredit] = useState(true);
   const [tier, setTier] = useState(planMode && cfg.user?.usage?.plan === "pro" ? "pro" : "free");
@@ -269,6 +286,7 @@ export default function NewVideo() {
         credit_source: credit,
         mascot,
         gen_mode: genMode,
+        research_mode: researchMode,
         providers,
         voice,
         approve,
@@ -495,6 +513,15 @@ export default function NewVideo() {
                 );
               })}
             </div>
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <span className="text-stone-600 dark:text-zinc-400">Web research</span>
+              <select className="rounded-lg border border-stone-300 px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900" value={researchMode} onChange={(e) => setResearchMode(e.target.value)}>
+                <option value="">Same as the quality mode</option>
+                <option value="fast">Fast (about 4 searches)</option>
+                <option value="normal">Normal (about 10 searches)</option>
+                <option value="deep">Deep (about 20 searches, more checking)</option>
+              </select>
+            </label>
             <p className="mt-2 text-xs text-stone-500 dark:text-zinc-400">
               The studio keeps what it already knows (answers, research, drawn props), so repeat topics cost less every time. Change the default in Settings.
             </p>
